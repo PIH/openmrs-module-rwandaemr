@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<module configVersion="1.2">
+
+	<!-- Module Properties -->
+	<id>${project.parent.artifactId}</id>
+	<name>${project.parent.name}</name>
+	<version>${project.parent.version}</version>
+	<package>${project.parent.groupId}.${project.parent.artifactId}</package>
+	<author>Rwanda</author>
+	<description>
+		${project.parent.description}
+	</description>
+	<updateURL>https://dev.openmrs.org/modules/download/${project.parent.artifactId}/update.rdf</updateURL>
+	<require_version>${openMRSVersion}</require_version>
+	
+	<require_modules>
+        <require_module version="${addresshierarchyrwandaVersion}">org.openmrs.module.addresshierarchyrwanda</require_module>
+        <require_module version="${calculationVersion}">org.openmrs.calculation</require_module>
+        <require_module version="${formconceptsVersion}">org.openmrs.module.formconcepts</require_module>
+        <require_module version="${groovyVersion}">org.openmrs.module.groovy</require_module>
+        <require_module version="${heightweighttrackerVersion}">org.openmrs.module.heightweighttracker</require_module>
+        <require_module version="${htmlformentryVersion}">org.openmrs.module.htmlformentry</require_module>
+        <require_module version="${htmlformflowsheetVersion}">org.openmrs.module.htmlformflowsheet</require_module>
+        <require_module version="${htmlwidgetsVersion}">org.openmrs.module.htmlwidgets</require_module>
+        <require_module version="${idgenVersion}">org.openmrs.module.idgen</require_module>
+        <require_module version="${laboratorymanagementVersion}">org.openmrs.module.laboratorymanagement</require_module>
+        <require_module version="${logicVersion}">org.openmrs.logic</require_module>
+        <require_module version="${metadatamappingVersion}">org.openmrs.module.metadatamapping</require_module>
+        <require_module version="${metadatasharingVersion}">org.openmrs.module.metadatasharing</require_module>
+        <require_module version="${mohappointmentVersion}">org.openmrs.module.mohappointment</require_module>
+        <require_module version="${mohbillingVersion}">org.openmrs.module.mohbilling</require_module>
+        <require_module version="${mohtracVersion}">org.openmrs.module.mohtracportal</require_module>
+        <require_module version="${namephoneticsVersion}">org.openmrs.module.namephonetics</require_module>
+        <require_module version="${omodExportVersion}">org.openmrs.module.omodexport</require_module>
+        <require_module version="${orderextensionVersion}">org.openmrs.module.orderextension</require_module>
+        <require_module version="${pharmacymanagementVersion}">org.openmrs.module.pharmacymanagement</require_module>
+        <require_module version="${reportingcompatibilityVersion}">org.openmrs.module.reportingcompatibility</require_module>
+        <require_module version="${reportingobjectgroupVersion}">org.openmrs.module.reportingobjectgroup</require_module>
+        <require_module version="${reportingVersion}">org.openmrs.module.reporting</require_module>
+        <require_module version="${rowperpatientreportsVersion}">org.openmrs.module.rowperpatientreports</require_module>
+        <require_module version="${rwandahivflowsheetVersion}">org.openmrs.module.rwandahivflowsheet</require_module>
+        <require_module version="${rwandaprimarycareVersion}">org.openmrs.module.rwandaprimarycare</require_module>
+        <require_module version="${rwandareportsVersion}">org.openmrs.module.rwandareports</require_module>
+        <require_module version="${serializationVersion}">org.openmrs.module.serialization.xstream</require_module>
+        <require_module version="${simplelabentryVersion}">org.openmrs.module.simplelabentry</require_module>
+        <require_module version="${syncVersion}">org.openmrs.module.sync</require_module>
+        <require_module version="${validationVersion}">org.openmrs.module.validation</require_module>
+        <require_module version="${webservicesRestVersion}">org.openmrs.module.webservices.rest</require_module>
+    </require_modules>
+
+	<activator>${project.parent.groupId}.${project.parent.artifactId}.RwandaEmrActivator</activator>
+
+	<messages>
+		<lang>en</lang>
+		<file>messages.properties</file>
+	</messages>
+
+</module>
+
