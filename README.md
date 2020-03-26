@@ -1,23 +1,37 @@
 openmrs-module-rwandaemr
 ===================================
 
-Using the OpenMRS SDK to create a Rwanda development environment
+Using Docker to ensure a valid MySQL starter database is available
+---------------------------------------------------------------
+
+1. Create a starting directory containing a mysql data directory that can be mounted as a volume (eg. ~/environments/rwandaemr/mysqldata)
+2. Create another directory on your machine that you want to make available to share files with your container: (eg. ~/environments/rwandaemr/share)
+3. Assume you want to create a container called mysql-rwanda, with MySQL running on port 3308, with root password of "root" and linked to these directories
+4. docker run --name mysql-rwanda -d -p 3308:3306 -e MYSQL_ROOT_PASSWORD=root -v ~/environments/rwandaemr/share:/rwandaemr -v ~/environments/rwandaemr/mysqldata:/var/lib/mysql mysql:5.6 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max_allowed_packet=1G
+
+NOTES:
+
+* In some cases you may run into a weird problem where the moh_billing tables are invalid and need to be dropped, if so this will need investigation
+* In some cases we found that we needed to upgrade module versions or exclude certain modules that are not in Maven.  See pom.xml for specific modules and versions.
+
+Using the OpenMRS SDK to create a Rwanda development environment that uses this starter DB
 ---------------------------------------------------------------
 
 1. Install the OpenMRS SDK as described here: https://wiki.openmrs.org/display/docs/OpenMRS+SDK#OpenMRSSDK-Installation
+   * Note, you will need to ensure you are using openjdk-8-jdk for this, as Oracle JDK will not work.  You will also need openjdk-7-jdk to run the 1.9.x instance.
 2. Clone this project
 3. Run "mvn clean install" on this project
 4. Make sure that the "properties" variables in the main rwandaemr pom are all set the proper versions of modules you want to run
 5. Run "mvn openmrs-sdk:setup" (from any directory) --
     **Note**: if the build fails at any time during this process because it is saying it can't find a module in the Maven repo, you may need
     to check out that module and install it locally ("mvn clean install")
-    1. Pick the name of the server (this will determine the subdirectory off ~/openmrs/ where it created the information for this server--in my case, I used 'rwanda'
+    1. Pick the name of the server (this will determine the subdirectory off ~/openmrs/ where it created the information for this server--in my case, I used 'rwandaemr'
     2. For "Distribution" or "Platform" chose "Distribution"
     3. For distribution version chose "Other...."
     4. For the distribution, use this module "org.openmrs.module:rwandaemr:1.0-SNAPSHOT" (or whatever the current version of this module is)
     5. Choose the port to run tomcat on (usually 8080)
     5. Choose port to debug on (usually 1044)
-    6. Chose how you want to use MySQL... via a local install of MySQL or docker
+    6. Chose how you want to use MySQL... via a local install of MySQL or docker, you should use option #3 and point it to your DB created above.
     7. For the DB name, chose the existing Rwanda database you want to use: make sure to select the option to NOT overwrite the existing database
     8. Enter mysql user/password for a user that has rights to create databases, etc
     9. Chose the JAVA HOME you want to use (should be Java 7)
