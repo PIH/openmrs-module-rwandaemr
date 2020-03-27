@@ -33,8 +33,9 @@ Using the OpenMRS SDK to create a Rwanda development environment that uses this 
     5. Choose port to debug on (usually 1044)
     6. Chose how you want to use MySQL... via a local install of MySQL or docker, you should use option #3 and point it to your DB created above.
     7. For the DB name, chose the existing Rwanda database you want to use: make sure to select the option to NOT overwrite the existing database
-    8. Enter mysql user/password for a user that has rights to create databases, etc
-    9. Chose the JAVA HOME you want to use (should be Java 7)
+    8. For the DB url, you likely need to append some arguments like follows:   &zeroDateTimeBehavior=convertToNull
+    9. Enter mysql user/password for a user that has rights to create databases, etc
+    10. Chose the JAVA HOME you want to use (should be Java 7)
 
 6. Run "mvn openmrs-sdk:run"
 7. If everything starts up, but when you try to go to the login page (or any other page) you get a big stack trace that looks like it is due to Groovy, you need to remove the groovy jar file from the lib file.  Use the desktop file UI to open the openmrs-1.9.x.war file and remove the groovy jar from the logic omod.
