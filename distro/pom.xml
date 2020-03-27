@@ -200,6 +200,12 @@
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
+                    <artifactId>usagestatistics-omod</artifactId>
+                    <version>${usagestatisticsVersion}</version>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>org.openmrs.module</groupId>
                     <artifactId>validation-omod</artifactId>
                     <version>${validationVersion}</version>
                     <scope>provided</scope>

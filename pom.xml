@@ -27,7 +27,7 @@
         <calculationVersion>1.2</calculationVersion>
         <idgenVersion>4.5.0</idgenVersion>
         <groovyVersion>2.2.4</groovyVersion>
-        <heightweighttrackerVersion>1.1-SNAPSHOT</heightweighttrackerVersion>
+        <heightweighttrackerVersion>1.0.3</heightweighttrackerVersion>
         <htmlformentryVersion>3.9.2</htmlformentryVersion>
         <htmlformflowsheetVersion>1.4.1</htmlformflowsheetVersion>
         <htmlwidgetsVersion>1.10.0</htmlwidgetsVersion>
@@ -53,6 +53,7 @@
         <serializationVersion>0.2.14</serializationVersion>
         <simplelabentryVersion>1.9-SNAPSHOT</simplelabentryVersion>
         <syncVersion>1.3</syncVersion>
+		<usagestatisticsVersion>1.4.3</usagestatisticsVersion>
         <validationVersion>1.0.1</validationVersion>
         <webservicesRestVersion>2.28.0</webservicesRestVersion>
     </properties>
