@@ -43,7 +43,7 @@
         <omodExportVersion>1.0</omodExportVersion>
         <orderextensionVersion>2.0-SNAPSHOT</orderextensionVersion>
         <pharmacymanagementVersion>1.4.0-SNAPSHOT</pharmacymanagementVersion>
-        <reportingcompatibilityVersion>1.5.13.1-SNAPSHOT</reportingcompatibilityVersion>
+        <reportingcompatibilityVersion>1.5.15</reportingcompatibilityVersion>
         <reportingobjectgroupVersion>1.2-SNAPSHOT</reportingobjectgroupVersion>
         <reportingVersion>1.20.0</reportingVersion>
         <rowperpatientreportsVersion>1.5.6-SNAPSHOT</rowperpatientreportsVersion>
