@@ -14,6 +14,7 @@
             https://github.com/rwanda-rbc-emr/openmrs-module-mohbeforeoneelevenupgrade
     -->
 
-    <include file="migrations/ensure-orders-have-valid-start-dates.xml" relativeToChangelogFile="true" />
+    <include file="migrations/ensure-orders-have-start-dates.xml" relativeToChangelogFile="true" />
+<!--    <include file="migrations/ensure-orders-have-encounter-ids.xml" relativeToChangelogFile="true" />-->
 
 </databaseChangeLog>

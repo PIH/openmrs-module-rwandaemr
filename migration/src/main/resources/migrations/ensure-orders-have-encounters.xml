@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- In 1.10+, all orders must have a valid encounter associated with them -->
+
+    <changeSet id="ensure-orders-have-encounters" author="IMB">
+        <sql>
+            There are over 300,000 orders on both Rwink and Butaro with no linked encounter
+            select count(*) from orders where encounter_id is null
+
+            Of these, there are still between 100k and 150k on each server with no encounters on the same day
+
+            select count(*)
+            from orders o
+            left join encounter e on o.patient_id = e.patient_id and date(o.start_date) = date(e.encounter_datetime)
+            where e.encounter_id is null;
+
+            So we need to figure out a strategy for this.
+
+            Safest thing for now might be to create new encounters for all of these.  Later on, if we want to merge
+            some of these into other existing enocunters for the same patient on the same day, we can do so,
+            but that isn't needed for migration and might not be 100% accurate.
+
+            This could be something like a SQL script that runs the following statements:
+
+            1. Create new encounter type if not exists with known, fixed uuid (eg. with name "Drug Order Encounter")
+            2. Get this encounter_type_id as @encId
+            3. Add new encounter for each patient/order.start_date combination
+            4. Update all orders with null encounter by setting them to the encounter for matching patient/date with the created encounter_type
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
