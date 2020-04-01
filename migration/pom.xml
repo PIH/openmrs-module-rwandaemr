@@ -1,0 +1,55 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.openmrs.module</groupId>
+        <artifactId>rwandaemr</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>rwandaemr-migration</artifactId>
+    <packaging>pom</packaging>
+    <name>rwandaemr-migration</name>
+    <description>Rwanda EMR 1.x to 2.x migration project</description>
+
+    <properties>
+        <db_host>localhost</db_host>
+        <db_port>3306</db_port>
+        <db_name>openmrs</db_name>
+        <db_user>openmrs</db_user>
+        <db_password>openmrs</db_password>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>5.1.8</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.liquibase</groupId>
+                <artifactId>liquibase-maven-plugin</artifactId>
+                <version>3.8.8</version>
+                <configuration>
+                    <changeLogFile>src/main/resources/migrations.xml</changeLogFile>
+                    <driver>com.mysql.jdbc.Driver</driver>
+                    <url>jdbc:mysql://${db_host}:${db_port}/${db_name}?autoReconnect=true&amp;sessionVariables=default_storage_engine%3DInnoDB&amp;useUnicode=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull</url>
+                    <username>${db_user}</username>
+                    <password>${db_password}</password>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
