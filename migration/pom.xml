@@ -10,7 +10,7 @@
 
     <artifactId>rwandaemr-migration</artifactId>
     <packaging>pom</packaging>
-    <name>rwandaemr-migration</name>
+    <name>Rwanda EMR Migration</name>
     <description>Rwanda EMR 1.x to 2.x migration project</description>
 
     <properties>
