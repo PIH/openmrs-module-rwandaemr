@@ -7,7 +7,7 @@ Using Docker to ensure a valid MySQL starter database is available
 1. Create a starting directory containing a mysql data directory that can be mounted as a volume (eg. ~/environments/rwandaemr/mysqldata)
 2. Create another directory on your machine that you want to make available to share files with your container: (eg. ~/environments/rwandaemr/share)
 3. Assume you want to create a container called mysql-rwanda, with MySQL running on port 3308, with root password of "root" and linked to these directories
-4. docker run --name mysql-rwanda -d -p 3308:3306 -e MYSQL_ROOT_PASSWORD=root -v ~/environments/rwandaemr/share:/rwandaemr -v ~/environments/rwandaemr/mysqldata:/var/lib/mysql mysql:5.6 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max_allowed_packet=1G
+4. docker run --name mysql-rwanda -d -p 3308:3306 -e MYSQL_ROOT_PASSWORD=root -v ~/environments/rwandaemr/share:/rwandaemr -v ~/environments/rwandaemr/mysqldata:/var/lib/mysql mysql:5.6 --character-set-server=utf8 --collation-server=utf8_unicode_ci --max_allowed_packet=1G
 
 NOTES:
 
