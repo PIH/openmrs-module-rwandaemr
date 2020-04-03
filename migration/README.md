@@ -6,7 +6,7 @@ This is not packaged within the API or OMOD, but is intended to be used standalo
 
 To execute this, you should run the following command from this directory:
 
-`mvn liquibase-update`
+`mvn liquibase:update`
 
 This accepts several arguments to control access to the database to execute the migrations against.  
 The arguments are as follows, which show their default values that will be used if they are not explicity included:
