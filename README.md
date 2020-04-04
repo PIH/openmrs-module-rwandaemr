@@ -71,3 +71,5 @@ You can use the OpenMRS SDK to "watch" modules (so that an openmrs-sdk:run autom
 For more details, read more about the SDK here:
 
 https://wiki.openmrs.org/display/docs/OpenMRS+SDK#OpenMRSSDK-Installation
+
+-----
