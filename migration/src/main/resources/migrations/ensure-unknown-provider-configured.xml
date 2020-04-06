@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- An Unknown Provider must exist and be properly configured within global properties -->
+
+    <changeSet id="ensure-unknown-provider-configured" author="IMB">
+        <preConditions>
+            <sqlCheck expectedResult="1">
+                select      count(*)
+                from        provider p
+                inner join  person_name n on p.person_id = n.person_id and n.voided = 0
+                where       n.given_name = 'UNKNOWN' and n.family_name = 'PROVIDER'
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            # TODO: Confirm that above precondition succeeds on Rwink and Butaro,
+            write SQL to set the global property "provider.unknownProviderUuid" to the uuid of the unknown provider.
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

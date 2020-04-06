@@ -5,9 +5,6 @@
 
         update orders set auto_expire_date=start_date where order_type_id=5 and auto_expire_date is null;
 
-        create a provider to serve as the "Unknown Provider" and set the global property "provider.unknownProviderUuid" to the uuid of this provider.
-
-
         discontinued orders cannot have null discontinued_date values,
 
         on my laptop I set this as discontinued_date=start_date where discontinued=1 and discontinued_date is null
