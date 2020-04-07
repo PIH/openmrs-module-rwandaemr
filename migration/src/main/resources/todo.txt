@@ -79,10 +79,6 @@
 
     <!-- TODO: All users that created orders(orders.orderer) have provider accounts -->
 
-    <!-- TODO: Create an "Unknown Provider" account if it does not already exist -->
-
-    <!-- TODO: Set the global property "provider.unknownProviderUuid" to the uuid of the unknown provider provider -->
-
     <!--
         TODO:  All existing free text drug order dose units and frequencies have been mapped to concept ids via the order_entry_upgrade_settings.txt file
         ** Import / Create any new concepts needed from CIEL, MOH, PIH.  See Reference_Application_Order_Entry_Concepts-3.zip
