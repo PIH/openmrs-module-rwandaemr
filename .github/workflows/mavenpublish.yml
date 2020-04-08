@@ -3,9 +3,10 @@
 
 name: Maven Package
 
+# This action will run on every push to master, to deploy SNAPSHOT releases
+# Determine if we should add a trigger on.release.types: [created] and how this will interact with on push
+
 on:
-  release:
-    types: [created]
   push:
     branches: [master]   
 
@@ -15,9 +16,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v2 # This checks out the code
 
-    - uses: actions/cache@v1
+    - uses: actions/cache@v1  # This sets up caching of Maven dependencies to speed up build times
       with:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
