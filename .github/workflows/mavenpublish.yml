@@ -1,10 +1,8 @@
-# This workflow will build a package using Maven and then publish it to GitHub packages when a release is created
-# For more information see: https://github.com/actions/setup-java#apache-maven-with-a-settings-path
-
-name: Maven Package
-
-# This action will run on every push to master, to deploy SNAPSHOT releases
+# This workflow will build a package using Maven and then publish it to GitHub packages on each push to master
+# This is based on https://github.com/actions/setup-java#apache-maven-with-a-settings-path
 # Determine if we should add a trigger on.release.types: [created] and how this will interact with on push
+
+name: Maven Publish
 
 on:
   push:
