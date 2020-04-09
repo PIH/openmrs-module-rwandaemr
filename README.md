@@ -79,8 +79,6 @@ Releasing packages and versions
 
 This repository uses Github Actions and Github Packages to orchestrate and publish build artifacts.  Still to work on:
 
-* Add action on pull request to run compile and test, but not deploy
-
 * Add some mechanism, either just instructions or a shell script to automate for the below...
   * Read pom.xml and determine current version to release
   * Increment this by one maintenance (or minor, not sure) version to determine the next version to set and add -SNAPSHOT
