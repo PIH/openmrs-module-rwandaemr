@@ -2,7 +2,7 @@
 # This is based on https://github.com/actions/setup-java#apache-maven-with-a-settings-path
 # Determine if we should add a trigger on.release.types: [created] and how this will interact with on push
 
-name: Maven Publish
+name: Build-Test-Deploy Master
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
     - name: Build with Maven
       run: mvn -B package --file pom.xml
 
-    - name: Publish to GitHub Packages Apache Maven
+    - name: Publish to GitHub Packages Maven Repository
       run: mvn deploy
       env:
         GITHUB_TOKEN: ${{ github.token }}
