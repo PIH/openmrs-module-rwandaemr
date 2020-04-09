@@ -89,10 +89,21 @@ This repository uses Github Actions and Github Packages to orchestrate and publi
   * Use mvn versions again to set poms to new development versions, commit, and push
   * Initiate github release off of the created tag?
 
+* In order to be able to retrieve the published SNAPSHOTS from the Github Packages we need to add a new repository to maven settings file( **~/.m2/settings.xml**):
+>
+    <repository>
+      <id>github</id>
+      <name>GitHub PIH Apache Maven Packages</name>
+      <url>https://maven.pkg.github.com/PIH/openmrs-module-rwandaemr</url>        
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>          
+    </repository>  
+  
+
 * Figure out how to configure dependencies building.  Look into configuring webhooks on PackageEvent and other triggers.
   * One possibility are to trigger a repository dispatch action from one build to kick off another
     - https://help.github.com/en/actions/reference/events-that-trigger-workflows#external-events-repository_dispatch
   * Another possibility, at least initially, would be to just run all jobs on a regular cron (hourly, daily, etc.) 
     - https://help.github.com/en/actions/reference/events-that-trigger-workflows#scheduled-events-schedule
 
-Test Change Text
