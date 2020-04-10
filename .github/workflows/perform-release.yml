@@ -41,5 +41,5 @@ jobs:
     - name: Test commit
       run: |
         touch $GITHUB_WORKSPACE/README.md
-        git commit -m "Test Commit"
+        git commit -m "Test Commit" $GITHUB_WORKSPACE
         git push
