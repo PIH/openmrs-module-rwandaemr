@@ -1,13 +1,13 @@
 # For every pull request, this will run mvn verify on the PR using Java 8
 
-name: Build-Test PRs
+name: Verify PRs
 
 on:
   pull_request:
     branches: ['master']
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
 
     steps:

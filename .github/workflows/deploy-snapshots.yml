@@ -1,14 +1,14 @@
 # For every commit pushed to the master branch, this will compile, package, test, verify, and deploy
 # This is only configured to deploy to the SNAPSHOTS repository, so is not intended to be used for releases
 
-name: Build-Test-Deploy Master
+name: Deploy Snapshots
 
 on:
   push:
     branches: ['master']
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
 
