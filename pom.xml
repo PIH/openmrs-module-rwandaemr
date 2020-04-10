@@ -217,10 +217,15 @@
 
 	<distributionManagement>
 		<repository>
-			<id>github</id>
-			<name>GitHub PIH Apache Maven Packages</name>
-			<url>https://maven.pkg.github.com/PIH/openmrs-module-rwandaemr</url>
+			<id>openmrs-repo-modules-pih</id>
+			<name>OpenMRS PIH Modules</name>
+			<url>https://openmrs.jfrog.io/artifactory/modules-pih/</url>
 		</repository>
+		<snapshotRepository>
+			<id>openmrs-repo-modules-pih-snapshots</id>
+			<name>OpenMRS PIH Module Snapshots</name>
+			<url>https://openmrs.jfrog.io/artifactory/modules-pih-snapshots/</url>
+		</snapshotRepository>
 	</distributionManagement>
 
 </project>
