@@ -8,8 +8,7 @@
 	<name>Rwanda EMR Module</name>
 
 	<scm>
-		<connection>scm:git:git@github.com:pih/openmrs-module-rwandaemr.git</connection>
-		<developerConnection>scm:git:git@github.com:pih/openmrs-module-rwandaemr.git</developerConnection>
+		<developerConnection>scm:git:https://github.com/pih/openmrs-module-rwandaemr</developerConnection>
 		<url>https://github.com/pih/openmrs-module-rwandaemr</url>
 		<tag>HEAD</tag>
 	</scm>
