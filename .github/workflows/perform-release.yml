@@ -14,14 +14,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      # Check out the code
+    - uses: actions/checkout@v2
+
+      # Set up git config
     - name: Setup Git Config
       run: |
         git config user.email "github-action@users.noreply.github.com"
         git config user.name "Github Action"
         git config user.password "$GITHUB_TOKEN"
-
-      # Check out the code
-    - uses: actions/checkout@v2
 
       # Enable caching of Maven dependencies to speed up job execution.  See https://github.com/actions/cache
     - uses: actions/cache@v1
