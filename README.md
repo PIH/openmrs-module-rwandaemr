@@ -77,7 +77,7 @@ https://wiki.openmrs.org/display/docs/OpenMRS+SDK#OpenMRSSDK-Installation
 Releasing packages and versions
 ---------------------------------
 
-This repository uses Github Actions and Github Packages to orchestrate and publish build artifacts.  Still to work on:
+This repository uses Github Actions to orchestrate and publish build artifacts.  Still to work on:
 
 * Add some mechanism, either just instructions or a shell script to automate for the below...
   * Read pom.xml and determine current version to release
@@ -88,17 +88,6 @@ This repository uses Github Actions and Github Packages to orchestrate and publi
   * Tag this with the given version number
   * Use mvn versions again to set poms to new development versions, commit, and push
   * Initiate github release off of the created tag?
-
-* In order to be able to retrieve the published SNAPSHOTS from the Github Packages we need to add a new repository to maven settings file( **~/.m2/settings.xml**):
->
-    <repository>
-      <id>github</id>
-      <name>GitHub PIH Apache Maven Packages</name>
-      <url>https://maven.pkg.github.com/PIH/openmrs-module-rwandaemr</url>        
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>          
-    </repository>  
   
 
 * Figure out how to configure dependencies building.  Look into configuring webhooks on PackageEvent and other triggers.
