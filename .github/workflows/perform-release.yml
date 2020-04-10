@@ -1,0 +1,44 @@
+# Performing a release is done by pushing a branch with a special name - 'github_action_release'
+# This will kick off this workflow, which will attempt to update the pom by removing SNAPSHOT, commit these changes,
+# build, test, and deploy this to the non-SNAPSHOT Maven repository, update the pom to next SNAPSHOT and commit,
+# merge this branch down to master, and then deletes this branch
+
+name: Perform Release
+
+on:
+  push:
+    branch: ['github_action_release']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Setup Git Config
+      run: |
+        git config user.email "github-action@users.noreply.github.com"
+        git config user.name "Github Action"
+        git config user.password "$GITHUB_TOKEN"
+
+      # Check out the code
+    - uses: actions/checkout@v2
+
+      # Enable caching of Maven dependencies to speed up job execution.  See https://github.com/actions/cache
+    - uses: actions/cache@v1
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+
+      # Set up Java 1.8 with Maven including a server.xml file for authenticating to github
+    - name: Set up JDK 1.8
+      uses: actions/setup-java@v1
+      with:
+        java-version: 1.8
+
+    - name: Test commit
+      run: |
+        touch $GITHUB_WORKSPACE/README.md
+        git commit -m "Test Commit"
+        git push

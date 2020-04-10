@@ -77,6 +77,8 @@ https://wiki.openmrs.org/display/docs/OpenMRS+SDK#OpenMRSSDK-Installation
 Releasing packages and versions
 ---------------------------------
 
+** Snapshot Releases **
+
 This repository uses Github Actions to orchestrate and publish build artifacts.  Still to work on:
 
 * Add some mechanism, either just instructions or a shell script to automate for the below...
