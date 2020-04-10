@@ -35,4 +35,5 @@ jobs:
     - name: Publish to GitHub Packages Maven Repository
       run: mvn deploy --settings $GITHUB_WORKSPACE/maven-settings.xml
       env:
-        GITHUB_TOKEN: ${{ github.token }}
+        BINTRAY_USERNAME: ${{ secrets.BINTRAY_USERNAME }}
+        BINTRAY_PASSWORD: ${{ secrets.BINTRAY_PASSWORD }}
