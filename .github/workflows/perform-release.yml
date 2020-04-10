@@ -40,6 +40,6 @@ jobs:
 
     - name: Test commit
       run: |
-        touch $GITHUB_WORKSPACE/README.md
-        git commit -m "Test Commit" $GITHUB_WORKSPACE
+        echo 'Test Run: $GITHUB_RUN_ID' >> $GITHUB_WORKSPACE/test.txt
+        git commit -m "Test Commit" .
         git push
