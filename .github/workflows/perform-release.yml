@@ -7,7 +7,7 @@ name: Perform Release
 
 on:
   push:
-    branch: ['ci_release']
+    branches: ['ci_release']
 
 jobs:
   deploy:
