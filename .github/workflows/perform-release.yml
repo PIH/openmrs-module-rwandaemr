@@ -52,3 +52,10 @@ jobs:
       env:
         BINTRAY_USERNAME: pih
         BINTRAY_PASSWORD: ${{ secrets.BINTRAY_PASSWORD }}
+
+      # Once the release is done, run a final deploy to ensure the next SNAPSHOT is also built and deployed to Maven
+    - name: Maven Deploy
+      run: mvn -B deploy --file pom.xml
+      env:
+        BINTRAY_USERNAME: pih
+        BINTRAY_PASSWORD: ${{ secrets.BINTRAY_PASSWORD }}
