@@ -7,7 +7,7 @@
 
     <!-- In 1.10+, all discontinued orders should have the discontinued_date and discontinued_by fields set. -->
 
-    <changeSet id="ensure-orders-have-encounters" author="IMB">
+    <changeSet id="ensure-orders-discontinued-date" author="IMB">
         <sql>
             step  1
 

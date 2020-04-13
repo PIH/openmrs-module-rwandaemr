@@ -2,18 +2,6 @@
     <!--
 
 
-    step 2
-
-
-        check for
-
-        select distinct u.person_id from orders o,users u where o.orderer=u.user_id and u.person_id not in (select person_id from provider);
-
-        if return something then run this
-
-        insert into provider(person_id, identifier, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid)
-        select distinct u.person_id, u.system_id, 1, CURRENT_TIMESTAMP, u.retired, u.retired_by, u.date_retired, u.retire_reason, UUID()
-        from orders o,users u where o.orderer=u.user_id and u.person_id not in (select person_id from provider);
 
 
 
