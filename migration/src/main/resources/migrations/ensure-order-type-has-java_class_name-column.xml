@@ -8,11 +8,30 @@
     <!-- In 1.10+, All users that created orders(orders.orderer) have provider accounts -->
 
     <changeSet id="ensure-order-type-has-java_class_name-column" author="IMB">
-        <sql>
-            ALTER TABLE `order_type`
-            ADD COLUMN `java_class_name` VARCHAR(255) DEFAULT NULL,
-            ADD COLUMN `parent` INT(11) DEFAULT NULL;
-        </sql>
+
+        <!-- TODO: All drugs with a dose_strength specified have the units field set too -->
+
+        <!-- Ensure order_type table has java_class_name and parent columns.  Credit k-joseph
+        <changeSet id="imbmigrations-1.10-add-order-type-columns" author="IMB">
+            <preConditions onFail="MARK_RAN">
+                <not><columnExists tableName="order_type" columnName="java_class_name"/></not>
+                <not><columnExists tableName="order_type" columnName="parent"/></not>
+            </preConditions>
+            <comment>
+                Add java_class_name and parent columns to order_type table
+            </comment>
+            <addColumn tableName="order_type">
+                <column name="java_class_name" type="varchar(255)" />
+            </addColumn>
+            <addColumn tableName="order_type">
+                <column name="parent" type="int(11)" />
+            </addColumn>
+        </changeSet>
+     -->
+        <!--
+            TODO: Ensure all existing order types have a valid java_class_name populated
+            This should include for drug order, since core will only set this if the uuid of this type is 131168f4-15f5-102d-96e4-000c29c2a5d7, and ours is not
+        -->
     </changeSet>
 
 </databaseChangeLog>

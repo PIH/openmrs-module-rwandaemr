@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- In 1.10+, All users that created orders(orders.orderer) have provider accounts -->
+
+    <changeSet id="map-dose-units-and-frequencies" author="IMB">
+        <sql>
+            <!--
+                TODO:  All existing free text drug order dose units and frequencies have been mapped to concept ids via the order_entry_upgrade_settings.txt file
+                ** Import / Create any new concepts needed from CIEL, MOH, PIH.  See Reference_Application_Order_Entry_Concepts-3.zip
+                ** Add order_entry_upgrade_settings.txt file to the application data directory (.OpenMRS)
+                ** Get unique strings from drug_order.frequency & drug_order.units
+                ** Get appropriate concept ids that match each of these after adding them above
+                ** Put these in a properties file structured as string=conceptId
+                ** Will need to escape characters potentially ( eg. once\ a\ day=65 )
+            -->
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

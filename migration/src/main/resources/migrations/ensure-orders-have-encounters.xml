@@ -8,6 +8,14 @@
     <!-- In 1.10+, all orders must have a valid encounter associated with them -->
 
     <changeSet id="ensure-orders-have-encounters" author="IMB">
+        <!--
+           TODO: Ensure all orders have non-null encounter_id
+           Set encounter_id to all orders with a start_date but no encounter_id.
+           Update orders o join encounter e on o.patient_id=e.patient … see Berchmas documentation
+           Then created encounter type “drug order visit”=40
+           Update start_date where it is null in the orders table
+           then create the encounters for orders that don’t have encounters
+        -->
         <sql>
             There are over 300,000 orders on both Rwink and Butaro with no linked encounter
             select count(*) from orders where encounter_id is null
@@ -31,6 +39,7 @@
             2. Get this encounter_type_id as @encId
             3. Add new encounter for each patient/order.start_date combination
             4. Update all orders with null encounter by setting them to the encounter for matching patient/date with the created encounter_type
+
         </sql>
     </changeSet>
 

@@ -9,9 +9,8 @@
 
     <changeSet id="ensure-orders-creators-are-providers" author="IMB">
         <sql>
-            step 2
-            All users that created orders(orders.orderer) have provider accounts
 
+            <!-- TODO: All users that created orders(orders.orderer) have provider accounts -->
             check for
 
             select distinct u.person_id

@@ -16,6 +16,15 @@
             discontinued orders cannot have null discontinued_date values,
 
             on my laptop I set this as discontinued_date=start_date where discontinued=1 and discontinued_date is null
+
+            <!-- TODO: All discontinued orders should have the discontinued_date and discontinued_by fields set -->
+
+            <!--
+                Only 2 rows seem to have discontinued_date unset that we will need to deal with
+                select * from orders where discontinued = 1 and discontinued_date is null and voided = 0;
+
+                For discontinued_by, we will need to decide whether to use the creator or unknown provider
+            -->
         </sql>
     </changeSet>
 
