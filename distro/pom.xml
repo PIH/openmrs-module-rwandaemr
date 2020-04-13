@@ -26,195 +26,131 @@
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>addresshierarchyrwanda-omod</artifactId>
-                    <version>${addresshierarchyrwandaVersion}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>calculation-omod</artifactId>
-                    <version>${calculationVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>formconcepts-omod</artifactId>
-                    <version>${formconceptsVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>groovy-omod</artifactId>
-                    <version>${groovyVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>heightweighttracker-omod</artifactId>
-                    <version>${heightweighttrackerVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>htmlformentry-omod</artifactId>
-                    <version>${htmlformentryVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>htmlformflowsheet-omod</artifactId>
-                    <version>${htmlformflowsheetVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>htmlwidgets-omod</artifactId>
-                    <version>${htmlwidgetsVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>idgen-omod</artifactId>
-                    <version>${idgenVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>laboratorymanagement-omod</artifactId>
-                    <version>${laboratorymanagementVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>metadatamapping-omod</artifactId>
-                    <version>${metadatamappingVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>metadatasharing-omod</artifactId>
-                    <version>${metadatasharingVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>mohappointment-omod</artifactId>
-                    <version>${mohappointmentVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>mohbilling-omod</artifactId>
-                    <version>${mohbillingVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>mohtracportal-omod</artifactId>
-                    <version>${mohtracVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>namephonetics-omod</artifactId>
-                    <version>${namephoneticsVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>omodexport-omod</artifactId>
-                    <version>${omodExportVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>orderextension-omod</artifactId>
-                    <version>${orderextensionVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>pharmacymanagement-omod</artifactId>
-                    <version>${pharmacymanagementVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>reportingcompatibility-omod</artifactId>
-                    <version>${reportingcompatibilityVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>reportingobjectgroup-omod</artifactId>
-                    <version>${reportingobjectgroupVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>reporting-omod</artifactId>
-                    <version>${reportingVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>rowperpatientreports-omod</artifactId>
-                    <version>${rowperpatientreportsVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>rwandahivflowsheet-omod</artifactId>
-                    <version>${rwandahivflowsheetVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>rwandaprimarycare-omod</artifactId>
-                    <version>${rwandaprimarycareVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>rwandareports-omod</artifactId>
-                    <version>${rwandareportsVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>serialization.xstream-omod</artifactId>
                     <version>${serializationVersion}</version>
-                    <scope>provided</scope>
-                    <type>omod</type>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>simplelabentry-omod</artifactId>
-                    <version>${simplelabentryVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>sync-omod</artifactId>
-                    <version>${syncVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>usagestatistics-omod</artifactId>
-                    <version>${usagestatisticsVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>validation-omod</artifactId>
-                    <version>${validationVersion}</version>
-                    <scope>provided</scope>
-                    <type>omod</type>
                 </dependency>
                 <dependency>
                     <groupId>org.openmrs.module</groupId>
                     <artifactId>webservices.rest-omod</artifactId>
-                    <version>${webservicesRestVersion}</version>
-                    <scope>provided</scope>
                 </dependency>
 
             </dependencies>
