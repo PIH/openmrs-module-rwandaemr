@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- In 1.10+, all discontinued orders should have the discontinued_date and discontinued_by fields set. -->
+
+    <changeSet id="ensure-orders-have-encounters" author="IMB">
+        <sql>
+            step  1
+
+            update orders set auto_expire_date=start_date where order_type_id=5 and auto_expire_date is null;
+
+            discontinued orders cannot have null discontinued_date values,
+
+            on my laptop I set this as discontinued_date=start_date where discontinued=1 and discontinued_date is null
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
