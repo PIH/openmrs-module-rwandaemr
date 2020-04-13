@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- In 1.10+, All users that created orders(orders.orderer) have provider accounts -->
+
+    <changeSet id="ensure-order-type-has-java_class_name-column" author="IMB">
+        <sql>
+            ALTER TABLE `order_type`
+            ADD COLUMN `java_class_name` VARCHAR(255) DEFAULT NULL,
+            ADD COLUMN `parent` INT(11) DEFAULT NULL;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

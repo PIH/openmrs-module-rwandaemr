@@ -2,14 +2,6 @@
     <!--
 
 
-
-
-
-        ALTER TABLE `order_type`
-        ADD COLUMN `java_class_name` VARCHAR(255) DEFAULT NULL,
-        ADD COLUMN `parent` INT(11) DEFAULT NULL;
-
-
         /usr/share/tomcat6/.OpenMRS$ sudo nano  order_entry_upgrade_settings.txt
     -->
 
