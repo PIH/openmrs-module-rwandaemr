@@ -7,11 +7,12 @@ name: Perform Release
 
 on:
   push:
-    branches: ['ci_release']
+    branches: ['master']
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: "github.event.head_commit.message == 'Initiate Github Action Release'"
     steps:
 
       # Check out the code
