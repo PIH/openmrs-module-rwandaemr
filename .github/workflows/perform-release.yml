@@ -1,4 +1,4 @@
-# Performing a release is done by pushing a branch with a special name - 'ci_release'
+# Performing a release is done by committing to master with a specific commit message "Initiate Github Action Release"
 # This will kick off this workflow, which will attempt to update the pom by removing SNAPSHOT, commit these changes,
 # build, test, and deploy this to the non-SNAPSHOT Maven repository, update the pom to next SNAPSHOT and commit,
 # merge this branch down to master, and then deletes this branch
