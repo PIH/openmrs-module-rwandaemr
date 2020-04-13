@@ -83,7 +83,7 @@ verify-prs:  Builds and tests all PRs against the Master branch
 
 deploy-snapshots:  Builds, tests, and deploys artifacts to Maven for SNAPSHOTS if the tests are successful
 
-perform-release:  Builds and tests.  If successful, uses the Maven release plugin to kick off a new non-SNAPSHOT release
+perform-release:  Builds and tests.  If successful, uses the Maven release plugin to kick off a new non-SNAPSHOT release then builds and deploys the next snapshot
 
 Next steps
 
