@@ -85,6 +85,7 @@ deploy-snapshots:  Builds, tests, and deploys artifacts to Maven for SNAPSHOTS i
 
 perform-release:  Builds and tests.  If successful, uses the Maven release plugin to kick off a new non-SNAPSHOT release
 
+Next steps
 
 * Figure out how to configure dependencies building.  Look into configuring webhooks on PackageEvent and other triggers.
   * One possibility are to trigger a repository dispatch action from one build to kick off another
