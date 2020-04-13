@@ -77,20 +77,14 @@ https://wiki.openmrs.org/display/docs/OpenMRS+SDK#OpenMRSSDK-Installation
 Releasing packages and versions
 ---------------------------------
 
-** Snapshot Releases **
+This project uses Github Actions to orchestrate CI.  This contains the following jobs:
 
-This repository uses Github Actions to orchestrate and publish build artifacts.  Still to work on:
+verify-prs:  Builds and tests all PRs against the Master branch
 
-* Add some mechanism, either just instructions or a shell script to automate for the below...
-  * Read pom.xml and determine current version to release
-  * Increment this by one maintenance (or minor, not sure) version to determine the next version to set and add -SNAPSHOT
-  * Prompt user for these 2 values, showing the above that will be used as defaults, but allowing to override
-  * Use mvn versions (see below) to set poms to release versions, commit and push
-    - mvn versions:set versions:update-child-modules -DnewVersion=x.y.z
-  * Tag this with the given version number
-  * Use mvn versions again to set poms to new development versions, commit, and push
-  * Initiate github release off of the created tag?
-  
+deploy-snapshots:  Builds, tests, and deploys artifacts to Maven for SNAPSHOTS if the tests are successful
+
+perform-release:  Builds and tests.  If successful, uses the Maven release plugin to kick off a new non-SNAPSHOT release
+
 
 * Figure out how to configure dependencies building.  Look into configuring webhooks on PackageEvent and other triggers.
   * One possibility are to trigger a repository dispatch action from one build to kick off another
