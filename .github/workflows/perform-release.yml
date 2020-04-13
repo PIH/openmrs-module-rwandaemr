@@ -10,7 +10,7 @@ on:
     branches: ['master']
 
 jobs:
-  deploy:
+  release:
     runs-on: ubuntu-latest
     if: "github.event.head_commit.message == 'Initiate Github Action Release'"
     steps:
@@ -49,13 +49,6 @@ jobs:
       # Perform the release.  This checks out the tag from the previous step, builds, and deploys to Maven repository
     - name: Perform Release
       run: mvn -B release:perform
-      env:
-        BINTRAY_USERNAME: pih
-        BINTRAY_PASSWORD: ${{ secrets.BINTRAY_PASSWORD }}
-
-      # Once the release is done, run a final deploy to ensure the next SNAPSHOT is also built and deployed to Maven
-    - name: Maven Deploy
-      run: mvn -B -e clean deploy --file pom.xml
       env:
         BINTRAY_USERNAME: pih
         BINTRAY_PASSWORD: ${{ secrets.BINTRAY_PASSWORD }}
