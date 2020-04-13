@@ -212,7 +212,7 @@
 		<snapshotRepository>
 			<id>openmrs-repo-modules-pih-snapshots</id>
 			<name>OpenMRS PIH Module Snapshots</name>
-			<url>https://openmrs.jfrog.io/artifactory/modules-pih-snapshots/</url>
+			<url>https://mavenrepo.openmrs.org/nexus/content/repositories/modules-pih-snapshots/</url>
 		</snapshotRepository>
 	</distributionManagement>
 
