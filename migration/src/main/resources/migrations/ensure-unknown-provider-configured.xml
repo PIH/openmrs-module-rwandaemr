@@ -20,6 +20,113 @@
             # TODO: Confirm that above precondition succeeds on Rwink and Butaro,
             write SQL to set the global property "provider.unknownProviderUuid" to the uuid of the unknown provider.
         </sql>
+        <!--
+                <changeSet id="2016May02-2239" author="k-joseph" dbms="mysql">
+                    <preConditions onFail="MARK_RAN">
+                        <sqlCheck expectedResult="0">
+                            <![CDATA[
+                            SELECT COUNT(*) FROM `person` WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c';
+                            ]]>
+                        </sqlCheck>
+                    </preConditions>
+                    <comment>
+                        Create person for unknown provider
+                    </comment>
+                    <sql>
+                        INSERT INTO `person` (`creator`, `date_created`, `uuid`) VALUES(1, NOW(), '8ea1809e-9b78-11e6-9f33-a24fc0d9649c');
+                    </sql>
+                </changeSet>
+
+
+                <changeSet id="2016Mar28-2213" author="k-joseph" dbms="mysql">
+                    <preConditions onFail="MARK_RAN">
+                        <sqlCheck expectedResult="0">SELECT COUNT(*) FROM `provider` WHERE name = 'Unknown Provider';</sqlCheck>
+                    </preConditions>
+                    <comment>Insert Unknown Provider for non set drug orderers</comment>
+                    <sql>
+                        INSERT INTO provider(provider_id, person_id, name, identifier, creator, date_created, retired, uuid)
+                            SELECT person_id AS provider_id, person_id, 'Unknown Provider', 'unknown', 1, '2016-03-28T22:25:46', 0, '6a7d7d04-f523-11e5-9ce9-5e5517507c66'
+                                FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c';
+                    </sql>
+                </changeSet>
+
+
+                <changeSet id="2016Mar28-2321" author="k-joseph" dbms="mysql">
+                    <preConditions onFail="MARK_RAN">
+                        <not>
+                            <sqlCheck expectedResult="0">
+                                <![CDATA[
+                                SELECT COUNT(*) FROM `orders` WHERE orderer IS NULL;
+                                ]]>
+                            </sqlCheck>
+                        </not>
+                    </preConditions>
+                    <comment>
+                        Provide way for OpenMRS to automatically Set orderer to 'Unknown Provider' for all orders without orders;
+                        Creates and sets provider.unknownProviderUuid GP as required
+                    </comment>
+                    <insert tableName="global_property">
+                        <column name="property" value="provider.unknownProviderUuid" />
+                        <column name="property_value" value="6a7d7d04-f523-11e5-9ce9-5e5517507c66" />
+                        <column name="uuid" value="0b665382-f52c-11e5-9ce9-5e5517507c66" />
+                    </insert>
+                </changeSet>
+                <changeSet id="2016May03-1735" author="k-joseph">
+                    <preConditions onFail="MARK_RAN">
+                        <sqlCheck expectedResult="0">
+                            <![CDATA[
+                            SELECT COUNT(*) FROM `users` WHERE user_id = (SELECT person_id FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c');
+                            ]]>
+                        </sqlCheck>
+                    </preConditions>
+                    <comment>
+                        Add user for unknown user id orderer
+                    </comment>
+                    <sql>
+                        INSERT INTO users(user_id, person_id, system_id, creator, date_created, retired, uuid)
+                            SELECT person_id AS user_id, person_id, 'unknown', 1, '2016-03-28T22:25:46', 0, '1d575c76-113d-11e6-a148-3e1d05defe78'
+                                FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c';
+                    </sql>
+                </changeSet>
+
+                <changeSet id="2016Mar28-2237" author="k-joseph" dbms="mysql">
+                    <preConditions onFail="MARK_RAN">
+                        <not>
+                            <sqlCheck expectedResult="0">
+                                <![CDATA[
+                            SELECT COUNT(*) FROM `orders` WHERE orderer IS NOT NULL;
+                            ]]>
+                            </sqlCheck>
+                        </not>
+                    </preConditions>
+                    <comment>
+                        Create provider accounts for all drug orderers that exist
+                    </comment>
+                    <sql>
+                        INSERT INTO provider (provider_id, person_id, name, identifier, creator, date_created, retired, uuid)
+                        SELECT DISTINCT u.user_id AS provider_id, u.person_id AS person_id, IFNULL(u.username, u.system_id) AS name, IFNULL(u.username, u.system_id) AS identifier, u.creator, (NOW()) AS date_created, '0' AS retired, (SELECT UUID()) AS uuid FROM users u INNER JOIN orders o ON u.user_id = o.orderer WHERE o.orderer IS NOT NULL AND u.user_id != (SELECT person_id FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c');
+                    </sql>
+                </changeSet>
+
+
+                <changeSet id="2016April26-2230" author="k-joseph" dbms="mysql">
+                    <preConditions onFail="MARK_RAN">
+                        <not>
+                            <sqlCheck expectedResult="0">
+                                <![CDATA[
+                        SELECT count(*) FROM encounter_provider WHERE provider_id NOT IN (SELECT DISTINCT provider_id FROM provider);
+                        ]]>
+                            </sqlCheck>
+                        </not>
+                    </preConditions>
+                    <comment>
+                        Bump all non existing encounter providers to un known provider
+                    </comment>
+                    <sql>
+                        UPDATE encounter_provider SET provider_id = (SELECT person_id FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c') WHERE provider_id NOT IN (SELECT DISTINCT provider_id FROM provider)
+                    </sql>
+                </changeSet>
+                -->
     </changeSet>
 
 </databaseChangeLog>

@@ -24,6 +24,27 @@
             from orders o,users u where o.orderer=u.user_id and u.person_id not in (select person_id from provider);
 
         </sql>
+        <!--
+        <changeSet id="2016Mar29-0024" author="k-joseph" dbms="mysql">
+		<preConditions onFail="MARK_RAN">
+			<not>
+				<sqlCheck expectedResult="0">
+					<![CDATA[
+					SELECT COUNT(*) FROM `orders` WHERE orderer IS NULL;
+					]]>
+				</sqlCheck>
+			</not>
+		</preConditions>
+		<comment>
+			Set orderer for all unset orders orderers to unknown provider's user
+		</comment>
+		<sql>
+			UPDATE orders o INNER JOIN person AS p ON p.uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c'
+				SET o.orderer = p.person_id
+				WHERE o.orderer IS NULL;
+		</sql>
+	</changeSet>
+        -->
     </changeSet>
 
 </databaseChangeLog>

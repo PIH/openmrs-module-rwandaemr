@@ -18,6 +18,35 @@
                 ** Put these in a properties file structured as string=conceptId
                 ** Will need to escape characters potentially ( eg. once\ a\ day=65 )
             -->
+            <!--
+                TODO:  Identify / Create the concept set whose members represent the possible drug dosing units (In CIEL version 1.9.7_20140608 the concept id is: 162384AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA (Dose unit))
+                ** Set the global property "order.drugDosingUnitsConceptUuid" to the uuid of this
+                ** Ensure it contains members for all drug dosing units that are in the order_entry_upgrade_settings.txt file
+            -->
+
+            <!-- TODO: All drugs with a dose_strength specified have the units field set too -->
+            <!--
+            REFERENCE FROM WHAT WAS DONE IN RWANDA RBC UPGRADE MODULE
+
+            <changeSet id="2016Mar28-2052" author="k-joseph" dbms="mysql">
+                <preConditions onFail="MARK_RAN">
+                    <not>
+                        <sqlCheck expectedResult="0">
+                            <![CDATA[
+					SELECT COUNT(*) FROM `drug` WHERE dose_strength IS NOT NULL;
+					]]>
+                        </sqlCheck>
+                    </not>
+                </preConditions>
+                <comment>
+                    Set units field for all drugs whose dose_strength is specified
+                </comment>
+                <update tableName="drug">
+                    <column name="units" value="default"/>
+                    <where>dose_strength IS NOT NULL</where>
+                </update>
+            </changeSet>
+            -->
         </sql>
     </changeSet>
 

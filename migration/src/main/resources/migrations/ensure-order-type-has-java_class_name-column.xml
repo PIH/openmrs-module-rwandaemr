@@ -9,8 +9,6 @@
 
     <changeSet id="ensure-order-type-has-java_class_name-column" author="IMB">
 
-        <!-- TODO: All drugs with a dose_strength specified have the units field set too -->
-
         <!-- Ensure order_type table has java_class_name and parent columns.  Credit k-joseph
         <changeSet id="imbmigrations-1.10-add-order-type-columns" author="IMB">
             <preConditions onFail="MARK_RAN">
@@ -26,6 +24,24 @@
             <addColumn tableName="order_type">
                 <column name="parent" type="int(11)" />
             </addColumn>
+        </changeSet>
+
+        <changeSet id="2016Mar23-1116" author="k-joseph" dbms="mysql">
+            <comment>
+                Updating java class names under order_type table
+            </comment>
+            <update tableName="order_type">
+                <column name="java_class_name" value="org.openmrs.TestOrder"/>
+                <where>name='Lab test'</where>
+            </update>
+            <update tableName="order_type">
+                <column name="java_class_name" value="org.openmrs.DrugOrder"/>
+                <where>name='Drug order'</where>
+            </update>
+            <update tableName="order_type">
+                <column name="java_class_name" value="org.openmrs.LunchOrder"/>
+                <where>name='Lunch order'</where>
+            </update>
         </changeSet>
      -->
         <!--
