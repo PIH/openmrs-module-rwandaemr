@@ -7,6 +7,18 @@
 
     <!-- An Unknown Provider must exist and be properly configured within global properties -->
 
+
+    <changeSet id="ensure-unknown-provider-property-created" author="IMB">
+        <preConditions>
+            <sqlCheck expectedResult="0">
+                SELECT count(property) FROM openmrs.global_property where property='provider.unknownProviderUuid'
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            INSERT INTO global_property (property,description,uuid) VALUES ('provider.unknownProviderUuid','global property to set the uuid of the unknown provider',uuid());
+        </sql>
+    </changeSet>
+
     <changeSet id="ensure-unknown-provider-configured" author="IMB">
         <preConditions>
             <sqlCheck expectedResult="1">
@@ -17,8 +29,14 @@
             </sqlCheck>
         </preConditions>
         <sql>
+
             # TODO: Confirm that above precondition succeeds on Rwink and Butaro,
-            write SQL to set the global property "provider.unknownProviderUuid" to the uuid of the unknown provider.
+            # write SQL to set the global property "provider.unknownProviderUuid" to the uuid of the unknown provider.
+
+            update global_property set property_value=(select p.uuid from provider p
+            inner join  person_name n on p.person_id = n.person_id and n.voided = 0
+            where n.given_name = 'UNKNOWN' and n.family_name = 'PROVIDER') where property="provider.unknownProviderUuid"
+
         </sql>
         <!--
                 <changeSet id="2016May02-2239" author="k-joseph" dbms="mysql">
