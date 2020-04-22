@@ -9,15 +9,17 @@
 
     <changeSet id="ensure-orders-discontinued-date" author="IMB">
         <sql>
-            step  1
+            <!--step  1 -->
 
             update orders set auto_expire_date=start_date where order_type_id=5 and auto_expire_date is null;
 
-            discontinued orders cannot have null discontinued_date values,
+            <!-- discontinued orders cannot have null discontinued_date values,
 
-            on my laptop I set this as discontinued_date=start_date where discontinued=1 and discontinued_date is null
+            on my laptop I set this as discontinued_date=start_date where discontinued=1 and discontinued_date is null  -->
 
             <!-- TODO: All discontinued orders should have the discontinued_date and discontinued_by fields set -->
+            update orders set discontinued_date=start_date where discontinued=1 and discontinued_date is null;
+            update orders set discontinued_by=creator where discontinued=1 and discontinued_by is null;
 
             <!--
                 Only 2 rows seem to have discontinued_date unset that we will need to deal with
