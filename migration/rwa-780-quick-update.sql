@@ -22,3 +22,21 @@ UPDATE `order_type` SET `java_class_name`='org.openmrs.DrugOrder' WHERE `order_t
 UPDATE `order_type` SET `java_class_name`='org.openmrs.DrugOrder' WHERE `order_type_id`='5';
 UPDATE `order_type` SET `java_class_name`='org.openmrs.DrugOrder' WHERE `order_type_id`='1';
 
+-- from ensure-unknown-provider-configured
+INSERT INTO `person` (`creator`, `date_created`, `uuid`) VALUES(1, NOW(), '8ea1809e-9b78-11e6-9f33-a24fc0d9649c');
+INSERT INTO provider(provider_id, person_id, name, identifier, creator, date_created, retired, uuid)
+  SELECT person_id AS provider_id, person_id, 'Unknown Provider', 'unknown', 1, '2016-03-28T22:25:46', 0, '6a7d7d04-f523-11e5-9ce9-5e5517507c66'
+  FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c';
+insert into rwink.global_property(property, property_value, uuid)
+values('provider.unknownProviderUuid', '6a7d7d04-f523-11e5-9ce9-5e5517507c66', '0b665382-f52c-11e5-9ce9-5e5517507c66');
+INSERT INTO users(user_id, person_id, system_id, creator, date_created, retired, uuid)
+  SELECT person_id AS user_id, person_id, 'unknown', 1, '2016-03-28T22:25:46', 0, '1d575c76-113d-11e6-a148-3e1d05defe78'
+  FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c';
+INSERT INTO provider (provider_id, person_id, name, identifier, creator, date_created, retired, uuid)
+  SELECT DISTINCT u.user_id AS provider_id, u.person_id AS person_id,
+                  IFNULL(u.username, u.system_id) AS name, IFNULL(u.username, u.system_id) AS identifier,
+    u.creator, (NOW()) AS date_created, '0' AS retired, (SELECT UUID()) AS uuid
+  FROM users u INNER JOIN orders o ON u.user_id = o.orderer WHERE o.orderer IS NOT NULL
+                                                                  and o.orderer != 8 AND u.user_id != 6 AND u.user_id != (SELECT person_id FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c');
+UPDATE encounter_provider SET provider_id = (SELECT person_id FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c')
+WHERE provider_id NOT IN (SELECT DISTINCT provider_id FROM provider);
