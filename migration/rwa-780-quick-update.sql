@@ -27,7 +27,7 @@ INSERT INTO `person` (`creator`, `date_created`, `uuid`) VALUES(1, NOW(), '8ea18
 INSERT INTO provider(provider_id, person_id, name, identifier, creator, date_created, retired, uuid)
   SELECT person_id AS provider_id, person_id, 'Unknown Provider', 'unknown', 1, '2016-03-28T22:25:46', 0, '6a7d7d04-f523-11e5-9ce9-5e5517507c66'
   FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c';
-insert into rwink.global_property(property, property_value, uuid)
+insert into global_property(property, property_value, uuid)
 values('provider.unknownProviderUuid', '6a7d7d04-f523-11e5-9ce9-5e5517507c66', '0b665382-f52c-11e5-9ce9-5e5517507c66');
 INSERT INTO users(user_id, person_id, system_id, creator, date_created, retired, uuid)
   SELECT person_id AS user_id, person_id, 'unknown', 1, '2016-03-28T22:25:46', 0, '1d575c76-113d-11e6-a148-3e1d05defe78'
@@ -40,3 +40,12 @@ INSERT INTO provider (provider_id, person_id, name, identifier, creator, date_cr
                                                                   and o.orderer != 8 AND u.user_id != 6 AND u.user_id != (SELECT person_id FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c');
 UPDATE encounter_provider SET provider_id = (SELECT person_id FROM person WHERE uuid = '8ea1809e-9b78-11e6-9f33-a24fc0d9649c')
 WHERE provider_id NOT IN (SELECT DISTINCT provider_id FROM provider);
+
+-- delete all modules from the modules folder except logic
+update global_property set property_value='false' where property='sync.mandatory';
+delete from global_property where property like 'sync%';
+delete from scheduler_task_config_property where task_config_id in (select task_config_id from scheduler_task_config where name like '%Sync%');
+delete from scheduler_task_config where name like '%Sync%';
+delete from scheduler_task_config where name ='Register Reports';
+delete from scheduler_task_config where name ='Process Usage Statistics Data';
+delete from scheduler_task_config where name ='Send Usage Statistics Reports';
