@@ -10,18 +10,14 @@
     <changeSet id="ensure-orders-creators-are-providers" author="IMB">
         <sql>
 
-            <!-- TODO: All users that created orders(orders.orderer) have provider accounts -->
-            check for
-
-            select distinct u.person_id
-            from orders o,users u
-            where o.orderer=u.user_id and u.person_id not in (select person_id from provider);
-
-            if return something then run this
-
-            insert into provider(person_id, identifier, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid)
-            select distinct u.person_id, u.system_id, 1, CURRENT_TIMESTAMP, u.retired, u.retired_by, u.date_retired, u.retire_reason, UUID()
-            from orders o,users u where o.orderer=u.user_id and u.person_id not in (select person_id from provider);
+            insert into provider (`person_id`,`name`,`identifier`,`creator`,`date_created`,
+                `retired`,`retired_by`,`date_retired`,`retire_reason`,`uuid`)
+            select u.person_id,CONCAT(pn.family_name," ",pn.given_name),u.system_id,1,now(),
+                u.retired,u.retired_by,u.date_retired,u.retire_reason,UUID()
+            from users u
+            left join provider p on u.person_id = p.person_id
+            left join person_name pn ON u.person_id = pn.person_id
+            where p.provider_id is null limit 10;
 
         </sql>
         <!--
