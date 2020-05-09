@@ -7,7 +7,7 @@
 
     <!-- In 1.10+, All users that created orders(orders.orderer) have provider accounts -->
 
-    <changeSet id="ensure-orders-creators-are-providers" author="IMB">
+    <changeSet id="ensure-users-are-providers" author="IMB">
         <sql>
 
             insert into provider (`person_id`,`identifier`,`creator`,`date_created`,
