@@ -13,10 +13,11 @@
             https://wiki.openmrs.org/display/docs/Prepare+for+Upgrading+From+a+Pre-1.10+to+1.10+or+Later+Version
             https://github.com/rwanda-rbc-emr/openmrs-module-mohbeforeoneelevenupgrade
     -->
-
+    <include file="migrations/ensure-users-are-providers.xml" relativeToChangelogFile="true" />
     <include file="migrations/ensure-orders-have-start-dates.xml" relativeToChangelogFile="true" />
-<!--    <include file="migrations/ensure-orders-have-encounter-ids.xml" relativeToChangelogFile="true" />-->
     <include file="migrations/ensure-unknown-provider-configured.xml" relativeToChangelogFile="true" />
+    <include file="migrations/ensure-orders-have-encounters.xml" relativeToChangelogFile="true" />
+    <include file="migrations/ensure-orders-have-orderers.xml" relativeToChangelogFile="true" />
     <include file="migrations/ensure-orders-have-discontinued-date.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>
