@@ -20,4 +20,4 @@ The arguments are as follows, which show their default values that will be used 
 So, to execute migrations on an instance of MySQL, where the above are accurate aside from db_port and db_password,
 you would run:
 
-`mvn liquibase-update -Ddb_port=3308 -Ddb_password=MyRootPassword123`
+`mvn liquibase:update -Ddb_port=3308 -Ddb_password=MyRootPassword123`
