@@ -5,49 +5,121 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
 
-    <!-- In 1.10+, All users that created orders(orders.orderer) have provider accounts -->
 
+    <!-- Ensure order_type table has java_class_name and parent columns.  Credit k-joseph -->
     <changeSet id="ensure-order-type-has-java_class_name-column" author="IMB">
-
-        <!-- Ensure order_type table has java_class_name and parent columns.  Credit k-joseph
-        <changeSet id="imbmigrations-1.10-add-order-type-columns" author="IMB">
-            <preConditions onFail="MARK_RAN">
-                <not><columnExists tableName="order_type" columnName="java_class_name"/></not>
-                <not><columnExists tableName="order_type" columnName="parent"/></not>
-            </preConditions>
-            <comment>
-                Add java_class_name and parent columns to order_type table
-            </comment>
-            <addColumn tableName="order_type">
-                <column name="java_class_name" type="varchar(255)" />
-            </addColumn>
-            <addColumn tableName="order_type">
-                <column name="parent" type="int(11)" />
-            </addColumn>
-        </changeSet>
-
-        <changeSet id="2016Mar23-1116" author="k-joseph" dbms="mysql">
-            <comment>
-                Updating java class names under order_type table
-            </comment>
-            <update tableName="order_type">
-                <column name="java_class_name" value="org.openmrs.TestOrder"/>
-                <where>name='Lab test'</where>
-            </update>
-            <update tableName="order_type">
-                <column name="java_class_name" value="org.openmrs.DrugOrder"/>
-                <where>name='Drug order'</where>
-            </update>
-            <update tableName="order_type">
-                <column name="java_class_name" value="org.openmrs.LunchOrder"/>
-                <where>name='Lunch order'</where>
-            </update>
-        </changeSet>
-     -->
-        <!--
-            TODO: Ensure all existing order types have a valid java_class_name populated
-            This should include for drug order, since core will only set this if the uuid of this type is 131168f4-15f5-102d-96e4-000c29c2a5d7, and ours is not
-        -->
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="order_type" columnName="java_class_name"/></not>
+            <not><columnExists tableName="order_type" columnName="parent"/></not>
+        </preConditions>
+        <comment>
+            Add java_class_name and parent columns to order_type table
+        </comment>
+        <addColumn tableName="order_type">
+            <column name="java_class_name" type="varchar(255)" />
+        </addColumn>
+        <addColumn tableName="order_type">
+            <column name="parent" type="int(11)" />
+        </addColumn>
     </changeSet>
+
+    <changeSet id="ensure-drug-order-type-has-java_class_name-value" author="IMB">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM order_type
+                WHERE name = 'Drug Order' AND java_class_name IS NULL
+            </sqlCheck>
+        </preConditions>
+        <comment>Setting java_class_name column for Drug Order type row</comment>
+        <update tableName="order_type">
+            <column name="java_class_name" value="org.openmrs.DrugOrder" />
+            <where>name='Drug order'</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="ensure-drug-order-type-has-java_class_name-value-2" author="IMB">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM order_type
+                WHERE name = 'Drug' AND java_class_name IS NULL
+            </sqlCheck>
+        </preConditions>
+        <comment>Setting java_class_name column for Drug type row(Butaro)</comment>
+        <update tableName="order_type">
+            <column name="java_class_name" value="org.openmrs.DrugOrder" />
+            <where>name='Drug'</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="ensure-drug-ordered-type-has-java_class_name-value" author="IMB">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM order_type
+                WHERE uuid = '0174a60e-8f81-4758-8d7a-06085b80b3de' AND java_class_name IS NULL
+            </sqlCheck>
+        </preConditions>
+        <comment>Setting java_class_name column for Drug type row(Rwink)</comment>
+        <update tableName="order_type">
+            <column name="java_class_name" value="org.openmrs.DrugOrder" />
+            <where>uuid='0174a60e-8f81-4758-8d7a-06085b80b3de'</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="ensure-zidolamN-order-type-has-java_class_name-value" author="IMB">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM order_type
+                WHERE name = 'Zidolam-N' AND java_class_name IS NULL
+            </sqlCheck>
+        </preConditions>
+        <comment>Setting java_class_name column for Zidolam-N order type row(Rwink)</comment>
+        <update tableName="order_type">
+            <column name="java_class_name" value="org.openmrs.DrugOrder" />
+            <where>name='Zidolam-N'</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="ensure-penicillin-order-type-has-java_class_name-value" author="IMB">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM order_type
+                WHERE name = 'Penicillin vk' AND java_class_name IS NULL
+            </sqlCheck>
+        </preConditions>
+        <comment>Setting java_class_name column for penicillin order type row(Butaro)</comment>
+        <update tableName="order_type">
+            <column name="java_class_name" value="org.openmrs.DrugOrder" />
+            <where>name='Penicillin vk'</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="ensure-lab-order-type-has-java_class_name-value" author="IMB">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM order_type
+                WHERE name = 'Lab Order' AND java_class_name IS NULL
+            </sqlCheck>
+        </preConditions>
+        <comment>Setting java_class_name column for Lab Order type row</comment>
+        <update tableName="order_type">
+            <column name="java_class_name" value="org.openmrs.TestOrder" />
+            <where>name='Lab Order'</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="ensure-test-order-type-has-java_class_name-value" author="IMB">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM order_type
+                WHERE name = 'Test' AND java_class_name IS NULL
+            </sqlCheck>
+        </preConditions>
+        <comment>Setting java_class_name column for Test order type row</comment>
+        <update tableName="order_type">
+            <column name="java_class_name" value="org.openmrs.TestOrder" />
+            <where>name='Test'</where>
+        </update>
+    </changeSet>
+
 
 </databaseChangeLog>
