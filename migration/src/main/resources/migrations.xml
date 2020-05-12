@@ -18,10 +18,10 @@
     <include file="migrations/ensure-orders-have-encounters.xml" relativeToChangelogFile="true" />
     <include file="migrations/ensure-unknown-provider-configured.xml" relativeToChangelogFile="true" />
     <include file="migrations/ensure-orders-have-discontinued-date.xml" relativeToChangelogFile="true" />
+    <include file="migrations/ensure-order-type-has-java_class_name-column.xml" relativeToChangelogFile="true" />
 
     <!--
-        ensure-order-type-has-java_class_name-column.xml
         map-dose-units-and-frequencies.xml
     -->
-
+  
 </databaseChangeLog>
