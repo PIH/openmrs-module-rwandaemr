@@ -17,8 +17,5 @@
     <include file="migrations/ensure-orders-have-start-dates.xml" relativeToChangelogFile="true" />
     <include file="migrations/ensure-orders-have-encounters.xml" relativeToChangelogFile="true" />
     <include file="migrations/ensure-unknown-provider-configured.xml" relativeToChangelogFile="true" />
-    <!--
-
     <include file="migrations/ensure-orders-have-discontinued-date.xml" relativeToChangelogFile="true" />
-    -->
 </databaseChangeLog>
