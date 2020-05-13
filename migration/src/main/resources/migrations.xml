@@ -18,11 +18,8 @@
     <include file="migrations/ensure-orders-have-encounters.xml" relativeToChangelogFile="true" />
     <include file="migrations/ensure-unknown-provider-configured.xml" relativeToChangelogFile="true" />
     <include file="migrations/ensure-orders-have-discontinued-date.xml" relativeToChangelogFile="true" />
-    <include file="migrations/ensure-order-type-has-java_class_name-column.xml" relativeToChangelogFile="true" />
+    <include file="migrations/ensure-order-type-has-java-class-name-column.xml" relativeToChangelogFile="true" />
     <include file="migrations/ensure-drug-units-are-populated.xml" relativeToChangelogFile="true" />
-
-    <!--
-        map-dose-units-and-frequencies.xml
-    -->
+    <include file="migrations/move-non-coded-units-and-frequencies.xml" relativeToChangelogFile="true" />
   
 </databaseChangeLog>
