@@ -14,7 +14,16 @@
             </sqlCheck>
         </preConditions>
         <sql>
-            INSERT into role (role, description, uuid) VALUES ('Data Manager', 'Data Manager Role', uuid());
+            INSERT into role (
+                role,
+                description,
+                uuid
+            )
+            VALUES (
+                'Data Manager',
+                'User who maintains clinical data stored within the OpenMRS repository.',
+                'd2fcc14e-2700-102b-80cb-0017a47871b2'
+            );
         </sql>
     </changeSet>
 
