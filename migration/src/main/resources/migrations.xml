@@ -23,5 +23,6 @@
     <include file="migrations/move-non-coded-units-and-frequencies.xml" relativeToChangelogFile="true" />
     <include file="migrations/add-missing-datamanger-role.xml" relativeToChangelogFile="true" />
     <include file="migrations/fix-invalid-person-date-voided.xml" relativeToChangelogFile="true" />
+    <include file="migrations/update-configurations-prior-to-2x-upgrade" relativeToChangelogFile="true" />
   
 </databaseChangeLog>

@@ -9,7 +9,7 @@
 
     <!-- First, we ensure that an encounter type exists to associate with new Encounters for Drug Orders -->
 
-    <changeSet id="ensure-drug-order-encounter-type-exists" author="IMB">
+    <changeSet id="rwandaemr-ensure-drug-order-encounter-type-exists" author="IMB">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT count(*) FROM encounter_type where name = 'Drug Order Encounter'
@@ -43,7 +43,7 @@
         5. Finally, we create and associate providers with these encounters based on their creators
      -->
 
-    <changeSet id="ensure-orders-have-encounters" author="IMB">
+    <changeSet id="rwandaemr-ensure-orders-have-encounters" author="IMB">
         <preConditions onFail="HALT">
             <sqlCheck expectedResult="1">
                 SELECT count(*) FROM encounter_type where name = 'Drug Order Encounter'

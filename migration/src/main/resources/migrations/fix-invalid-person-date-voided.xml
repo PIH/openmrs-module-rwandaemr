@@ -7,7 +7,7 @@
 
     <!-- In Rwinkwavu, there is an invalid date_voided in the person table -->
 
-    <changeSet id="fix-invalid-person-date-voided" author="IMB">
+    <changeSet id="rwandaemr-fix-invalid-person-date-voided" author="IMB">
         <preConditions onFail="MARK_RAN">
             <not><sqlCheck expectedResult="0">
                 SELECT count(*) from person where date_format(date_voided,'%Y-%m-%d') = '0000-00-00'

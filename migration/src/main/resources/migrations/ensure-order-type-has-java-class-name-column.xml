@@ -6,7 +6,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
 
     <!-- Ensure order_type table has java_class_name column.  Credit k-joseph -->
-    <changeSet id="ensure-order-type-has-java_class_name-column" author="IMB">
+    <changeSet id="rwandaemr-ensure-order-type-has-java_class_name" author="IMB">
         <preConditions onFail="MARK_RAN">
             <not><columnExists tableName="order_type" columnName="java_class_name"/></not>
         </preConditions>
@@ -19,7 +19,7 @@
     </changeSet>
 
     <!-- Ensure order_type table has parent column.  Credit k-joseph -->
-    <changeSet id="ensure-order-type-has-parent-column" author="IMB">
+    <changeSet id="rwandaemr-ensure-order-type-has-parent" author="IMB">
         <preConditions onFail="MARK_RAN">
             <not><columnExists tableName="order_type" columnName="parent"/></not>
         </preConditions>
@@ -31,7 +31,7 @@
         </addColumn>
     </changeSet>
 
-    <changeSet id="ensure-drug-order-type-has-java_class_name-value" author="IMB">
+    <changeSet id="rwandaemr-ensure-drug-order-class-name" author="IMB">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="1">
                 SELECT COUNT(*) FROM order_type
@@ -45,7 +45,7 @@
         </update>
     </changeSet>
 
-    <changeSet id="ensure-drug-order-type-has-java_class_name-value-2" author="IMB">
+    <changeSet id="rwandaemr-ensure-drug-class-name" author="IMB">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="1">
                 SELECT COUNT(*) FROM order_type
@@ -59,7 +59,7 @@
         </update>
     </changeSet>
 
-    <changeSet id="ensure-drug-ordered-type-has-java_class_name-value" author="IMB">
+    <changeSet id="rwandaemr-ensure-drug-ordered-class-name" author="IMB">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="1">
                 SELECT COUNT(*) FROM order_type
@@ -73,7 +73,7 @@
         </update>
     </changeSet>
 
-    <changeSet id="ensure-zidolamN-order-type-has-java_class_name-value" author="IMB">
+    <changeSet id="rwandaemr-ensure-zidolamN-class-name" author="IMB">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="1">
                 SELECT COUNT(*) FROM order_type
@@ -87,7 +87,7 @@
         </update>
     </changeSet>
 
-    <changeSet id="ensure-penicillin-order-type-has-java_class_name-value" author="IMB">
+    <changeSet id="rwandaemr-ensure-penicillin-class-name" author="IMB">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="1">
                 SELECT COUNT(*) FROM order_type
@@ -101,7 +101,7 @@
         </update>
     </changeSet>
 
-    <changeSet id="ensure-lab-order-type-has-java_class_name-value" author="IMB">
+    <changeSet id="rwandaemr-ensure-lab-order-class-name" author="IMB">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="1">
                 SELECT COUNT(*) FROM order_type
@@ -115,7 +115,7 @@
         </update>
     </changeSet>
 
-    <changeSet id="ensure-test-order-type-has-java_class_name-value" author="IMB">
+    <changeSet id="rwandaemr-ensure-test-class-name" author="IMB">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="1">
                 SELECT COUNT(*) FROM order_type

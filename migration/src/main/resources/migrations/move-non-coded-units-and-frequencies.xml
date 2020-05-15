@@ -13,7 +13,7 @@
         upgrade has completed.  This also allows us access to all of the new data structures that have been added
         from 1.10 to 2.3, which will enable more accurate and correct migration of data.
     -->
-    <changeSet id="create-drug-order-units-non-coded" author="IMB">
+    <changeSet id="rwandaemr-create-drug-order-units-non-coded" author="IMB">
         <preConditions onFail="MARK_RAN">
             <not><columnExists tableName="drug_order" columnName="units_non_coded" /></not>
         </preConditions>
@@ -22,7 +22,7 @@
         </addColumn>
     </changeSet>
 
-    <changeSet id="move-drug-order-units-to-units-non-coded" author="IMB">
+    <changeSet id="rwandaemr-move-drug-order-units-to-units-non-coded" author="IMB">
         <preConditions onFail="MARK_RAN">
             <not><sqlCheck expectedResult="0">
                 select count(*) from drug_order where units is not null
@@ -34,7 +34,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="create-drug-order-frequency-non-coded" author="IMB">
+    <changeSet id="rwandaemr-create-drug-order-frequency-non-coded" author="IMB">
         <preConditions onFail="MARK_RAN">
             <not><columnExists tableName="drug_order" columnName="frequency_non_coded" /></not>
         </preConditions>
@@ -43,7 +43,7 @@
         </addColumn>
     </changeSet>
 
-    <changeSet id="move-drug-order-frequency-to-frequency-non-coded" author="IMB">
+    <changeSet id="rwandaemr-move-drug-order-frequency-to-frequency-non-coded" author="IMB">
         <preConditions onFail="MARK_RAN">
             <not><sqlCheck expectedResult="0">
                 select count(*) from drug_order where frequency is not null

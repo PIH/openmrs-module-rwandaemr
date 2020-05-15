@@ -7,7 +7,7 @@
 
     <!-- First we ensure the global property exists.  If it does, mark as ran, otherwise, create it -->
 
-    <changeSet id="ensure-unknown-provider-property-created" author="IMB">
+    <changeSet id="rwandaemr-ensure-unknown-provider-property-created" author="IMB">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT count(property) FROM global_property where property='provider.unknownProviderUuid'
@@ -30,7 +30,7 @@
         To account for these different scenarios, include each of these criteria below.
      -->
 
-    <changeSet id="ensure-unknown-provider-configured" author="IMB">
+    <changeSet id="rwandaemr-ensure-unknown-provider-configured" author="IMB">
         <preConditions>
             <sqlCheck expectedResult="1">
                 select      count(*)

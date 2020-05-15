@@ -14,7 +14,7 @@
         We set this to runAlways="true", as it can safely run repeatedly
     -->
 
-    <changeSet id="ensure-users-are-providers" author="IMB" runAlways="true">
+    <changeSet id="rwandaemr-ensure-users-are-providers" author="IMB" runAlways="true">
         <sql>
             insert into provider
                 (person_id, identifier, creator, date_created, retired, retired_by, date_retired, retire_reason, uuid)

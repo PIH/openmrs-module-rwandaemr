@@ -7,7 +7,7 @@
 
     <!-- In Butaro, there are entries in the role_privilege table for a Data Manager role that does not exist -->
 
-    <changeSet id="add-missing-datamanager-role" author="IMB">
+    <changeSet id="rwandaemr-add-missing-datamanager-role" author="IMB">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="1">
                 SELECT count(*) from role_privilege where role = 'Data Manager' and role not in (select role from role)

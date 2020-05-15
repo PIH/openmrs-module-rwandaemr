@@ -7,7 +7,7 @@
 
     <!-- In 1.10+, all drugs must specify units if dose_strength is not null -->
 
-    <changeSet id="populate-missing-dose-units" author="IMB">
+    <changeSet id="rwandaemr-populate-missing-dose-units" author="IMB">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="1">
                 select  count(*)

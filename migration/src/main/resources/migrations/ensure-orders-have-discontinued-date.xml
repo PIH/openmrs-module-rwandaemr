@@ -7,7 +7,7 @@
 
     <!-- In 1.10+, all discontinued orders should have the discontinued_date and discontinued_by fields set. -->
 
-    <changeSet id="ensure-orders-discontinued-date" author="IMB" runAlways="true">
+    <changeSet id="rwandaemr-ensure-orders-discontinued-date" author="IMB" runAlways="true">
         <sql>
             update orders set discontinued_date=start_date where discontinued=1 and discontinued_date is null;
             update orders set discontinued_by=creator where discontinued=1 and discontinued_by is null;

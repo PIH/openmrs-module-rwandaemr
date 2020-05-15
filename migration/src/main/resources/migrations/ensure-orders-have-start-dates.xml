@@ -12,7 +12,7 @@
          We set this to runAlways="true", as it can safely run repeatedly
     -->
 
-    <changeSet id="populate-missing-order-start-dates" author="IMB" runAlways="true">
+    <changeSet id="rwandaemr-populate-missing-order-start-dates" author="IMB" runAlways="true">
         <sql>UPDATE orders set start_date = date_created where start_date is null;</sql>
     </changeSet>
 
