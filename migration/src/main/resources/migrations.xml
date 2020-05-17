@@ -21,8 +21,8 @@
     <include file="migrations/ensure-order-type-has-java-class-name-column.xml" relativeToChangelogFile="true" />
     <include file="migrations/ensure-drug-units-are-populated.xml" relativeToChangelogFile="true" />
     <include file="migrations/move-non-coded-units-and-frequencies.xml" relativeToChangelogFile="true" />
-    <include file="migrations/add-missing-datamanger-role.xml" relativeToChangelogFile="true" />
+    <include file="migrations/add-missing-datamanager-role.xml" relativeToChangelogFile="true" />
     <include file="migrations/fix-invalid-person-date-voided.xml" relativeToChangelogFile="true" />
-    <include file="migrations/update-configurations-prior-to-2x-upgrade" relativeToChangelogFile="true" />
+    <include file="migrations/update-configurations-prior-to-2x-upgrade.xml" relativeToChangelogFile="true" />
   
 </databaseChangeLog>
