@@ -9,9 +9,9 @@
 
     <changeSet id="rwandaemr-add-missing-datamanager-role" author="IMB">
         <preConditions onFail="MARK_RAN">
-            <sqlCheck expectedResult="1">
+            <not><sqlCheck expectedResult="0">
                 SELECT count(*) from role_privilege where role = 'Data Manager' and role not in (select role from role)
-            </sqlCheck>
+            </sqlCheck></not>
         </preConditions>
         <sql>
             INSERT into role (
