@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- NOTE: This has to come before the setting of all users to be providers in this migration process. -->
+
+    <!-- First, we ensure that a role exists to associate with Providers to be selected on forms -->
+
+    <changeSet id="rwandaemr-ensure-practicing-provider-role-exists" author="IMB">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM role WHERE role = "Practicing provider"
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            INSERT INTO `role`(
+                role,
+                description,
+                uuid
+            )
+            VALUES (
+                "Practicing provider",
+                "Role to differentiate practicing providers from other user providers",
+                "36a4a54d-ab0a-11ea-8991-3c6aa7d72242"
+            )
+            ;
+        </sql>
+    </changeSet>
+
+    <!--
+        Next, we create new user_role for current providers using the above role
+        1. We sanity check that only one Role is found that matches what we are expecting
+        2. We create user_role for all current providers to differentiate them from all
+            other providers to be
+        3. We modify forms to only select only consider providers with the new role or
+            the already specified ones on form.
+     -->
+
+    <changeSet id="rwandaemr-ensure-forms-select-practicing-providers" author="IMB">
+        <preConditions onFail="HALT">
+            <sqlCheck expectedResult="1">
+                SELECT count(*) FROM role WHERE role = "Practicing provider"
+            </sqlCheck>
+        </preConditions>
+        <sql>
+
+            INSERT INTO user_role(
+                user_id,
+                role
+            )
+            SELECT
+                distinct(US.user_id),
+                "Practicing provider"
+            FROM
+                provider Pr
+            LEFT JOIN
+                users US
+            ON
+                Pr.person_id=US.person_id
+            WHERE
+                US.retired!=1 AND Pr.retired!=1
+            ;
+
+
+            UPDATE
+                htmlformentry_html_form
+            SET
+                xml_data = REPLACE(xml_data, '<encounterProvider', '<encounterProvider role="Practicing provider"')
+            WHERE
+                xml_data LIKE "%<encounterProvider%" AND xml_data NOT LIKE "%role=%"
+            ;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
