@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Datatype = 4:  Misc, Class = 10 = ConvSet
+    -->
+    <changeSet id="create-dose-units-set" author="IMB">
+        <preConditions>
+            <sqlCheck expectedResult="0">
+                select count(*) from concept where uuid = '0745175f-d5cb-11ea-b2b0-0242ac110002'
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            set @doseUnitsConceptUuid = '0745175f-d5cb-11ea-b2b0-0242ac110002';
+
+            insert into concept (uuid, datatype_id, class_id, is_set, creator, date_created)
+            values (@doseUnitsConceptUuid, 4, 10, 1, 1, now());
+
+            select concept_id into @doseUnitsConceptId from concept where uuid = @doseUnitsConceptUuid;
+
+            insert into concept_name (uuid, concept_id, name, locale, concept_name_type, locale_preferred, creator, date_created)
+            values ('47664f7e-d5cb-11ea-b2b0-0242ac110002', @doseUnitsConceptId, 'Drug Dosing Units', 'en', 'FULLY_SPECIFIED', 1, 1, now());
+
+            update global_property set property_value = @doseUnitsConceptUuid where property = 'order.drugDosingUnitsConceptUuid';
+        </sql>
+    </changeSet>
+
+    <!--
+        Remaining from butaro db that need mapping (rwink db still tbd):
+        count(*),units_non_coded
+        61716,
+        1526,OR
+        818,ml/m2
+        196,mcg
+        104,mg/5ml
+        60,ml/kg
+        52,""
+        22,mg/1.25ml
+        7,L
+        6,mg/ml
+        5,SUSPENDED
+        4,mg/k
+        4,units/kg
+        2,UI
+        1,200 mg
+        1,ORAL
+        1,INTRAVENOUS
+    -->
+    <changeSet id="rwandaemr-migrate-dose-units" author="IMB" runAlways="true">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                select count(*) from drug_order where units_non_coded is not null
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            update drug_order set dose_units =
+                (select concept_id from concept_name where name = 'mg/m2' and concept_name_type = 'FULLY_SPECIFIED' and locale = 'en')
+            where
+                units_non_coded = 'mg/m2';
+
+            update drug_order set dose_units =
+                (select concept_id from concept_name where name = 'mg' and concept_name_type = 'FULLY_SPECIFIED' and locale = 'en')
+            where
+                units_non_coded = 'mg';
+
+            update drug_order set dose_units =
+                (select concept_id from concept_name where name = 'mL' and concept_name_type = 'FULLY_SPECIFIED' and locale = 'en')
+            where
+                units_non_coded = 'ml';
+
+            update drug_order set dose_units =
+                (select concept_id from concept_name where name = 'TABLET' and concept_name_type = 'FULLY_SPECIFIED' and locale = 'en')
+            where
+                units_non_coded in ('TABLET', 'tab(s)');
+
+            update drug_order set dose_units =
+                (select concept_id from concept_name where name = 'units/m2' and concept_name_type = 'FULLY_SPECIFIED' and locale = 'en')
+            where
+                units_non_coded = 'units/m2';
+
+            update drug_order set dose_units =
+                (select concept_id from concept_name where name = 'mg/kg' and concept_name_type = 'FULLY_SPECIFIED' and locale = 'en')
+            where
+                units_non_coded = 'mg/kg';
+
+            update drug_order set dose_units =
+                (select concept_id from concept_name where name = 'AUC' and concept_name_type = 'FULLY_SPECIFIED' and locale = 'en')
+            where
+                units_non_coded = 'AUC';
+
+            update drug_order set dose_units =
+                (select concept_id from concept_name where name = 'CAPSULE' and concept_name_type = 'FULLY_SPECIFIED' and locale = 'en')
+            where
+                units_non_coded = 'CAPSULE';
+
+            update drug_order set dose_units =
+                (select concept_id from concept_name where name = 'Units' and concept_name_type = 'FULLY_SPECIFIED' and locale = 'en')
+            where
+                units_non_coded = 'units';
+
+            update drug_order set units_non_coded = null where dose_units is not null;
+
+            select concept_id into @unitSetId from concept where uuid = '0745175f-d5cb-11ea-b2b0-0242ac110002';
+
+            delete from concept_set where concept_set = @unitSetId;
+
+            insert into concept_set (concept_id, concept_set, sort_weight, creator, date_created, uuid)
+                select  distinct dose_units, @unitSetId, 1, 1, now(), uuid()
+                from    drug_order
+                where   dose_units is not null;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
