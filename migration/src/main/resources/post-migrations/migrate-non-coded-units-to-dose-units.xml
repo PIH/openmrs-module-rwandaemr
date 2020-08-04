@@ -9,7 +9,7 @@
         Datatype = 4:  Misc, Class = 10 = ConvSet
     -->
     <changeSet id="create-dose-units-set" author="IMB">
-        <preConditions>
+        <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 select count(*) from concept where uuid = '0745175f-d5cb-11ea-b2b0-0242ac110002'
             </sqlCheck>
@@ -51,11 +51,6 @@
         1,INTRAVENOUS
     -->
     <changeSet id="rwandaemr-migrate-dose-units" author="IMB" runAlways="true">
-        <preConditions onFail="MARK_RAN">
-            <sqlCheck expectedResult="0">
-                select count(*) from drug_order where units_non_coded is not null
-            </sqlCheck>
-        </preConditions>
         <sql>
             update drug_order set dose_units =
                 (select concept_id from concept_name where name = 'mg/m2' and concept_name_type = 'FULLY_SPECIFIED' and locale = 'en')

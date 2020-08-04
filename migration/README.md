@@ -16,6 +16,7 @@ The arguments are as follows, which show their default values that will be used 
 -Ddb_name=openmrs
 -Ddb_user=openmrs
 -Ddb_password=openmrs
+-Dchangelog_name=migrations
 
 So, to execute migrations on an instance of MySQL, where the above are accurate aside from db_port and db_password,
 you would run:
