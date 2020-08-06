@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Datatype = 4:  Misc, Class = 10 = ConvSet
+    -->
+    <changeSet id="create-route-concept-set" author="IMB">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                select count(*) from concept where uuid = '6dbd5f40-d818-11ea-8a42-0242ac110002'
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            set @routeConceptUuid = '6dbd5f40-d818-11ea-8a42-0242ac110002';
+
+            insert into concept (uuid, datatype_id, class_id, is_set, creator, date_created)
+            values (@routeConceptUuid, 4, 10, 1, 1, now());
+
+            select concept_id into @routeConceptId from concept where uuid = @routeConceptUuid;
+
+            insert into concept_name (uuid, concept_id, name, locale, concept_name_type, locale_preferred, creator, date_created)
+            values ('84d6759c-d819-11ea-8a42-0242ac110002', @routeConceptId, 'Drug Routes', 'en', 'FULLY_SPECIFIED', 1, 1, now());
+
+            update global_property set property_value = @routeConceptUuid where property = 'order.drugRoutesConceptUuid';
+        </sql>
+    </changeSet>
+
+    <changeSet id="populate-route-concept-set" author="IMB" runAlways="true">
+        <sql>
+            select concept_id into @routeSetId from concept where uuid = '6dbd5f40-d818-11ea-8a42-0242ac110002';
+
+            delete from concept_set where concept_set = @routeSetId;
+
+            insert into concept_set (concept_id, concept_set, sort_weight, creator, date_created, uuid)
+                select  distinct route, @routeSetId, 1, 1, now(), uuid()
+                from    drug_order
+                where   route is not null;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
