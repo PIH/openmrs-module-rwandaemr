@@ -10,7 +10,11 @@
     <!--
         Migrations that need to be executed after the upgrade has been completed and the 2.3 data model is present
     -->
-    <include file="post-migrations/migrate-non-coded-units-to-dose-units.xml" relativeToChangelogFile="true" />
-    <include file="post-migrations/setup-dose-units-concept-set.xml" relativeToChangelogFile="true" />
+    <changeSet id="rwandaemr-imb-setup-post-migration-stored-procedures" author="IMB" runAlways="true" runOnChange="true">
+        <sqlFile path="post-migrations/sql/procedures.sql" relativeToChangelogFile="true" endDelimiter="#"/>
+    </changeSet>
+    <include file="post-migrations/migrate-units.xml" relativeToChangelogFile="true" />
+    <include file="post-migrations/migrate-routes.xml" relativeToChangelogFile="true" />
+    <include file="post-migrations/migrate-frequencies.xml" relativeToChangelogFile="true" />
   
 </databaseChangeLog>
