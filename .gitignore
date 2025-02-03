@@ -5,10 +5,10 @@
 target
 
 *.iml
-
-# Package Files #
-*.jar
-*.war
-*.ear
-
 .idea/*
+
+# Files that are Auto-generated as part of build #
+omod/package.json
+omod/package-lock.json
+omod/node
+omod/node_modules

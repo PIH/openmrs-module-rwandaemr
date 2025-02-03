@@ -7,49 +7,66 @@
 	<name>${project.parent.name}</name>
 	<version>${project.parent.version}</version>
 	<package>${project.parent.groupId}.${project.parent.artifactId}</package>
-	<author>Rwanda</author>
+	<author>IMB</author>
 	<description>
 		${project.parent.description}
 	</description>
-	<updateURL>https://dev.openmrs.org/modules/download/${project.parent.artifactId}/update.rdf</updateURL>
 	<require_version>${openMRSVersion}</require_version>
 	
 	<require_modules>
-        <require_module version="${addresshierarchyrwandaVersion}">org.openmrs.module.addresshierarchyrwanda</require_module>
-        <require_module version="${calculationVersion}">org.openmrs.calculation</require_module>
-        <require_module version="${formconceptsVersion}">org.openmrs.module.formconcepts</require_module>
-        <require_module version="${groovyVersion}">org.openmrs.module.groovy</require_module>
-        <require_module version="${heightweighttrackerVersion}">org.openmrs.module.heightweighttracker</require_module>
-        <require_module version="${htmlformentryVersion}">org.openmrs.module.htmlformentry</require_module>
-        <require_module version="${htmlformflowsheetVersion}">org.openmrs.module.htmlformflowsheet</require_module>
-        <require_module version="${htmlwidgetsVersion}">org.openmrs.module.htmlwidgets</require_module>
-        <require_module version="${idgenVersion}">org.openmrs.module.idgen</require_module>
-        <require_module version="${laboratorymanagementVersion}">org.openmrs.module.laboratorymanagement</require_module>
-        <require_module version="${logicVersion}">org.openmrs.logic</require_module>
-        <require_module version="${metadatamappingVersion}">org.openmrs.module.metadatamapping</require_module>
-        <require_module version="${metadatasharingVersion}">org.openmrs.module.metadatasharing</require_module>
-        <require_module version="${mohappointmentVersion}">org.openmrs.module.mohappointment</require_module>
-        <require_module version="${mohbillingVersion}">org.openmrs.module.mohbilling</require_module>
-        <require_module version="${mohtracVersion}">org.openmrs.module.mohtracportal</require_module>
-        <require_module version="${namephoneticsVersion}">org.openmrs.module.namephonetics</require_module>
-        <require_module version="${omodExportVersion}">org.openmrs.module.omodexport</require_module>
-        <require_module version="${orderextensionVersion}">org.openmrs.module.orderextension</require_module>
-        <require_module version="${pharmacymanagementVersion}">org.openmrs.module.pharmacymanagement</require_module>
-        <require_module version="${reportingcompatibilityVersion}">org.openmrs.module.reportingcompatibility</require_module>
-        <require_module version="${reportingobjectgroupVersion}">org.openmrs.module.reportingobjectgroup</require_module>
-        <require_module version="${reportingVersion}">org.openmrs.module.reporting</require_module>
-        <require_module version="${rowperpatientreportsVersion}">org.openmrs.module.rowperpatientreports</require_module>
-        <require_module version="${rwandahivflowsheetVersion}">org.openmrs.module.rwandahivflowsheet</require_module>
-        <require_module version="${rwandaprimarycareVersion}">org.openmrs.module.rwandaprimarycare</require_module>
-        <require_module version="${rwandareportsVersion}">org.openmrs.module.rwandareports</require_module>
-        <require_module version="${serializationVersion}">org.openmrs.module.serialization.xstream</require_module>
-        <require_module version="${simplelabentryVersion}">org.openmrs.module.simplelabentry</require_module>
-        <require_module version="${syncVersion}">org.openmrs.module.sync</require_module>
-        <require_module version="${validationVersion}">org.openmrs.module.validation</require_module>
-        <require_module version="${webservicesRestVersion}">org.openmrs.module.webservices.rest</require_module>
+		<require_module version="${addresshierarchyVersion}">org.openmrs.module.addresshierarchy</require_module>
+		<require_module version="${appframeworkVersion}">org.openmrs.module.appframework</require_module>
+		<require_module version="${authenticationVersion}">org.openmrs.module.authentication</require_module>
+		<require_module version="${authenticationuiVersion}">org.openmrs.module.authenticationui</require_module>
+		<require_module version="${appuiVersion}">org.openmrs.module.appui</require_module>
+		<require_module version="${mohbillingVersion}">org.openmrs.module.mohbilling</require_module>
+		<require_module version="${calculationVersion}">org.openmrs.calculation</require_module>
+		<require_module version="${coreappsVersion}">org.openmrs.module.coreapps</require_module>
+		<require_module version="${emrapiVersion}">org.openmrs.module.emrapi</require_module>
+		<require_module version="${eventVersion}">org.openmrs.event</require_module>
+		<require_module version="${fhir2Version}">org.openmrs.module.fhir2</require_module>
+		<require_module version="${htmlformentryVersion}">org.openmrs.module.htmlformentry</require_module>
+		<require_module version="${htmlformentryuiVersion}">org.openmrs.module.htmlformentryui</require_module>
+		<require_module version="${htmlwidgetsVersion}">org.openmrs.module.htmlwidgets</require_module>
+		<require_module version="${idgenVersion}">org.openmrs.module.idgen</require_module>
+		<require_module version="${initializerVersion}">org.openmrs.module.initializer</require_module>
+		<require_module version="${legacyuiVersion}">org.openmrs.module.legacyui</require_module>
+		<require_module version="${metadatamappingVersion}">org.openmrs.module.metadatamapping</require_module>
+		<require_module version="${metadatasharingVersion}">org.openmrs.module.metadatasharing</require_module>
+		<require_module version="${mohappointmentVersion}">org.openmrs.module.mohappointment</require_module>
+		<require_module version="${mohbillingVersion}">org.openmrs.module.mohbilling</require_module>
+		<require_module version="${namephoneticsVersion}">org.openmrs.module.namephonetics</require_module>
+		<require_module version="${providermanagementVersion}">org.openmrs.module.providermanagement</require_module>
+		<require_module version="${registrationappVersion}">org.openmrs.module.registrationapp</require_module>
+		<require_module version="${registrationcoreVersion}">org.openmrs.module.registrationcore</require_module>
+		<require_module version="${reportingVersion}">org.openmrs.module.reporting</require_module>
+		<require_module version="${reportingcompatibilityVersion}">org.openmrs.module.reportingcompatibility</require_module>
+		<require_module version="${reportingrestVersion}">org.openmrs.module.reportingrest</require_module>
+		<require_module version="${reportinguiVersion}">org.openmrs.module.reportingui</require_module>
+		<require_module version="${serializationVersion}">org.openmrs.module.serialization.xstream</require_module>
+		<require_module version="${syncVersion}">org.openmrs.module.sync</require_module>
+		<require_module version="${uicommonsVersion}">org.openmrs.module.uicommons</require_module>
+		<require_module version="${uiframeworkVersion}">org.openmrs.module.uiframework</require_module>
+		<require_module version="${uilibraryVersion}">org.openmrs.module.uilibrary</require_module>
+		<require_module version="${webservicesRestVersion}">org.openmrs.module.webservices.rest</require_module>
     </require_modules>
 
-	<activator>${project.parent.groupId}.${project.parent.artifactId}.RwandaEmrActivator</activator>
+	<activator>org.openmrs.module.rwandaemr.RwandaEmrActivator</activator>
+
+	<filter>
+		<filter-name>RequireLoginLocationFilter</filter-name>
+		<filter-class>org.openmrs.module.rwandaemr.RequireLoginLocationFilter</filter-class>
+	</filter>
+
+	<filter-mapping>
+		<filter-name>RequireLoginLocationFilter</filter-name>
+		<url-pattern>*</url-pattern>
+	</filter-mapping>
+
+	<extension>
+		<point>org.openmrs.admin.list</point>
+		<class>org.openmrs.module.rwandaemr.web.AdminPageExtension</class>
+	</extension>
 
 	<messages>
 		<lang>en</lang>
