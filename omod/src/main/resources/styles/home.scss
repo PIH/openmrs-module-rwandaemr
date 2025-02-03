@@ -1,0 +1,74 @@
+@import "customVariables";
+@import "reference";
+
+hr.separator {
+  width: 100%;
+  border-bottom: 1px dashed $black;
+  margin-bottom: 40px;
+}
+
+#home-container {
+  margin: 0 auto;
+
+  #apps {
+    border-bottom: 1px dashed #CCC;
+    margin: 40px 0;
+    padding: 10px 0;
+    border-top: 1px dashed #CCC;
+  }
+}
+
+.app {
+  -webkit-appearance: unset !important;
+}
+
+.homeList a  {
+  font-size: unset;
+  white-space: normal;
+  width: 166px !important;
+  color: #363463;
+  
+  &:hover{
+    background: #e2e2e2;
+    border-color: #d0d0d0;
+    color: #363463;
+  }
+}
+
+.homeNotification{
+  min-width : unset !important;
+}
+
+.note-container .note{
+  min-width: unset !important;
+}
+
+@media only screen and (min-width : 320px) and (max-width : 365px)  {
+  .homeList a {
+    width: 117px !important;
+  }
+}
+
+@media only screen and (max-width : 410px) and (min-width : 375px)  {
+  .homeList a {
+    width: 140px !important;
+  }
+}
+
+@media only screen and (max-width : 414px) and (min-width : 411px)  {
+  .homeList a {
+    width: 158px !important;
+  }
+}
+
+@media only screen and (min-width : 768px) and (max-width : 991px)  {
+  .homeList a {
+    width: 156px !important;
+  }
+}
+
+@media only screen and (max-width : 992px)  {
+  .schedulingList {
+    margin-left: unset !important;
+  }
+} 

@@ -1,0 +1,162 @@
+{
+	"resourceType": "Bundle",
+	"id": "65f2b0b8-912b-40ed-98cb-048467d799ae",
+	"meta": {
+		"lastUpdated": "2024-10-27T16:24:32.185+00:00"
+	},
+	"type": "searchset",
+	"total": 1,
+	"link": [
+		{
+			"relation": "self",
+			"url": "http://10.10.69.42:8089/clientregistry/Patient?identifier=220919-7657-5617"
+		}
+	],
+	"entry": [
+		{
+			"fullUrl": "http://10.10.69.42:8089/clientregistry/Patient/220919-7657-5617",
+			"resource": {
+				"resourceType": "Patient",
+				"id": "220919-7657-5617",
+				"meta": {
+					"versionId": "1"
+				},
+				"extension": [
+					{
+						"url": "https://hl7.org/fhir/StructureDefinition/patient-nationality",
+						"valueCodeableConcept": {
+							"coding": [
+								{
+									"system": "https://hl7.org/fhir/StructureDefinition/patient-nationality",
+									"code": "RW",
+									"display": "RW"
+								}
+							],
+							"text": "NATIONALITY"
+						}
+					},
+					{
+						"url": "https://hl7.org/fhir/StructureDefinition/patient-religion",
+						"valueCodeableConcept": {
+							"coding": [
+								{
+									"system": "https://hl7.org/fhir/StructureDefinition/patient-religion",
+									"code": "some-religion",
+									"display": "some-religion"
+								}
+							],
+							"text": "RELIGION"
+						}
+					},
+					{
+						"url": "https://fhir.hie.moh.gov.rw/fhir/StructureDefinition/extensions/patient-educational-level",
+						"valueCodeableConcept": {
+							"coding": [
+								{
+									"system": "https://fhir.hie.moh.gov.rw/fhir/StructureDefinition/extensions/patient-educational-level",
+									"code": "Primary",
+									"display": "Primary"
+								}
+							],
+							"text": "EDUCATIONAL_LEVEL"
+						}
+					},
+					{
+						"url": "https://fhir.hie.moh.gov.rw/fhir/StructureDefinition/extensions/patient-profession",
+						"valueCodeableConcept": {
+							"coding": [
+								{
+									"system": "https://fhir.hie.moh.gov.rw/fhir/StructureDefinition/extensions/patient-profession",
+									"code": "1306",
+									"display": "1306"
+								}
+							],
+							"text": "PROFESSION"
+						}
+					}
+				],
+				"identifier": [
+					{
+						"system": "NID"
+					},
+					{
+						"system": "UPI",
+						"value": "220919-7657-5617"
+					},
+					{
+						"system": "NIN"
+					},
+					{
+						"system": "NID_APPLICATION_NUMBER"
+					},
+					{
+						"system": "PASSPORT"
+					}
+				],
+				"name": [
+					{
+						"family": "TestP",
+						"given": [
+							"TestP"
+						]
+					}
+				],
+				"telecom": [
+					{
+						"system": "phone",
+						"value": "0000000000",
+						"use": "mobile"
+					}
+				],
+				"gender": "male",
+				"birthDate": "1999-03-20",
+				"deceasedBoolean": false,
+				"address": [
+					{
+						"type": "physical",
+						"line": [
+							"||postal"
+						],
+						"country": "RWA"
+					},
+					{
+						"type": "physical",
+						"line": [
+							"Gitega|Akabahizi|RESIDENTIAL"
+						],
+						"city": "Gihanga",
+						"district": "Nyarugenge",
+						"state": "Kigali Province",
+						"country": "Rwanda"
+					}
+				],
+				"contact": [
+					{
+						"name": {
+							"family": "FATHER NAME",
+							"given": [
+								"Test Father"
+							]
+						},
+						"gender": "male"
+					},
+					{
+						"name": {
+							"family": "MOTHER NAME",
+							"given": [
+								"Test Mother"
+							]
+						},
+						"gender": "female"
+					},
+					{
+						"name": {
+							"family": "SPOUSE NAME"
+						},
+						"gender": "female"
+					}
+				]
+			}
+		}
+	]
+}
