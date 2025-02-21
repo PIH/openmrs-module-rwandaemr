@@ -18,6 +18,7 @@ import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 import org.hl7.fhir.r4.model.Bundle;
@@ -34,6 +35,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -127,10 +129,16 @@ public class NidaMpiProvider {
 			return null;
 		}
 		try (CloseableHttpClient httpClient = getMpiClient()) {
+			ObjectMapper mapper = new ObjectMapper();
 			String endpoint = "/api/v1/citizens/getCitizen";
-			String[] parameters = {"documentType", identifierSystem, "documentNumber", identifier, "fosaid", fosaId};
-			HttpPost httpPost = new HttpPost(getMpiEndpointUrl(endpoint, parameters));
+			HttpPost httpPost = new HttpPost(getMpiEndpointUrl(endpoint));
 			log.debug("Attempting to generate UPID and retrieve patient " + identifier + " from NIDA");
+			Map<String, String> postBody = new HashMap<>();
+			postBody.put("documentType", identifierSystem);
+			postBody.put("documentNumber", identifier);
+			postBody.put("fosaid", fosaId);
+			httpPost.setEntity(new StringEntity(mapper.writeValueAsString(postBody)));
+			httpPost.setHeader("Content-Type", "application/json");
 			try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
 				int statusCode = response.getStatusLine().getStatusCode();
 				HttpEntity entity = response.getEntity();
@@ -139,10 +147,10 @@ public class NidaMpiProvider {
 					data = EntityUtils.toString(entity);
 				} catch (Exception ignored) {
 				}
+				log.debug("Data: " + data);
 				if (statusCode != 200) {
 					throw new IllegalStateException("Http Status Code: " + statusCode + "; Response: " + data);
 				}
-				ObjectMapper mapper = new ObjectMapper();
 				UpidPatientTranslator.UpidResponse upidResponse = mapper.readValue(data, UpidPatientTranslator.UpidResponse.class);
 				if (upidResponse.getData() == null || !"ok".equalsIgnoreCase(upidResponse.getStatus())) {
 					throw new IllegalStateException("No patient retrieve.  Status: " + upidResponse.getStatus());
@@ -176,6 +184,7 @@ public class NidaMpiProvider {
 					data = EntityUtils.toString(entity);
 				} catch (Exception ignored) {
 				}
+				log.debug("Data: " + data);
 				if (statusCode != 200) {
 					throw new IllegalStateException("Http Status Code: " + statusCode + "; Response: " + data);
 				}
