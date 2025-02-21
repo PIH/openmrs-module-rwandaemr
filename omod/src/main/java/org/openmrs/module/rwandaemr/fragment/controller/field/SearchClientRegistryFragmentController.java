@@ -14,10 +14,12 @@
 
 package org.openmrs.module.rwandaemr.fragment.controller.field;
 
+import org.apache.commons.lang.StringUtils;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
 import org.openmrs.PersonAddress;
 import org.openmrs.PersonAttribute;
+import org.openmrs.module.appui.UiSessionContext;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.module.rwandaemr.integration.NidaMpiProvider;
 import org.openmrs.ui.framework.annotation.SpringBean;
@@ -25,8 +27,8 @@ import org.openmrs.ui.framework.fragment.FragmentModel;
 import org.openmrs.ui.framework.fragment.action.FailureResult;
 import org.openmrs.ui.framework.fragment.action.FragmentActionResult;
 import org.openmrs.ui.framework.fragment.action.ObjectResult;
-import org.springframework.web.bind.annotation.RequestParam;
 
+import javax.servlet.http.HttpServletRequest;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.LinkedHashMap;
@@ -38,11 +40,25 @@ public class SearchClientRegistryFragmentController {
         model.addAttribute("clientRegistryEnabled", mpiProvider.isEnabled());
     }
 
-    public FragmentActionResult findByIdentifier(@RequestParam("identifier") String identifier,
-                                                 @RequestParam("identifierTypeUuid") String identifierType,
-                                                 @SpringBean NidaMpiProvider mpiProvider,
-                                                 @SpringBean RwandaEmrConfig rwandaEmrConfig) {
-        Patient patient = mpiProvider.fetchPatient(identifier, identifierType);
+    public FragmentActionResult findByIdentifier(HttpServletRequest request,
+                                                 UiSessionContext uiSessionContext,
+                                                 @SpringBean RwandaEmrConfig rwandaEmrConfig,
+                                                 @SpringBean NidaMpiProvider mpiProvider) {
+
+        Map<String, String> identifiersToSearch = new LinkedHashMap<>();
+        for (Object parameter : request.getParameterMap().keySet()) {
+            String paramName = (String) parameter;
+            if (paramName.startsWith("identifier_")) {
+                String[] split = paramName.split("_");
+                String identifierType = split[1];
+                String identifier = request.getParameter(paramName);
+                if (StringUtils.isNotBlank(identifier)) {
+                    identifiersToSearch.put(identifierType, identifier);
+                }
+            }
+        }
+
+        Patient patient = mpiProvider.fetchPatientFromClientOrPopulationRegistry(identifiersToSearch, uiSessionContext.getSessionLocation());
         if (patient == null) {
             return new FailureResult("rwandaemr.clientRegistry.patientNotFound");
         }

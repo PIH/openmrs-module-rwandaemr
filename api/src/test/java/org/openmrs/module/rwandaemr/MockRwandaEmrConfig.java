@@ -1,9 +1,11 @@
 package org.openmrs.module.rwandaemr;
 
 import org.openmrs.EncounterType;
+import org.openmrs.LocationAttributeType;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.PersonAttributeType;
 import org.openmrs.api.EncounterService;
+import org.openmrs.api.LocationService;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.PersonService;
 import org.openmrs.module.initializer.api.InitializerService;
@@ -11,14 +13,15 @@ import org.openmrs.module.initializer.api.InitializerService;
 public class MockRwandaEmrConfig extends RwandaEmrConfig {
 
 	public MockRwandaEmrConfig() {
-		this(null, null, null, null);
+		this(null, null, null, null, null);
 	}
 
 	public MockRwandaEmrConfig(PatientService patientService,
 							   PersonService personService,
+							   LocationService locationService,
 							   EncounterService encounterService,
 							   InitializerService initializerService) {
-		super(patientService, personService, encounterService, initializerService);
+		super(patientService, personService, locationService, encounterService, initializerService);
 	}
 
 	@Override
@@ -32,7 +35,7 @@ public class MockRwandaEmrConfig extends RwandaEmrConfig {
 	@Override
 	public PatientIdentifierType getNationalId() {
 		PatientIdentifierType t = new PatientIdentifierType();
-		t.setUuid("0c69d739-956a-11ef-93fa-0242ac120002");
+		t.setUuid("ed52ec82-4b7c-411b-804a-13bd9651bb3e");
 		t.setName("National ID");
 		return t;
 	}
@@ -122,6 +125,14 @@ public class MockRwandaEmrConfig extends RwandaEmrConfig {
 		EncounterType t = new EncounterType();
 		t.setUuid("cfe614d5-fa7e-4919-b76b-a66117f57e4c");
 		t.setName("Registration");
+		return t;
+	}
+
+	@Override
+	public LocationAttributeType getFosaId() {
+		LocationAttributeType t = new LocationAttributeType();
+		t.setUuid("eb844bfb-b1d9-11ef-8756-0242ac120002");
+		t.setName("FOSA ID");
 		return t;
 	}
 }

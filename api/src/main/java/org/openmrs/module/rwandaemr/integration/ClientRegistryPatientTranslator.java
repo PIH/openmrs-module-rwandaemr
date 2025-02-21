@@ -34,42 +34,27 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Implementation of MpiProvider that connects to the Rwanda NIDA
+ * Translation layer between the FHIR Patient returned from the client registry and an OpenMRS patient
  */
 @Component
-public class NidaPatientTranslator {
+public class ClientRegistryPatientTranslator {
 
 	protected Log log = LogFactory.getLog(getClass());
 
 	private final RwandaEmrConfig rwandaEmrConfig;
-	private Map<String, PatientIdentifierType> identifierSystems = null;
+	private final IntegrationConfig integrationConfig;
 
-	public NidaPatientTranslator(
-			@Autowired RwandaEmrConfig rwandaEmrConfig
-	) {
+	public ClientRegistryPatientTranslator(@Autowired RwandaEmrConfig rwandaEmrConfig, @Autowired IntegrationConfig integrationConfig) {
 		this.rwandaEmrConfig = rwandaEmrConfig;
+		this.integrationConfig = integrationConfig;
 	}
 
 	public static final String EDUCATION_EXTENSION_URL = "https://fhir.hie.moh.gov.rw/fhir/StructureDefinition/extensions/patient-educational-level";
 	public static final String RELIGION_EXTENSION_URL = "https://hl7.org/fhir/StructureDefinition/patient-religion";
 	public static final String PROFESSION_EXTENSION_URL = "https://fhir.hie.moh.gov.rw/fhir/StructureDefinition/extensions/patient-profession";
-
-	private synchronized Map<String, PatientIdentifierType> getIdentifierSystems() {
-		if (identifierSystems == null) {
-			identifierSystems = new HashMap<>();
-			identifierSystems.put("NID", rwandaEmrConfig.getNationalId());
-			identifierSystems.put("NID_APPLICATION_NUMBER", rwandaEmrConfig.getNidApplicationNumber());
-			identifierSystems.put("NIN", rwandaEmrConfig.getNIN());
-			identifierSystems.put("UPI", rwandaEmrConfig.getUPID());
-			identifierSystems.put("PASSPORT", rwandaEmrConfig.getPassportNumber());
-		}
-		return identifierSystems;
-	}
 
 	public Patient toOpenmrsType(@Nonnull org.hl7.fhir.r4.model.Patient fhirPatient) {
 		Patient p = new Patient();
@@ -79,7 +64,7 @@ public class NidaPatientTranslator {
 				String value = identifier.getValue();
 				if (StringUtils.isNotBlank(value)) {
 					String system = identifier.getSystem();
-					PatientIdentifierType identifierType = getIdentifierSystems().get(system);
+					PatientIdentifierType identifierType = integrationConfig.getIdentifierSystems().get(system);
 					if (identifierType != null) {
 						PatientIdentifier pi = new PatientIdentifier();
 						pi.setPatient(p);

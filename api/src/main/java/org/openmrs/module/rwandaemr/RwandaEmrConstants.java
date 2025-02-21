@@ -13,7 +13,9 @@ package org.openmrs.module.rwandaemr;
  * Constants used by the Rwanda EMR module
  */
 public class RwandaEmrConstants {
-	public static final String CLIENT_REGISTRY_URL_PROPERTY = "rwandaemr.clientregistry.url";
-	public static final String CLIENT_REGISTRY_USERNAME_PROPERTY = "rwandaemr.clientregistry.username";
-	public static final String CLIENT_REGISTRY_PASSWORD_PROPERTY = "rwandaemr.clientregistry.password";
+
+	public static final String MPI_URL_PROPERTY = "rwandaemr.mpi.url";
+	public static final String MPI_USERNAME_PROPERTY = "rwandaemr.mpi.username";
+	public static final String MPI_PASSWORD_PROPERTY = "rwandaemr.mpi.password";
+
 }

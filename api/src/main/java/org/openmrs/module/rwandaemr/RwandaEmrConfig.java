@@ -13,9 +13,11 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.EncounterType;
+import org.openmrs.LocationAttributeType;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.PersonAttributeType;
 import org.openmrs.api.EncounterService;
+import org.openmrs.api.LocationService;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.PersonService;
 import org.openmrs.module.initializer.api.InitializerService;
@@ -32,15 +34,18 @@ public class RwandaEmrConfig {
 
 	private final PersonService personService;
 	private final PatientService patientService;
+	private final LocationService locationService;
 	private final EncounterService encounterService;
 	private final InitializerService initializerService;
 
 	public RwandaEmrConfig(@Autowired PatientService patientService,
 						   @Autowired PersonService personService,
+						   @Autowired LocationService locationService,
 						   @Autowired EncounterService encounterService,
 						   @Autowired InitializerService initializerService) {
 		this.patientService = patientService;
 		this.personService = personService;
+		this.locationService = locationService;
 		this.encounterService = encounterService;
 		this.initializerService = initializerService;
 	}
@@ -97,6 +102,10 @@ public class RwandaEmrConfig {
 		return getEncounterTypeByJsonKey("encounterType.registration.uuid");
 	}
 
+	public LocationAttributeType getFosaId() {
+		return getLocationAttributeTypeByJsonKey("locationAttribute.fosaId.uuid");
+	}
+
 	public PatientIdentifierType getPatientIdentifierTypeByJsonKey(String jsonKey) {
 		String uuid = initializerService.getValueFromKey(jsonKey);
 		if (StringUtils.isBlank(uuid)) {
@@ -119,5 +128,13 @@ public class RwandaEmrConfig {
 			return null;
 		}
 		return encounterService.getEncounterTypeByUuid(uuid);
+	}
+
+	public LocationAttributeType getLocationAttributeTypeByJsonKey(String jsonKey) {
+		String uuid = initializerService.getValueFromKey(jsonKey);
+		if (StringUtils.isBlank(uuid)) {
+			return null;
+		}
+		return locationService.getLocationAttributeTypeByUuid(uuid);
 	}
 }
