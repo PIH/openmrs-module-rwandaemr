@@ -8,7 +8,6 @@ import org.apache.commons.logging.LogFactory;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.openmrs.Patient;
 import org.openmrs.api.PatientService;
-import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.module.rwandaemr.event.PatientEventListener;
 import org.openmrs.util.OpenmrsUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +28,6 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 	protected Log log = LogFactory.getLog(getClass());
 
 	private final PatientService patientService;
-	private final RwandaEmrConfig rwandaEmrConfig;
 	private final IntegrationConfig integrationConfig;
 	private final ClientRegistryPatientProvider clientRegistryPatientProvider;
 
@@ -39,17 +37,19 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 
 	public UpdateClientRegistryPatientListener(
 			@Autowired PatientService patientService,
-			@Autowired RwandaEmrConfig rwandaEmrConfig,
 			@Autowired IntegrationConfig integrationConfig,
 			@Autowired ClientRegistryPatientProvider clientRegistryPatientProvider) {
 		this.patientService = patientService;
-		this.rwandaEmrConfig = rwandaEmrConfig;
 		this.integrationConfig = integrationConfig;
 		this.clientRegistryPatientProvider = clientRegistryPatientProvider;
 	}
 
 	@Override
 	public void handlePatient(String patientUuid, MapMessage mapMessage) {
+		if (!integrationConfig.isMPIEnabled()) {
+			log.debug("Integration with client registry is not enabled, returning");
+			return;
+		}
 		log.warn("Updating client registry with: " + patientUuid);
 		Patient patient = patientService.getPatientByUuid(patientUuid);
 		try {
@@ -85,6 +85,10 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 	}
 
 	public void processQueuedMessages() {
+		if (!integrationConfig.isMPIEnabled()) {
+			log.debug("Integration with client registry is not enabled, returning");
+			return;
+		}
 		if (!processing) {
 			try {
 				processing = true;
