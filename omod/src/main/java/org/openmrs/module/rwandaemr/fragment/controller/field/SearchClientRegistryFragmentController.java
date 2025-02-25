@@ -54,7 +54,7 @@ public class SearchClientRegistryFragmentController {
     protected Log log = LogFactory.getLog(getClass());
 
     public void controller(@SpringBean IntegrationConfig integrationConfig, FragmentModel model) {
-        model.addAttribute("clientRegistryEnabled", integrationConfig.isMPIEnabled());
+        model.addAttribute("clientRegistryEnabled", integrationConfig.isHieEnabled());
     }
 
     public FragmentActionResult findByIdentifier(HttpServletRequest request,

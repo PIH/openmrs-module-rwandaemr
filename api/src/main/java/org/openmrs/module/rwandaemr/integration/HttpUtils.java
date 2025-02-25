@@ -12,7 +12,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
-import org.openmrs.module.rwandaemr.RwandaEmrConstants;
 import org.openmrs.util.ConfigUtil;
 
 import javax.net.ssl.HostnameVerifier;
@@ -42,11 +41,11 @@ public class HttpUtils {
     }
 
     /**
-     * @return the http client to use to interact with the mpi, or null if no mpi credentials are configured
+     * @return the http client to use to interact with the HIE, or null if no HIE credentials are configured
      */
-    public static CloseableHttpClient getMpiClient() {
-        String username = ConfigUtil.getProperty(RwandaEmrConstants.MPI_USERNAME_PROPERTY);
-        String password = ConfigUtil.getProperty(RwandaEmrConstants.MPI_PASSWORD_PROPERTY);
+    public static CloseableHttpClient getHieClient() {
+        String username = ConfigUtil.getProperty(IntegrationConfig.HIE_USERNAME_PROPERTY);
+        String password = ConfigUtil.getProperty(IntegrationConfig.HIE_PASSWORD_PROPERTY);
         if (StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password)) {
             return getHttpClient(username, password, true);
         }

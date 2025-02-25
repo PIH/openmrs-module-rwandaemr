@@ -58,8 +58,8 @@ public class ClientRegistryPatientProviderTest {
 	}
 
 	private boolean isConfiguredToRun() {
-		return  ConfigUtil.getSystemProperty(RwandaEmrConstants.MPI_URL_PROPERTY) != null &&
-				ConfigUtil.getSystemProperty(RwandaEmrConstants.MPI_USERNAME_PROPERTY) != null &&
-				ConfigUtil.getSystemProperty(RwandaEmrConstants.MPI_PASSWORD_PROPERTY) != null;
+		return  ConfigUtil.getSystemProperty(IntegrationConfig.HIE_URL_PROPERTY) != null &&
+				ConfigUtil.getSystemProperty(IntegrationConfig.HIE_USERNAME_PROPERTY) != null &&
+				ConfigUtil.getSystemProperty(IntegrationConfig.HIE_PASSWORD_PROPERTY) != null;
 	}
 }

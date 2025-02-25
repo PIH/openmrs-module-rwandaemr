@@ -57,14 +57,14 @@ public class ClientRegistryPatientProvider {
 	 * If exactly 1 result is found, it is returned, otherwise, null is returned
 	 */
 	public ClientRegistryPatient fetchPatientFromClientRegistry(String identifier) {
-		if (!integrationConfig.isMPIEnabled()) {
+		if (!integrationConfig.isHieEnabled()) {
 			log.debug("Incomplete credentials supplied to connect to client registry, skipping");
 			return null;
 		}
-		try (CloseableHttpClient httpClient = HttpUtils.getMpiClient()) {
-			String url = integrationConfig.getMpiEndpointUrl("/clientregistry/Patient", "identifier", identifier);
+		try (CloseableHttpClient httpClient = HttpUtils.getHieClient()) {
+			String url = integrationConfig.getHieEndpointUrl("/clientregistry/Patient", "identifier", identifier);
 			HttpGet httpGet = new HttpGet(url);
-			log.debug("Attempting to find patient " + identifier + " from NIDA");
+			log.debug("Attempting to find patient " + identifier + " from client registry");
 			try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
 				int statusCode = response.getStatusLine().getStatusCode();
 				HttpEntity entity = response.getEntity();
@@ -90,7 +90,7 @@ public class ClientRegistryPatientProvider {
 				return new ClientRegistryPatient(fhirPatient);
 			}
 		} catch (Exception e) {
-			log.debug("An error occurred trying to fetch patients from NIDA, returning null", e);
+			log.debug("An error occurred trying to fetch patients from client registry, returning null", e);
 		}
 		return null;
 	}
@@ -100,7 +100,7 @@ public class ClientRegistryPatientProvider {
 	 * If the patient does not have a UPID patient identifier, then this returns without performing any action
 	 */
 	public void updatePatientInClientRegistry(Patient patient) throws Exception {
-		if (!integrationConfig.isMPIEnabled()) {
+		if (!integrationConfig.isHieEnabled()) {
 			log.debug("Incomplete credentials supplied to connect to client registry, skipping");
 			return;
 		}
@@ -131,8 +131,8 @@ public class ClientRegistryPatientProvider {
 		String postBody = fhirContext.newJsonParser().encodeResourceToString(crPatient.getPatient());
 
 		// Post data to the client registry
-		try (CloseableHttpClient httpClient = HttpUtils.getMpiClient()) {
-			HttpPost httpPost = new HttpPost(integrationConfig.getMpiEndpointUrl(endpoint));
+		try (CloseableHttpClient httpClient = HttpUtils.getHieClient()) {
+			HttpPost httpPost = new HttpPost(integrationConfig.getHieEndpointUrl(endpoint));
 			log.debug("POSTING " + endpoint + ": " + postBody);
 			httpPost.setEntity(new StringEntity(postBody));
 			httpPost.setHeader("Content-Type", "application/json");

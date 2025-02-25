@@ -46,7 +46,7 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 
 	@Override
 	public void handlePatient(String patientUuid, MapMessage mapMessage) {
-		if (!integrationConfig.isMPIEnabled()) {
+		if (!integrationConfig.isHieEnabled()) {
 			log.debug("Integration with client registry is not enabled, returning");
 			return;
 		}
@@ -85,7 +85,7 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 	}
 
 	public void processQueuedMessages() {
-		if (!integrationConfig.isMPIEnabled()) {
+		if (!integrationConfig.isHieEnabled()) {
 			log.debug("Integration with client registry is not enabled, returning");
 			return;
 		}

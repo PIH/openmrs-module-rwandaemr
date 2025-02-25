@@ -46,7 +46,7 @@ public class CitizenProvider {
 	 * for the given identifier, identifierSystem and fosaId
 	 */
 	public Citizen getCitizen(String identifierSystem, String identifier, String fosaId) {
-		if (!integrationConfig.isMPIEnabled()) {
+		if (!integrationConfig.isHieEnabled()) {
 			log.debug("Incomplete credentials supplied to connect to getCitizen, skipping");
 			return null;
 		}
@@ -54,10 +54,10 @@ public class CitizenProvider {
 			log.debug("All required arguments not supplied to connect to getCitizen, skipping");
 			return null;
 		}
-		try (CloseableHttpClient httpClient = HttpUtils.getMpiClient()) {
+		try (CloseableHttpClient httpClient = HttpUtils.getHieClient()) {
 			ObjectMapper mapper = new ObjectMapper();
 			String endpoint = "/api/v1/citizens/getCitizen";
-			HttpPost httpPost = new HttpPost(integrationConfig.getMpiEndpointUrl(endpoint));
+			HttpPost httpPost = new HttpPost(integrationConfig.getHieEndpointUrl(endpoint));
 			Map<String, String> postBody = new HashMap<>();
 			postBody.put("documentType", identifierSystem);
 			postBody.put("documentNumber", identifier);

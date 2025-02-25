@@ -18,7 +18,6 @@ import org.openmrs.LocationAttributeType;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.module.rwandaemr.LocationTagUtil;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
-import org.openmrs.module.rwandaemr.RwandaEmrConstants;
 import org.openmrs.util.ConfigUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -35,6 +34,10 @@ import java.util.Set;
 public class IntegrationConfig {
 
 	protected Log log = LogFactory.getLog(getClass());
+
+	public static final String HIE_URL_PROPERTY = "rwandaemr.hie.url";
+	public static final String HIE_USERNAME_PROPERTY = "rwandaemr.hie.username";
+	public static final String HIE_PASSWORD_PROPERTY = "rwandaemr.hie.password";
 
 	public static final String IDENTIFIER_SYSTEM_NID = "NID";
 	public static final String IDENTIFIER_SYSTEM_NID_APPLICATION_NUMBER = "NID_APPLICATION_NUMBER";
@@ -72,18 +75,18 @@ public class IntegrationConfig {
 		return null;
 	}
 
-	public boolean isMPIEnabled() {
-		String url = ConfigUtil.getProperty(RwandaEmrConstants.MPI_URL_PROPERTY);
-		String username = ConfigUtil.getProperty(RwandaEmrConstants.MPI_USERNAME_PROPERTY);
-		String password = ConfigUtil.getProperty(RwandaEmrConstants.MPI_PASSWORD_PROPERTY);
+	public boolean isHieEnabled() {
+		String url = ConfigUtil.getProperty(HIE_URL_PROPERTY);
+		String username = ConfigUtil.getProperty(HIE_USERNAME_PROPERTY);
+		String password = ConfigUtil.getProperty(HIE_PASSWORD_PROPERTY);
 		return StringUtils.isNotBlank(url) && StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
 	}
 
 	/**
-	 * @return the base url configured for the MPI, with trailing slashes removed, or null if no mpi url is configured
+	 * @return the base url configured for the HIE, with trailing slashes removed, or null if no HIE url is configured
 	 */
-	public String getMpiBaseUrl() {
-		String baseUrl = ConfigUtil.getProperty(RwandaEmrConstants.MPI_URL_PROPERTY);
+	public String getHieBaseUrl() {
+		String baseUrl = ConfigUtil.getProperty(HIE_URL_PROPERTY);
 		if (!StringUtils.isBlank(baseUrl)) {
 			if (baseUrl.endsWith("/")) {
 				baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
@@ -94,10 +97,10 @@ public class IntegrationConfig {
 	}
 
 	/**
-	 * @return the full endpoint url for the given path and parameters, or null if no mpi base url is configured
+	 * @return the full endpoint url for the given path and parameters, or null if no HIE base url is configured
 	 */
-	public String getMpiEndpointUrl(String path, String... parameterNamesAndValues) {
-		String baseUrl = getMpiBaseUrl();
+	public String getHieEndpointUrl(String path, String... parameterNamesAndValues) {
+		String baseUrl = getHieBaseUrl();
 		if (!StringUtils.isBlank(baseUrl)) {
 			StringBuilder sb = new StringBuilder(baseUrl);
 			if (!path.startsWith("/")) {
