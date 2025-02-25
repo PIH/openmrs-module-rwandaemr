@@ -8,6 +8,7 @@ import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
 import org.openmrs.PersonAddress;
 import org.openmrs.PersonAttribute;
+import org.openmrs.module.rwandaemr.integration.ClientRegistryPatient;
 import org.openmrs.module.rwandaemr.integration.ClientRegistryPatientTranslator;
 import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
 
@@ -18,6 +19,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.Mockito.mock;
 
 public class ClientRegistryPatientTranslatorTest {
 
@@ -25,12 +27,14 @@ public class ClientRegistryPatientTranslatorTest {
 	ClientRegistryPatientTranslator patientTranslator;
 	RwandaEmrConfig rwandaEmrConfig;
 	IntegrationConfig integrationConfig;
+	LocationTagUtil locationTagUtil;
 
 	@Before
 	public void setUp() {
 		fhirContext = FhirContext.forR4Cached();
 		rwandaEmrConfig = new MockRwandaEmrConfig();
-		integrationConfig = new IntegrationConfig(rwandaEmrConfig);
+		locationTagUtil = mock(LocationTagUtil.class);
+		integrationConfig = new IntegrationConfig(rwandaEmrConfig, locationTagUtil);
 		patientTranslator = new ClientRegistryPatientTranslator(rwandaEmrConfig, integrationConfig);
 	}
 	
@@ -39,8 +43,9 @@ public class ClientRegistryPatientTranslatorTest {
 		try (InputStream is = getClass().getClassLoader().getResourceAsStream("client-registry-patient-220919-7657-5617.json")) {
 			Bundle bundle = fhirContext.newJsonParser().parseResource(Bundle.class, is);
 			org.hl7.fhir.r4.model.Patient fhirPatient = (org.hl7.fhir.r4.model.Patient) bundle.getEntry().get(0).getResource();
+			ClientRegistryPatient crPatient = new ClientRegistryPatient(fhirPatient);
 			assertThat(fhirPatient, notNullValue());
-			Patient p = patientTranslator.toOpenmrsType(fhirPatient);
+			Patient p = patientTranslator.toPatient(crPatient);
 			assertThat(p, notNullValue());
 			assertThat(p.getGender(), equalTo("M"));
 			assertThat(new SimpleDateFormat("yyyy-MM-dd").format(p.getBirthdate()), equalTo("1999-03-20"));

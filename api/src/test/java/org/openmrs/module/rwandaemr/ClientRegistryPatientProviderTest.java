@@ -7,10 +7,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.openmrs.Patient;
+import org.openmrs.module.rwandaemr.integration.CitizenTranslator;
+import org.openmrs.module.rwandaemr.integration.ClientRegistryPatient;
+import org.openmrs.module.rwandaemr.integration.ClientRegistryPatientProvider;
 import org.openmrs.module.rwandaemr.integration.ClientRegistryPatientTranslator;
 import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
-import org.openmrs.module.rwandaemr.integration.NidaMpiProvider;
-import org.openmrs.module.rwandaemr.integration.UpidPatientTranslator;
 import org.openmrs.util.ConfigUtil;
 
 import java.text.SimpleDateFormat;
@@ -19,14 +20,14 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
-public class NidaMpiProviderTest {
+public class ClientRegistryPatientProviderTest {
 
 	protected Log log = LogFactory.getLog(getClass());
 
 	FhirContext fhirContext;
 	ClientRegistryPatientTranslator clientRegistryPatientTranslator;
-	UpidPatientTranslator upidPatientTranslator;
-	NidaMpiProvider provider;
+	CitizenTranslator upidPatientTranslator;
+	ClientRegistryPatientProvider provider;
 	LocationTagUtil locationTagUtil;
 	RwandaEmrConfig rwandaEmrConfig;
 	IntegrationConfig integrationConfig;
@@ -35,11 +36,11 @@ public class NidaMpiProviderTest {
 	public void setUp() {
 		fhirContext = FhirContext.forR4Cached();
 		rwandaEmrConfig = new MockRwandaEmrConfig();
-		integrationConfig = new IntegrationConfig(rwandaEmrConfig);
 		locationTagUtil = Mockito.mock(LocationTagUtil.class);
+		integrationConfig = new IntegrationConfig(rwandaEmrConfig, locationTagUtil);
 		clientRegistryPatientTranslator = new ClientRegistryPatientTranslator(rwandaEmrConfig, integrationConfig);
-		upidPatientTranslator = new UpidPatientTranslator(rwandaEmrConfig, integrationConfig);
-		provider = new NidaMpiProvider(fhirContext, clientRegistryPatientTranslator, upidPatientTranslator, locationTagUtil, rwandaEmrConfig, integrationConfig);
+		upidPatientTranslator = new CitizenTranslator(rwandaEmrConfig, integrationConfig);
+		provider = new ClientRegistryPatientProvider(fhirContext, rwandaEmrConfig, integrationConfig, clientRegistryPatientTranslator);
 	}
 	
 	@Test
@@ -49,7 +50,8 @@ public class NidaMpiProviderTest {
 			log.warn("THE REQUIRED PROPERTIES SHOULD BE SET USING `-Dproperty=value` WHEN EXECUTING THE TEST");
 			return;
 		}
-		Patient patient = provider.fetchPatientFromClientRegistry("220919-7657-5617");
+		ClientRegistryPatient clientRegistryPatient = provider.fetchPatientFromClientRegistry("220919-7657-5617");
+		Patient patient = clientRegistryPatientTranslator.toPatient(clientRegistryPatient);
 		assertThat(patient, notNullValue());
 		assertThat(patient.getGender(), equalTo("M"));
 		assertThat(new SimpleDateFormat("yyyy-MM-dd").format(patient.getBirthdate()), equalTo("1999-03-20"));

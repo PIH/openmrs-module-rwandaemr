@@ -4,8 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
 import org.junit.Test;
 import org.openmrs.Patient;
+import org.openmrs.module.rwandaemr.integration.CitizenResponse;
 import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
-import org.openmrs.module.rwandaemr.integration.UpidPatientTranslator;
+import org.openmrs.module.rwandaemr.integration.CitizenTranslator;
 
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -13,29 +14,32 @@ import java.text.SimpleDateFormat;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.Mockito.mock;
 
-public class UpidPatientTranslatorTest {
+public class CitizenTranslatorTest {
 
-    UpidPatientTranslator upidPatientTranslator;
+    CitizenTranslator upidPatientTranslator;
     RwandaEmrConfig rwandaEmrConfig;
     IntegrationConfig integrationConfig;
+    LocationTagUtil locationTagUtil;
 
     @Before
     public void setUp() {
         rwandaEmrConfig = new MockRwandaEmrConfig();
-        integrationConfig = new IntegrationConfig(rwandaEmrConfig);
-        upidPatientTranslator = new UpidPatientTranslator(rwandaEmrConfig, integrationConfig);
+        locationTagUtil = mock(LocationTagUtil.class);
+        integrationConfig = new IntegrationConfig(rwandaEmrConfig, locationTagUtil);
+        upidPatientTranslator = new CitizenTranslator(rwandaEmrConfig, integrationConfig);
     }
 
     @Test
     public void shouldTranslateFromFhirPatientToOpenmrsPatient() throws Exception {
         try (InputStream is = getClass().getClassLoader().getResourceAsStream("upid-generator-example-nid.json")) {
             ObjectMapper mapper = new ObjectMapper();
-            UpidPatientTranslator.UpidResponse upidResponse = mapper.readValue(is, UpidPatientTranslator.UpidResponse.class);
-            assertThat(upidResponse, notNullValue());
-            assertThat(upidResponse.getStatus(), equalTo("ok"));
-            assertThat(upidResponse.getData(), notNullValue());
-            Patient p = upidPatientTranslator.toOpenmrsType(upidResponse.getData());
+            CitizenResponse r = mapper.readValue(is, CitizenResponse.class);
+            assertThat(r, notNullValue());
+            assertThat(r.getStatus(), equalTo("ok"));
+            assertThat(r.getData(), notNullValue());
+            Patient p = upidPatientTranslator.toPatient(r.getData());
             assertThat(p, notNullValue());
             assertThat(p.getGender(), equalTo("M"));
             assertThat(new SimpleDateFormat("yyyy-MM-dd").format(p.getBirthdate()), equalTo("1990-01-01"));

@@ -12,6 +12,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContexts;
+import org.openmrs.module.rwandaemr.RwandaEmrConstants;
+import org.openmrs.util.ConfigUtil;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
@@ -37,5 +39,17 @@ public class HttpUtils {
         catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * @return the http client to use to interact with the mpi, or null if no mpi credentials are configured
+     */
+    public static CloseableHttpClient getMpiClient() {
+        String username = ConfigUtil.getProperty(RwandaEmrConstants.MPI_USERNAME_PROPERTY);
+        String password = ConfigUtil.getProperty(RwandaEmrConstants.MPI_PASSWORD_PROPERTY);
+        if (StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password)) {
+            return getHttpClient(username, password, true);
+        }
+        return null;
     }
 }

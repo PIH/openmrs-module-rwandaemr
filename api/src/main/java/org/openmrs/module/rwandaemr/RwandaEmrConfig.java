@@ -108,6 +108,10 @@ public class RwandaEmrConfig {
 
 	public PatientIdentifierType getPatientIdentifierTypeByJsonKey(String jsonKey) {
 		String uuid = initializerService.getValueFromKey(jsonKey);
+		return getPatientIdentifierTypeByUuid(uuid);
+	}
+
+	public PatientIdentifierType getPatientIdentifierTypeByUuid(String uuid) {
 		if (StringUtils.isBlank(uuid)) {
 			return null;
 		}
