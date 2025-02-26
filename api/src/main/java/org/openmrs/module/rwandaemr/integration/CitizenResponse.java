@@ -7,13 +7,15 @@
  * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
  * graphic logo is a trademark of OpenMRS Inc.
  */
-package org.openmrs.module.rwandaemr;
+package org.openmrs.module.rwandaemr.integration;
+
+import lombok.Data;
 
 /**
- * Constants used by the Rwanda EMR module
+ * Represents a response from the citizen endpoints in the HIE
  */
-public class RwandaEmrConstants {
-	public static final String CLIENT_REGISTRY_URL_PROPERTY = "rwandaemr.clientregistry.url";
-	public static final String CLIENT_REGISTRY_USERNAME_PROPERTY = "rwandaemr.clientregistry.username";
-	public static final String CLIENT_REGISTRY_PASSWORD_PROPERTY = "rwandaemr.clientregistry.password";
+@Data
+public class CitizenResponse {
+    private String status;
+    private Citizen data;
 }

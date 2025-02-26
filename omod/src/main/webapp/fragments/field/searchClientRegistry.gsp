@@ -41,46 +41,56 @@
     <script type="text/javascript">
         jq(function() {
 
+            //jq("input[name='applicationNumber'").val('220919-7657-5617');
+
             jq("#client-registry-search-button").click(function() {
-                jq("#client-registry-search-button").prop('disabled', true);
-                jq("#search-client-registry-loading-spinner").show();
-                jq('#search-client-registry-not-found-message').hide();
-                jq('#search-client-registry-found-message').hide();
-                let successData = null;
+
+                let searchButton = jq("#client-registry-search-button");
+                let loadingSpinner = jq("#search-client-registry-loading-spinner");
+                let notFoundMessage = jq('#search-client-registry-not-found-message');
+                let foundMessage = jq('#search-client-registry-found-message');
+
+                jq(searchButton).prop('disabled', true);
+                jq(loadingSpinner).show();
+                jq(notFoundMessage).hide();
+                jq(foundMessage).hide();
+
+                let searchParams = {}
                 <% config.formFields.each { field -> %>
-                    if (!successData) {
-                        let identifierField = jq("input[name='${field.formFieldName}']");
-                        let registrationForm = jq(identifierField).closest("form");
-                        let identifierValue = jq(identifierField).val();
-                        if (identifierValue) {
-                            console.debug("searching client registry for ${field.formFieldName}, ${field.identifierTypeUuid}: " + identifierValue);
-                            jq.ajax({
-                                url: "${ ui.actionLink("rwandaemr", "field/searchClientRegistry", "findByIdentifier") }",
-                                dataType: "json",
-                                data: {
-                                    'identifier': jq("input[name='${field.formFieldName}']").val(),
-                                    'identifierTypeUuid': '${field.identifierTypeUuid}'
-                                },
-                                success: function (data) {
-                                    successData = data;
-                                    jq('#search-client-registry-loading-spinner').hide();
-                                    jq('#client-registry-search-button').removeProp('disabled');
-                                    for (const [key, value] of Object.entries(data)) {
-                                        jq(registrationForm).find("[name='" + key + "']").val(value);
-                                    }
-                                    jq('#search-client-registry-found-message').show();
-                                    console.debug(data);
-                                },
-                                error: function (data) {
-                                    jq('#search-client-registry-loading-spinner').hide();
-                                    jq("#client-registry-search-button").removeProp('disabled');
-                                    jq('#search-client-registry-not-found-message').show();
-                                    console.debug(data);
-                                }
-                            });
-                        }
+                {
+                    let identifierType = '${field.identifierTypeUuid}';
+                    let identifierValue = jq("input[name='${field.formFieldName}']").val();
+                    if (identifierValue) {
+                        searchParams['identifier_' + identifierType] = identifierValue;
                     }
+                }
                 <% } %>
+
+                if (Object.keys(searchParams).length) {
+                    console.debug("Searching client registry for: " + JSON.stringify(searchParams));
+                    jq.ajax({
+                        url: "${ ui.actionLink("rwandaemr", "field/searchClientRegistry", "findByIdentifier") }",
+                        dataType: "json",
+                        data: searchParams,
+                        success: function (data) {
+                            successData = data;
+                            jq(loadingSpinner).hide();
+                            jq(searchButton).removeProp('disabled');
+                            let registrationForm = jq(searchButton).closest("form");
+                            for (const [key, value] of Object.entries(data)) {
+                                jq(registrationForm).find("[name='" + key + "']").val(value);
+                            }
+                            jq(foundMessage).show();
+                            console.debug(data);
+                        },
+                        error: function (data) {
+                            jq(loadingSpinner).hide();
+                            jq(searchButton).removeProp('disabled');
+                            jq(notFoundMessage).show();
+                            console.debug(data);
+                        }
+                    });
+                }
             });
 
             jq("#client-registry-close-button").click(function() {
