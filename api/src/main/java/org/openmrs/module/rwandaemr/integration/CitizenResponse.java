@@ -17,5 +17,7 @@ import lombok.Data;
 @Data
 public class CitizenResponse {
     private String status;
-    private Citizen data;
+    private Citizen data;   // If the status is "ok", this is the citizen data returned
+    private Integer code;   // If the status is "error", this is the underlying code
+    private String message; // If the status is "error", this is the underlying message
 }

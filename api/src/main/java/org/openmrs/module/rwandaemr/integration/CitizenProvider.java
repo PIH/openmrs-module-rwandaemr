@@ -45,7 +45,7 @@ public class CitizenProvider {
 	 * This will attempt to retrieve the Citizen from the HIE population registry
 	 * for the given identifier, identifierSystem and fosaId
 	 */
-	public Citizen getCitizen(String identifierSystem, String identifier, String fosaId) {
+	public Citizen getCitizen(String identifierSystem, String identifier, String fosaId) throws Exception {
 		if (!integrationConfig.isHieEnabled()) {
 			log.debug("Incomplete credentials supplied to connect to getCitizen, skipping");
 			return null;
@@ -79,13 +79,11 @@ public class CitizenProvider {
 				}
 				CitizenResponse citizenResponse = mapper.readValue(data, CitizenResponse.class);
 				if (citizenResponse.getData() == null || !"ok".equalsIgnoreCase(citizenResponse.getStatus())) {
-					throw new IllegalStateException("No citizen retrieved.  Status: " + citizenResponse.getStatus());
+					log.debug("No matching citizen found.  Http Status Code: " + statusCode + "; Response: " + data);
+					return null;
 				}
 				return citizenResponse.getData();
 			}
-		} catch (Exception e) {
-			log.debug("An error occurred trying to generate UPID, returning null", e);
 		}
-		return null;
 	}
 }

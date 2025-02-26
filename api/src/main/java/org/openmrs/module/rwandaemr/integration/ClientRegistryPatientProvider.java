@@ -58,8 +58,7 @@ public class ClientRegistryPatientProvider {
 	 */
 	public ClientRegistryPatient fetchPatientFromClientRegistry(String identifier) {
 		if (!integrationConfig.isHieEnabled()) {
-			log.debug("Incomplete credentials supplied to connect to client registry, skipping");
-			return null;
+			throw new IllegalStateException("The HIE connection is not enabled on this server");
 		}
 		try (CloseableHttpClient httpClient = HttpUtils.getHieClient()) {
 			String url = integrationConfig.getHieEndpointUrl("/clientregistry/Patient", "identifier", identifier);
