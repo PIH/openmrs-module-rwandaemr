@@ -42,7 +42,7 @@ public class CitizenProvider {
 	}
 
 	/**
-	 * This will attempt to retrieve the Citizen from the Citizen from the HIE population registry
+	 * This will attempt to retrieve the Citizen from the HIE population registry
 	 * for the given identifier, identifierSystem and fosaId
 	 */
 	public Citizen getCitizen(String identifierSystem, String identifier, String fosaId) {

@@ -15,8 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * Custom implementation to close stale visits
- * This mimics the AdtService#CloseStaleVisitsTask, but is executed by Spring and adds additional logging
+ * Scheduled task that will attempt to update the client registry if these attempts had previously failed
  */
 public class UpdateClientRegistryTask implements Runnable {
 
