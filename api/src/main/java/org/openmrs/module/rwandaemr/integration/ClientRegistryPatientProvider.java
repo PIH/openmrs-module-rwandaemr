@@ -27,6 +27,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Supports connections to and operations with the clientregistry/Patient endpoint
  */
@@ -56,7 +59,7 @@ public class ClientRegistryPatientProvider {
 	 * This looks up a patient based on the given identifier in the client registry.
 	 * If exactly 1 result is found, it is returned, otherwise, null is returned
 	 */
-	public ClientRegistryPatient fetchPatientFromClientRegistry(String identifier) {
+	public ClientRegistryPatient fetchPatientFromClientRegistry(String identifier, String identifierSystem) {
 		if (!integrationConfig.isHieEnabled()) {
 			throw new IllegalStateException("The HIE connection is not enabled on this server");
 		}
@@ -76,17 +79,30 @@ public class ClientRegistryPatientProvider {
 				if (statusCode != 200) {
 					throw new IllegalStateException("Http Status Code: " + statusCode + "; Response: " + data);
 				}
+
 				Bundle bundle = fhirContext.newJsonParser().parseResource(Bundle.class, data);
-				if (bundle == null || bundle.getEntry() == null || bundle.getEntry().isEmpty()) {
+				List<ClientRegistryPatient> candidates = new ArrayList<>();
+				if (bundle != null && bundle.hasEntry()) {
+					for (Bundle.BundleEntryComponent entry : bundle.getEntry()) {
+						org.hl7.fhir.r4.model.Patient fhirPatient = (org.hl7.fhir.r4.model.Patient) entry.getResource();
+						if (fhirPatient != null) {
+							ClientRegistryPatient crPatient = new ClientRegistryPatient(fhirPatient);
+							if (identifier.equalsIgnoreCase(crPatient.getIdentifierValue(identifierSystem))) {
+								candidates.add(crPatient);
+							}
+						}
+					}
+				}
+
+				if (candidates.isEmpty()) {
 					log.debug("No patients found for " + identifier);
 					return null;
 				}
-				if (bundle.getEntry().size() != 1) {
-					log.warn("Unable to uniquely retrieve patient with identifier " + identifier + ". " + bundle.getEntry().size() + " found.");
+				if (candidates.size() != 1) {
+					log.warn("Unable to uniquely retrieve patient with identifier " + identifier + ". " + candidates.size() + " found.");
 					return null;
 				}
-				org.hl7.fhir.r4.model.Patient fhirPatient = (org.hl7.fhir.r4.model.Patient) bundle.getEntry().get(0).getResource();
-				return new ClientRegistryPatient(fhirPatient);
+				return candidates.get(0);
 			}
 		} catch (Exception e) {
 			log.debug("An error occurred trying to fetch patients from client registry, returning null", e);
@@ -103,24 +119,25 @@ public class ClientRegistryPatientProvider {
 			log.debug("Incomplete credentials supplied to connect to client registry, skipping");
 			return;
 		}
-		log.warn("Updating patient in client registry.  Patient uuid: " + patient.getUuid());
+		log.debug("Updating patient in client registry.  Patient uuid: " + patient.getUuid());
 
 		// All patients must first have a UPID before they can be added to the client registry
 		PatientIdentifier upid = patient.getPatientIdentifier(rwandaEmrConfig.getUPID());
 		if (upid == null) {
-			throw new IllegalStateException("Patient requires a upid to update in client registry " + patient.getUuid());
+			log.debug("Patient requires a upid to update in client registry, not updating: " + patient.getUuid());
+			return;
 		}
-		log.warn("Patient has a upid: " + upid);
+		log.debug("Patient has a upid: " + upid);
 
 		// First see if there is an existing record in the client registry that should be updated, or create new
-		ClientRegistryPatient crPatient = fetchPatientFromClientRegistry(upid.getIdentifier());
+		ClientRegistryPatient crPatient = fetchPatientFromClientRegistry(upid.getIdentifier(), IntegrationConfig.IDENTIFIER_SYSTEM_UPI);
 		if (crPatient == null) {
 			crPatient = new ClientRegistryPatient(new org.hl7.fhir.r4.model.Patient());
 			crPatient.getPatient().setId(upid.getIdentifier());
-			log.warn("Patient not found in client registry.  Creating new FHIR patient");
+			log.debug("Patient not found in client registry.  Creating new FHIR patient");
 		}
 		else {
-			log.warn("Patient found in client registry, updating existing FHIR patient");
+			log.debug("Patient found in client registry, updating existing FHIR patient");
 		}
 
 		// Update relevant properties with those from the patient
@@ -147,7 +164,7 @@ public class ClientRegistryPatientProvider {
 				if (statusCode != 201) {
 					throw new IllegalStateException("Http Status Code: " + statusCode + "; Response: " + data);
 				}
-				log.info("Submission successful");
+				log.debug("Submission successful");
 			}
 		}
 	}

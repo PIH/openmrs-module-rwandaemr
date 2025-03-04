@@ -15,15 +15,13 @@ public class EventSetup {
     public static void setup() {
         Event.subscribe(Patient.class, Event.Action.CREATED.name(), getCreateInsurancePatientListener());
         Event.subscribe(Patient.class, Event.Action.CREATED.name(), getUpdateClientRegistryPatientListener());
-        // TODO: Determine if we want to update the client registry on update, and if so, which updates
-        //Event.subscribe(Patient.class, Event.Action.UPDATED.name(), getUpdateClientRegistryPatientListener());
+        Event.subscribe(Patient.class, Event.Action.UPDATED.name(), getUpdateClientRegistryPatientListener());
     }
 
     public static void teardown() {
         Event.unsubscribe(Patient.class, Event.Action.CREATED, getCreateInsurancePatientListener());
         Event.unsubscribe(Patient.class, Event.Action.CREATED, getUpdateClientRegistryPatientListener());
-        // TODO: See above
-        // Event.unsubscribe(Patient.class, Event.Action.UPDATED, getUpdateClientRegistryPatientListener());
+        Event.unsubscribe(Patient.class, Event.Action.UPDATED, getUpdateClientRegistryPatientListener());
     }
 
     public static EventListener getCreateInsurancePatientListener() {

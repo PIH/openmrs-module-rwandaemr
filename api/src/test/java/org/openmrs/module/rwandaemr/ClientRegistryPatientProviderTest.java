@@ -50,7 +50,7 @@ public class ClientRegistryPatientProviderTest {
 			log.warn("THE REQUIRED PROPERTIES SHOULD BE SET USING `-Dproperty=value` WHEN EXECUTING THE TEST");
 			return;
 		}
-		ClientRegistryPatient clientRegistryPatient = provider.fetchPatientFromClientRegistry("220919-7657-5617");
+		ClientRegistryPatient clientRegistryPatient = provider.fetchPatientFromClientRegistry("220919-7657-5617", "UPI");
 		Patient patient = clientRegistryPatientTranslator.toPatient(clientRegistryPatient);
 		assertThat(patient, notNullValue());
 		assertThat(patient.getGender(), equalTo("M"));

@@ -70,43 +70,37 @@
                 }
                 <% } %>
 
-                if (Object.keys(searchParams).length) {
-                    console.debug("Searching client registry for: " + JSON.stringify(searchParams));
-                    jq.ajax({
-                        url: "${ ui.actionLink("rwandaemr", "field/searchClientRegistry", "findByIdentifier") }",
-                        dataType: "json",
-                        data: searchParams,
-                        success: function (data) {
-                            successData = data;
-                            jq(loadingSpinner).hide();
-                            jq(searchButton).removeProp('disabled');
-                            if (data.patient) {
-                                let registrationForm = jq(searchButton).closest("form");
-                                for (const [key, value] of Object.entries(data.patient)) {
-                                    jq(registrationForm).find("[name='" + key + "']").val(value);
-                                }
-                                jq(foundMessage).html(data.message);
-                                jq(foundSection).show();
+                console.debug("Searching client registry for: " + JSON.stringify(searchParams));
+                jq.ajax({
+                    url: "${ ui.actionLink("rwandaemr", "field/searchClientRegistry", "findByIdentifier") }",
+                    dataType: "json",
+                    data: searchParams,
+                    success: function (data) {
+                        successData = data;
+                        jq(loadingSpinner).hide();
+                        jq(searchButton).removeProp('disabled');
+                        if (data.patient) {
+                            let registrationForm = jq(searchButton).closest("form");
+                            for (const [key, value] of Object.entries(data.patient)) {
+                                jq(registrationForm).find("[name='" + key + "']").val(value);
                             }
-                            else {
-                                jq(notFoundMessage).html(data.message);
-                                jq(notFoundSection).show();
-                            }
-                            console.debug(data);
-                        },
-                        error: function (data) {
-                            jq(loadingSpinner).hide();
-                            jq(searchButton).removeProp('disabled');
+                            jq(foundMessage).html(data.message);
+                            jq(foundSection).show();
+                        }
+                        else {
                             jq(notFoundMessage).html(data.message);
                             jq(notFoundSection).show();
-                            console.error(data);
                         }
-                    });
-                }
-            });
-
-            jq("#client-registry-close-button").click(function() {
-                jq("#client-registry-match-section").hide();
+                        console.debug(data);
+                    },
+                    error: function (data) {
+                        jq(loadingSpinner).hide();
+                        jq(searchButton).removeProp('disabled');
+                        jq(notFoundMessage).html(data.message);
+                        jq(notFoundSection).show();
+                        console.error(data);
+                    }
+                });
             });
         });
     </script>

@@ -377,8 +377,50 @@ public class ClientRegistryPatientTranslator {
 			contactComponent.setName(humanName);
 		}
 
-		// Education, Religion, Profession
-		// TODO: Determine how to best handle these
+		// Education Level
+		PersonAttribute educationLevel = p.getAttribute(rwandaEmrConfig.getEducationLevel());
+		if (educationLevel != null) {
+			String educationLevelValue = educationLevel.getValue();
+			if (StringUtils.isNotBlank(educationLevelValue)) {
+				Extension extension = crPatient.getPatient().getExtensionByUrl(EDUCATION_EXTENSION_URL);
+				if (extension == null) {
+					extension = new Extension();
+					extension.setUrl(EDUCATION_EXTENSION_URL);
+					crPatient.getPatient().addExtension(extension);
+				}
+				extension.setValue(new StringType(educationLevelValue));
+			}
+		}
+
+		// Religion
+		PersonAttribute religion = p.getAttribute(rwandaEmrConfig.getReligion());
+		if (religion != null) {
+			String religionValue = religion.getValue();
+			if (StringUtils.isNotBlank(religionValue)) {
+				Extension extension = crPatient.getPatient().getExtensionByUrl(RELIGION_EXTENSION_URL);
+				if (extension == null) {
+					extension = new Extension();
+					extension.setUrl(RELIGION_EXTENSION_URL);
+					crPatient.getPatient().addExtension(extension);
+				}
+				extension.setValue(new StringType(religionValue));
+			}
+		}
+
+		// Profession
+		PersonAttribute profession = p.getAttribute(rwandaEmrConfig.getProfession());
+		if (profession != null) {
+			String professionValue = profession.getValue();
+			if (StringUtils.isNotBlank(professionValue)) {
+				Extension extension = crPatient.getPatient().getExtensionByUrl(PROFESSION_EXTENSION_URL);
+				if (extension == null) {
+					extension = new Extension();
+					extension.setUrl(PROFESSION_EXTENSION_URL);
+					crPatient.getPatient().addExtension(extension);
+				}
+				extension.setValue(new StringType(professionValue));
+			}
+		}
 	}
 
 	// Returns a given name as a string
