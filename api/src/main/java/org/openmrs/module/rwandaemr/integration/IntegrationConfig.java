@@ -44,6 +44,7 @@ public class IntegrationConfig {
 	public static final String IDENTIFIER_SYSTEM_NIN = "NIN";
 	public static final String IDENTIFIER_SYSTEM_UPI = "UPI";
 	public static final String IDENTIFIER_SYSTEM_PASSPORT = "PASSPORT";
+	public static final String IDENTIFIER_SYSTEM_TEMPID = "TEMPID";
 
 	private final RwandaEmrConfig rwandaEmrConfig;
 	private final LocationTagUtil locationTagUtil;

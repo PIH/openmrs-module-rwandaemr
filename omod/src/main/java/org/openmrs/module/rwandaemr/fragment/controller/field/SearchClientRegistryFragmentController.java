@@ -43,6 +43,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * This method attempts to fulfill the workflow laid out in the Rwanda HIE guidelines, which is to first look up
@@ -74,7 +75,7 @@ public class SearchClientRegistryFragmentController {
             }
 
             // Retrieve all identifiers to search on from the request
-            Map<PatientIdentifierType, String> identifiersToSearch = new LinkedHashMap<>();
+            Map<String, String> identifiersToSearch = new LinkedHashMap<>();
             try {
                 for (Object parameter : request.getParameterMap().keySet()) {
                     String paramName = (String) parameter;
@@ -83,8 +84,9 @@ public class SearchClientRegistryFragmentController {
                         String identifierTypeUuid = split[1];
                         String identifier = request.getParameter(paramName);
                         if (StringUtils.isNotBlank(identifier)) {
-                            PatientIdentifierType idType = rwandaEmrConfig.getPatientIdentifierTypeByUuid(identifierTypeUuid);
-                            identifiersToSearch.put(idType, identifier);
+                            PatientIdentifierType identifierType = rwandaEmrConfig.getPatientIdentifierTypeByUuid(identifierTypeUuid);
+                            String identifierSystem = integrationConfig.getIdentifierSystem(identifierType);
+                            identifiersToSearch.put(identifierSystem, identifier);
                         }
                     }
                 }
@@ -92,29 +94,22 @@ public class SearchClientRegistryFragmentController {
                 return noPatientResponse("rwandaemr.clientRegistry.invalidConfiguration", null, ui);
             }
 
-            if (identifiersToSearch.isEmpty()) {
-                return noPatientResponse("rwandaemr.clientRegistry.noIdentifiersEntered", null, ui);
-            }
-
             // First attempt to find a patient in the client registry by identifier
-            for (PatientIdentifierType identifierType : identifiersToSearch.keySet()) {
-                String identifier = identifiersToSearch.get(identifierType);
-                log.debug("Searching client registry for " + identifierType.getName() + "=" + identifier);
+            for (String identifierSystem : identifiersToSearch.keySet()) {
+                String identifier = identifiersToSearch.get(identifierSystem);
+                log.debug("Searching client registry for " + identifierSystem + "=" + identifier);
                 ClientRegistryPatient crPatient;
                 try {
-                    crPatient = clientRegistryPatientProvider.fetchPatientFromClientRegistry(identifier);
+                    crPatient = clientRegistryPatientProvider.fetchPatientFromClientRegistry(identifier, identifierSystem);
                 } catch (Exception e) {
                     return noPatientResponse("rwandaemr.clientRegistry.connectionError", e, ui);
                 }
                 if (crPatient != null) {
-                    String identifierSystem = integrationConfig.getIdentifierSystem(identifierType);
-                    if (identifier.equalsIgnoreCase(crPatient.getIdentifierValue(identifierSystem))) {
-                        try {
-                            Patient patient = clientRegistryPatientTranslator.toPatient(crPatient);
-                            return patientResponse("rwandaemr.clientRegistry.matchFound", patient, rwandaEmrConfig, ui);
-                        } catch (Exception e) {
-                            return noPatientResponse("rwandaemr.clientRegistry.patientConversionError", e, ui);
-                        }
+                    try {
+                        Patient patient = clientRegistryPatientTranslator.toPatient(crPatient);
+                        return patientResponse("rwandaemr.clientRegistry.matchFound", patient, rwandaEmrConfig, ui);
+                    } catch (Exception e) {
+                        return noPatientResponse("rwandaemr.clientRegistry.patientConversionError", e, ui);
                     }
                 }
             }
@@ -125,10 +120,13 @@ public class SearchClientRegistryFragmentController {
             if (StringUtils.isBlank(fosaId)) {
                 return noPatientResponse("rwandaemr.populationRegistry.invalidFosaIdConfiguration", null, ui);
             }
-            for (PatientIdentifierType identifierType : identifiersToSearch.keySet()) {
-                String identifierSystem = integrationConfig.getIdentifierSystem(identifierType);
+
+            // Default to generating a UPID from a tempid if needed
+            identifiersToSearch.put(IntegrationConfig.IDENTIFIER_SYSTEM_TEMPID, UUID.randomUUID().toString());
+
+            for (String identifierSystem : identifiersToSearch.keySet()) {
                 if (identifierSystem != null) {
-                    String identifier = identifiersToSearch.get(identifierType);
+                    String identifier = identifiersToSearch.get(identifierSystem);
                     Citizen citizen;
                     try {
                         citizen = citizenProvider.getCitizen(identifierSystem, identifier, fosaId);
@@ -139,7 +137,8 @@ public class SearchClientRegistryFragmentController {
                     if (citizen != null) {
                         try {
                             Patient patient = citizenTranslator.toPatient(citizen);
-                            return patientResponse("rwandaemr.populationRegistry.matchFound", patient, rwandaEmrConfig, ui);
+                            String message = identifierSystem.equals(IntegrationConfig.IDENTIFIER_SYSTEM_TEMPID) ? "rwandaemr.populationRegistry.upidGenerated" : "rwandaemr.populationRegistry.matchFound";
+                            return patientResponse(message, patient, rwandaEmrConfig, ui);
                         }
                         catch (Exception e) {
                             return noPatientResponse("rwandaemr.populationRegistry.patientConversionError", e, ui);
