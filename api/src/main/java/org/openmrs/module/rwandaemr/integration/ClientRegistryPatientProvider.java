@@ -75,7 +75,7 @@ public class ClientRegistryPatientProvider {
 					data = EntityUtils.toString(entity);
 				} catch (Exception ignored) {
 				}
-				log.debug("Data: " + data);
+				// log.debug("Data: " + data);
 				if (statusCode != 200) {
 					throw new IllegalStateException("Http Status Code: " + statusCode + "; Response: " + data);
 				}
