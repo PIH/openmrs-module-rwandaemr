@@ -21,6 +21,7 @@ import org.openmrs.module.DaemonTokenAware;
 import org.openmrs.module.ModuleActivator;
 import org.openmrs.module.reporting.config.ReportLoader;
 import org.openmrs.module.rwandaemr.config.AuthenticationSetup;
+import org.openmrs.module.rwandaemr.config.DbEventSetup;
 import org.openmrs.module.rwandaemr.config.EventSetup;
 import org.openmrs.module.rwandaemr.config.GlobalResourceSetup;
 import org.openmrs.module.rwandaemr.config.InitializerSetup;
@@ -53,7 +54,7 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 		GlobalResourceSetup.includeGlobalResources();
 		HtmlFormEntrySetup.setup();
 		EventSetup.setup();
-		log.warn("HTMLFormEntry Configured");
+		DbEventSetup.setup();
 		RwandaEmrTimerTask.setEnabled(true);
 		log.warn("RwandaEmrTimerTask enabled");
 		log.warn("Rwanda EMR configuration complete");
