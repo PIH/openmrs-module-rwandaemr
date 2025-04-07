@@ -113,7 +113,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 ${ ui.format(e.encounterDatetime) }
             </td>
             <td>
-                ${ ui.format(a.drug?.valueDrug ?: a.drug?.valueCoded) }
+                ${ ui.format(a.drug?.valueText) }
             </td>
             <td>
                 ${ ui.format(a.frequency?.valueText) }
