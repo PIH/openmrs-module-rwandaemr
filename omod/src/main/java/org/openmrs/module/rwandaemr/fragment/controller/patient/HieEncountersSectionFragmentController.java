@@ -18,6 +18,7 @@ import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
 import org.openmrs.module.rwandaemr.integration.ShrEncounter;
 import org.openmrs.module.rwandaemr.integration.ShrEncounterProvider;
 import org.openmrs.module.rwandaemr.integration.ShrEncounterTranslator;
+import org.openmrs.module.rwandaemr.integration.ShrVisit;
 import org.openmrs.ui.framework.UiUtils;
 import org.openmrs.ui.framework.annotation.FragmentParam;
 import org.openmrs.ui.framework.annotation.InjectBeans;
@@ -54,6 +55,8 @@ public class HieEncountersSectionFragmentController {
         }
 
         List<Encounter> encounters = new ArrayList<Encounter>();
+        List<ShrVisit> visits = new ArrayList<>();
+        List<String> visitedLocation = new ArrayList<>();
 
         //Here make sure to get information from HIE
         try{
@@ -72,6 +75,19 @@ public class HieEncountersSectionFragmentController {
                             //From here make sure to translate the shrEncounter into OpenMRS encounter to easy the listing operation
                             for(ShrEncounter shrEncounter: shrEncounters){
                                 Encounter myEncounter = shrEncounterTranslator.toEncounter(shrEncounter);
+                                int location_index = visitedLocation.indexOf(myEncounter.getLocation().getName());
+                                if(location_index == -1){
+                                    //make sure to create the record
+                                    ShrVisit shrVisit = new ShrVisit();
+                                    shrVisit.setLocation(myEncounter.getLocation().getName());
+                                    shrVisit.clearEncounters();
+                                    shrVisit.addEncounter(myEncounter);
+                                    visits.add(shrVisit);
+                                    visitedLocation.add(myEncounter.getLocation().getName());
+                                } else {
+                                    visits.get(location_index).addEncounter(myEncounter);
+                                    
+                                }
                                 encounters.add(myEncounter);
                             }
                         }
@@ -80,11 +96,15 @@ public class HieEncountersSectionFragmentController {
                     }
                 }
                 //log.debug("First get Patient UPID if not available stop the operation identifiers: " + upidPatientIdentifier.getIdentifier());
+            } else {
+                model.addAttribute("error", "Hie is not enabled on this server");
             }
         } catch(Exception e){
-
+            model.addAttribute("error", e.getMessage());
         }
 
         model.addAttribute("encounters", encounters);
+        model.addAttribute("visit_list", visits);
+        model.addAttribute("visited_locations", visitedLocation);
     }
 }
