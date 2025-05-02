@@ -19,6 +19,7 @@ import org.openmrs.module.webservices.rest.SimpleObject;
 import org.openmrs.module.webservices.rest.web.ConversionUtil;
 import org.openmrs.module.webservices.rest.web.RequestContext;
 import org.openmrs.module.webservices.rest.web.RestUtil;
+import org.openmrs.module.webservices.rest.web.representation.CustomRepresentation;
 import org.openmrs.module.webservices.rest.web.representation.Representation;
 import org.openmrs.module.webservices.rest.web.response.ResponseException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,8 @@ public class RwandaEmrFormRestController {
 
     protected final Log log = LogFactory.getLog(getClass());
 
+    public static final String REPRESENTATION = "(uuid,name,display,encounterType:(uuid,name,viewPrivilege,editPrivilege),version,published,retired,resources:(uuid,name,dataType,valueReference))";
+
     @Autowired
     LocationService locationService;
 
@@ -62,7 +65,8 @@ public class RwandaEmrFormRestController {
     @RequestMapping(value = "/rest/v1/rwandaemr/patientforms", method = RequestMethod.GET)
     @ResponseBody
     public Object getPatientForms(HttpServletRequest request, HttpServletResponse response) throws ResponseException {
-        RequestContext requestContext = RestUtil.getRequestContext(request, response);
+        Representation defaultRepresentation = new CustomRepresentation(REPRESENTATION);
+        RequestContext requestContext = RestUtil.getRequestContext(request, response, defaultRepresentation);
         Representation rep = requestContext.getRepresentation();
 
         SimpleObject ret = new SimpleObject();
