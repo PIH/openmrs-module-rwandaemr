@@ -90,7 +90,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             <fieldset>
                 <legend>${ui.message("rwandaemr.insurance")}</legend>
 
-                <% if (editMode) { %>
+                <% if (pageMode == 'create') { %>
                     ${ ui.includeFragment("uicommons", "field/dropDown", [
                             label: ui.message("rwandaemr.insurance.name"),
                             emptyOptionLabel: "",
@@ -100,6 +100,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     ])}
                 <% } else { %>
                 <p>
+                    <% if (editMode) { %>
+                        <input type="hidden" name="insuranceId" value="${policyModel.insuranceId}" />
+                    <% } %>
                     <label for="view-insurance-name">${ui.message("rwandaemr.insurance.name")}</label>
                     <span id="view-insurance-name" class="field-value">${ui.format(policy.insurance?.name)}</span>
                 </p>
