@@ -86,6 +86,9 @@ public class OrderToORMTranslator {
         msh.getEncodingCharacters().setValue("^~\\&");
         msh.getSendingApplication().getNamespaceID().setValue("OpenMRS");
         msh.getSendingFacility().getNamespaceID().setValue(getOrderLocation(order).getName());
+        // Hard-coding PACS_APP and PACS_FACILITY per instruction from vendor
+        msh.getReceivingApplication().getNamespaceID().setValue("PACS_APP");
+        msh.getReceivingFacility().getNamespaceID().setValue("PACS_FACILITY");
         msh.getDateTimeOfMessage().getTimeOfAnEvent().setValue(dateTimeFormat.format(now));
         msh.getMessageType().getMessageType().setValue("ORM");
         msh.getMessageType().getTriggerEvent().setValue("O01");
@@ -105,9 +108,11 @@ public class OrderToORMTranslator {
             pid.getDateOfBirth().getTimeOfAnEvent().setValue(dateFormat.format(order.getPatient().getBirthdate()));
         }
         pid.getSex().setValue(patient.getGender() == null ? "O" : patient.getGender().toUpperCase());
-        pid.getPhoneNumberHome(0).getPhoneNumber().setValue(getPhoneNumber(patient));
-        pid.getPhoneNumberHome(0).getEmailAddress().setValue(""); // TODO: We don't have this data, but adding as a placeholder.  Integration guide has this at 13,2
-        pid.getPhoneNumberHome(0).getAnyText().setValue(trim(order.getClinicalHistory(), 1000)); // TODO: Integration guide has this at 13,3
+
+        // TODO: Note, these seems like the wrong fields, but it is what is in the integration docs
+        pid.getPhoneNumberHome(0).getXtn1_9999999X99999CAnyText().setValue(getPhoneNumber(patient));
+        pid.getPhoneNumberHome(0).getXtn2_TelecommunicationUseCode().setValue(""); // TODO: We don't collect this data
+        pid.getPhoneNumberHome(0).getXtn3_TelecommunicationEquipmentType().setValue(trim(order.getClinicalHistory(), 1000));
 
         // PV1 Segment
         PV1 pv1 = message.getPATIENT().getPATIENT_VISIT().getPV1();
@@ -131,7 +136,8 @@ public class OrderToORMTranslator {
         OBR obr = message.getORDER().getORDER_DETAIL().getOBR();
         obr.getSetIDObservationRequest().setValue("1");
         obr.getPlacerOrderNumber(0).getEntityIdentifier().setValue(order.getOrderNumber());
-        obr.getFillerOrderNumber().getEntityIdentifier().setValue(getOrderLocation(order).getUuid()); // TODO: This seems wrong.  Need to understnad what this is.
+        // TODO: Note, this seems like the wrong field, but it is what is in the integration docs
+        obr.getFillerOrderNumber().getEntityIdentifier().setValue(getOrderLocation(order).getName());
         obr.getUniversalServiceIdentifier().getIdentifier().setValue(getProcedureCode(order));
         obr.getUniversalServiceIdentifier().getText().setValue(trim(order.getConcept().getFullySpecifiedName(Locale.ENGLISH).getName(), 64));
         obr.getDiagnosticServiceSectionID().setValue(getModalityCode(order));

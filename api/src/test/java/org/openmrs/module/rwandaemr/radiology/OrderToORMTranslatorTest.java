@@ -54,7 +54,6 @@ public class OrderToORMTranslatorTest {
     RwandaEmrConfig rwandaEmrConfig;
     RadiologyConfig radiologyConfig;
     OrderToORMTranslator translator;
-    PersonAttributeType phoneNumberType = new PersonAttributeType();
     Location orderLocation;
     Location visitLocation;
     CareSetting inpatient;
@@ -134,7 +133,7 @@ public class OrderToORMTranslatorTest {
         patient.addName(new PersonName("Horatio", null, "Hornblower"));
         patient.setGender("M");
         patient.setBirthdate(ymd.parse("19821128"));
-        patient.addAttribute(new PersonAttribute(phoneNumberType, "111-222-3333"));
+        patient.addAttribute(new PersonAttribute(rwandaEmrConfig.getTelephoneNumber(), "111-222-3333"));
 
         Provider orderingProvider = new Provider();
         orderingProvider.setIdentifier("DOC-123");
@@ -168,8 +167,8 @@ public class OrderToORMTranslatorTest {
         testField(message, "MSH", 2, equalTo("^~\\&"));
         testField(message, "MSH", 3, equalTo("OpenMRS"));  // sending application
         testField(message, "MSH", 4, equalTo(visitLocation.getName())); // sending facility
-        testField(message, "MSH", 5, emptyString()); // receiving application
-        testField(message, "MSH", 6, emptyString()); // receiving facility
+        testField(message, "MSH", 5, equalTo("PACS_APP")); // receiving application
+        testField(message, "MSH", 6, equalTo("PACS_FACILITY")); // receiving facility
         testField(message, "MSH", 7, greaterThanOrEqualTo(dateTimeBefore)); // Date/time of message
         testField(message, "MSH", 7, lessThanOrEqualTo(dateTimeAfter)); // Date/time of message
         testField(message, "MSH", 8, emptyString());
@@ -191,7 +190,7 @@ public class OrderToORMTranslatorTest {
         testField(message, "PID", 10, emptyString());
         testField(message, "PID", 11, emptyString());
         testField(message, "PID", 12, emptyString());
-        //testHl7(message, "PID", 13, equalTo("111-222-3333^^Twisted ankle")); TODO: Need clarification here
+        testField(message, "PID", 13, equalTo("111-222-3333^^Twisted ankle"));
 
         testNumberOfFields(message, "PV1", 18);
         testField(message, "PV1", 1, equalTo("1")); // Set ID
@@ -219,7 +218,7 @@ public class OrderToORMTranslatorTest {
         testNumberOfFields(message, "OBR", 24);
         testField(message, "OBR", 1, equalTo("1"));  // Set ID
         testField(message, "OBR", 2, equalTo("ORD-1111"));  // Order Number
-        testField(message, "OBR", 3, equalTo(visitLocation.getUuid())); // CenterID TODO: This seems wrong
+        testField(message, "OBR", 3, equalTo("University Hospital")); // Center ID
         testField(message, "OBR", 4, equalTo("12121^X-Ray"));  // Test Ordered
         testField(message, "OBR", 5, emptyString());
         testField(message, "OBR", 6, emptyString());
