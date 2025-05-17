@@ -43,7 +43,7 @@ public class RadiologyConfig {
 		this.conceptService = conceptService;
 	}
 
-	public Map<Modality, Concept> getSupportedRadiologyOrderablesByModality() {
+	public Map<Modality, Concept> getModalityConceptSets() {
 		Map<Modality, Concept> ret = new LinkedHashMap<>();
 		String supportedModalities = administrationService.getGlobalProperty(GP_SUPPORTED_MODALITIES, "");
 		if (StringUtils.isNotBlank(supportedModalities)) {
@@ -62,11 +62,10 @@ public class RadiologyConfig {
 		return ret;
 	}
 
-	public Map<Concept, Modality> getRadiologyOrderables() {
+	public Map<Concept, Modality> getOrderables(Map<Modality, Concept> modalityConceptSets) {
 		Map<Concept, Modality> ret = new LinkedHashMap<>();
-		Map<Modality, Concept> modalities = getSupportedRadiologyOrderablesByModality();
-		for (Modality modality : modalities.keySet()) {
-			Concept conceptSet = modalities.get(modality);
+		for (Modality modality : modalityConceptSets.keySet()) {
+			Concept conceptSet = modalityConceptSets.get(modality);
 			if (conceptSet != null) {
 				for (Concept setMember : conceptSet.getSetMembers()) {
 					if (ret.containsKey(setMember)) {

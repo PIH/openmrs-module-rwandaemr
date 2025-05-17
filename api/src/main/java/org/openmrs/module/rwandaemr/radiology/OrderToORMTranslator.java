@@ -41,6 +41,7 @@ import org.openmrs.api.ConceptService;
 import org.openmrs.module.emrapi.adt.AdtService;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -51,6 +52,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
+@Component
 public class OrderToORMTranslator {
 
     protected Log log = LogFactory.getLog(getClass());
@@ -213,8 +215,9 @@ public class OrderToORMTranslator {
     }
 
     private String getModalityCode(Order order) {
-        Map<Concept, Modality> radiologyOrderables = rwandaEmrConfig.getRadiologyConfig().getRadiologyOrderables();
-        Modality radiologyModality = radiologyOrderables.get(order.getConcept());
+        Map<Modality, Concept> modalities = rwandaEmrConfig.getRadiologyConfig().getModalityConceptSets();
+        Map<Concept, Modality> orderables = rwandaEmrConfig.getRadiologyConfig().getOrderables(modalities);
+        Modality radiologyModality = orderables.get(order.getConcept());
         return radiologyModality == null ? null : radiologyModality.name();
     }
 }
