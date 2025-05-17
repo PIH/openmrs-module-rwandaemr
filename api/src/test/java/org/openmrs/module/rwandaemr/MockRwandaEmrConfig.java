@@ -9,19 +9,21 @@ import org.openmrs.api.LocationService;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.PersonService;
 import org.openmrs.module.initializer.api.InitializerService;
+import org.openmrs.module.rwandaemr.radiology.RadiologyConfig;
 
 public class MockRwandaEmrConfig extends RwandaEmrConfig {
 
 	public MockRwandaEmrConfig() {
-		this(null, null, null, null, null);
+		this(null, null, null, null, null, null);
 	}
 
 	public MockRwandaEmrConfig(PatientService patientService,
 							   PersonService personService,
 							   LocationService locationService,
 							   EncounterService encounterService,
-							   InitializerService initializerService) {
-		super(patientService, personService, locationService, encounterService, initializerService);
+							   InitializerService initializerService,
+							   RadiologyConfig radiologyConfig) {
+		super(patientService, personService, locationService, encounterService, initializerService, radiologyConfig);
 	}
 
 	@Override
