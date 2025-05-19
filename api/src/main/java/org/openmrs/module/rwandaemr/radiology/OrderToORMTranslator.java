@@ -159,9 +159,6 @@ public class OrderToORMTranslator {
                 obr.getReasonForStudy(0).getText().setValue(trim(orderReason, 64));
             }
         }
-
-        // TODO: Support revision orders
-
         return parser.encode(message);
     }
 
