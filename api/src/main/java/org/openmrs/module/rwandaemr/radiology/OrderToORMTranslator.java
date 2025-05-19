@@ -209,7 +209,7 @@ public class OrderToORMTranslator {
             }
         }
         if (codes.isEmpty()) {
-            throw new RuntimeException("No valid procedure code found for concept " + order.getConcept());
+            throw new RuntimeException("No valid procedure code found for concept " + order.getConcept().getDisplayString());
         }
         return codes.get(0);
     }

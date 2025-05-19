@@ -16,16 +16,21 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             url: openmrsContextPath + '/ws/rest/v1/rwandaemr/hl7/' + orderUuid + '/orm001',
             dataType: 'json',
             success: function(result) {
-                const blob = new Blob([result.hl7Message], { type: "text/plain" });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = "orm001-" + orderUuid + ".txt";
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
+                if (result.errorMessage) {
+                    alert(result.errorMessage);
+                }
+                else {
+                    const blob = new Blob([result.hl7Message], {type: "text/plain"});
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = "orm001-" + orderUuid + ".txt";
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                }
             }
         });
     };
