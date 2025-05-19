@@ -115,6 +115,7 @@ public class OrderToORMTranslator {
         pid.getPhoneNumberHome(0).getXtn1_9999999X99999CAnyText().setValue(getPhoneNumber(patient));
         pid.getPhoneNumberHome(0).getXtn2_TelecommunicationUseCode().setValue(""); // TODO: We don't collect this data
         pid.getPhoneNumberHome(0).getXtn3_TelecommunicationEquipmentType().setValue(trim(order.getClinicalHistory(), 1000));
+        // TODO: Admission ID is supported to send to PACS.  Determine if there is a value for this in OpenMRS.
 
         // PV1 Segment
         PV1 pv1 = message.getPATIENT().getPATIENT_VISIT().getPV1();
@@ -142,16 +143,24 @@ public class OrderToORMTranslator {
         obr.getFillerOrderNumber().getEntityIdentifier().setValue(getOrderLocation(order).getName());
         obr.getUniversalServiceIdentifier().getIdentifier().setValue(getProcedureCode(order));
         obr.getUniversalServiceIdentifier().getText().setValue(trim(order.getConcept().getFullySpecifiedName(Locale.ENGLISH).getName(), 64));
-        obr.getDiagnosticServiceSectionID().setValue(getModalityCode(order));
+        String modality = getModalityCode(order);
+        obr.getDiagnosticServiceSectionID().setValue(modality);
+
+        // If there is a non-null scheduled date, consider this a scheduled order, which has additional supported and required fields
+        if (order.getScheduledDate() != null) {
+            obr.getFillerField2().setValue(modality); // This is the AE Title of the Equipment.  Sending modality in the absence of specific equipment code.
+            obr.getObr36_ScheduledDateTime().getTimeOfAnEvent().setValue(dateTimeFormat.format(order.getScheduledDate()));
+            obr.getPriority().setValue(order.getUrgency() == Order.Urgency.STAT ? "STAT" : "ROUTINE");
+            String orderReason = order.getOrderReasonNonCoded();
+            if (order.getOrderReason() != null) {
+                orderReason = order.getOrderReason().getDisplayString();
+            }
+            if (orderReason != null) {
+                obr.getReasonForStudy(0).getText().setValue(trim(orderReason, 64));
+            }
+        }
 
         // TODO: Support revision orders
-        // TODO: Support scheduled orders:
-        /*
-            obr.getQuantityTiming().getPriority().setValue(order.getUrgency().equals(Order.Urgency.STAT) ? "STAT" : "ROUTINE");
-            if (order.getScheduledDate() != null) {
-                obr.getScheduledDateTime().getTimeOfAnEvent().setValue(order.getScheduledDate());
-            }
-        */
 
         return parser.encode(message);
     }

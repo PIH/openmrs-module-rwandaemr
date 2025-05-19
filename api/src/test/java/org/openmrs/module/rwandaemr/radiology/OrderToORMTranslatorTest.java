@@ -1,5 +1,6 @@
 package org.openmrs.module.rwandaemr.radiology;
 
+import org.apache.commons.lang.time.DateUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.hamcrest.Matcher;
 import org.junit.Before;
@@ -13,10 +14,10 @@ import org.openmrs.ConceptReferenceTerm;
 import org.openmrs.ConceptSource;
 import org.openmrs.Encounter;
 import org.openmrs.Location;
+import org.openmrs.Order;
 import org.openmrs.Patient;
 import org.openmrs.Person;
 import org.openmrs.PersonAttribute;
-import org.openmrs.PersonAttributeType;
 import org.openmrs.PersonName;
 import org.openmrs.Provider;
 import org.openmrs.TestOrder;
@@ -65,8 +66,16 @@ public class OrderToORMTranslatorTest {
     Concept usConceptSet;
     Concept xrayConcept;
 
+    SimpleDateFormat ymd = new SimpleDateFormat("yyyyMMdd");
+    SimpleDateFormat ymdhms = new SimpleDateFormat("yyyyMMddHHmmss");
+
+    Patient patient;
+    Provider orderingProvider;
+    Encounter encounter;
+    TestOrder testOrder;
+
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         adtService = mock(AdtService.class);
         administrationService = mock(AdministrationService.class);
         conceptService = mock(ConceptService.class);
@@ -113,10 +122,38 @@ public class OrderToORMTranslatorTest {
         when(conceptService.getConceptByReference(crConceptSet.getUuid())).thenReturn(crConceptSet);
         when(conceptService.getConceptByReference(ctConceptSet.getUuid())).thenReturn(ctConceptSet);
         when(conceptService.getConceptByReference(usConceptSet.getUuid())).thenReturn(usConceptSet);
+
+        patient = new Patient();
+        patient.setUuid(UUID.randomUUID().toString());
+        patient.addName(new PersonName("Horatio", null, "Hornblower"));
+        patient.setGender("M");
+        patient.setBirthdate(ymd.parse("19821128"));
+        patient.addAttribute(new PersonAttribute(rwandaEmrConfig.getTelephoneNumber(), "111-222-3333"));
+
+        orderingProvider = new Provider();
+        orderingProvider.setIdentifier("DOC-123");
+        Person orderingPerson = new Person();
+        orderingPerson.addName(new PersonName("Doc", null, "Hollywood"));
+        orderingProvider.setPerson(orderingPerson);
+
+        encounter = new Encounter();
+        encounter.setPatient(patient);
+        encounter.setLocation(orderLocation);
+        encounter.setEncounterDatetime(new Date());
+
+        testOrder = new TestOrder();
+        testOrder.setPatient(patient);
+        encounter.addOrder(testOrder);
+        testOrder.setDateActivated(encounter.getEncounterDatetime());
+        testOrder.setClinicalHistory("Twisted ankle");
+        testOrder.setOrderer(orderingProvider);
+        testOrder.setCareSetting(inpatient);
+        FieldUtils.writeField(testOrder, "orderNumber", "ORD-1111", true);
+        testOrder.setConcept(xrayConcept);
     }
 
     /**
-     * Example Message from Medsynapse RIS HL7 Integration Document
+     * Example Message from Medsynapse RIS HL7 Integration Document (Unscheduled Study)
      * MSH|^~\&|HIS_APP|HIS_FACILITY|PACS_APP|PACS_FACILITY|20130614131415||ORM^O01|MsgCtrlId_ORM|P|2.3
      * PID|1||PatientID||PatientLast^First^Middle^^Title||20000514|F|||||Phone^Email^History
      * PV1|1|||||||RefPhyID^RefPhyName||||||||||OP||50
@@ -124,36 +161,7 @@ public class OrderToORMTranslatorTest {
      * OBR|1|HOID01|CenterID|TestID^TestName||||||||||||||||||||CR||||||||||TechnicianID
      */
     @Test
-    public void shouldTranslateFromOrderToORM() throws Exception {
-
-        SimpleDateFormat ymd = new SimpleDateFormat("yyyyMMdd");
-        SimpleDateFormat ymdhms = new SimpleDateFormat("yyyyMMddHHmmss");
-        Patient patient = new Patient();
-        patient.setUuid(UUID.randomUUID().toString());
-        patient.addName(new PersonName("Horatio", null, "Hornblower"));
-        patient.setGender("M");
-        patient.setBirthdate(ymd.parse("19821128"));
-        patient.addAttribute(new PersonAttribute(rwandaEmrConfig.getTelephoneNumber(), "111-222-3333"));
-
-        Provider orderingProvider = new Provider();
-        orderingProvider.setIdentifier("DOC-123");
-        Person orderingPerson = new Person();
-        orderingPerson.addName(new PersonName("Doc", null, "Hollywood"));
-        orderingProvider.setPerson(orderingPerson);
-
-        Encounter encounter = new Encounter();
-        encounter.setPatient(patient);
-        encounter.setLocation(orderLocation);
-
-        TestOrder testOrder = new TestOrder();
-        testOrder.setPatient(patient);
-        encounter.addOrder(testOrder);
-        testOrder.setClinicalHistory("Twisted ankle");
-        testOrder.setOrderer(orderingProvider);
-        testOrder.setCareSetting(inpatient);
-        FieldUtils.writeField(testOrder, "orderNumber", "ORD-1111", true);
-        testOrder.setConcept(xrayConcept);
-
+    public void shouldTranslateFromUnscheduledOrderToORM() throws Exception {
         String dateTimeBefore = ymdhms.format(new Date());
         String message = translator.toORM_001(testOrder);
         String dateTimeAfter = ymdhms.format(new Date());
@@ -241,20 +249,137 @@ public class OrderToORMTranslatorTest {
         testField(message, "OBR", 23, emptyString());
         testField(message, "OBR", 24, equalTo("CR"));
 
-        // Test
-
-
-
-
-        /*
-                if (td.getDiscontinueDate() != null) {
-            FieldUtils.writeField(testOrder, "dateStopped", ymd.parse(td.getDiscontinueDate()));
-        }
-        if (td.isOrderVoided()) {
-            testOrder.setVoided(true);
-        }
-         */
+        // Test Discontinue
+        testOrder.setVoided(true);
+        message = translator.toORM_001(testOrder);
+        testField(message, "ORC", 1, equalTo("CA"));
+        testOrder.setVoided(false);
+        message = translator.toORM_001(testOrder);
+        testField(message, "ORC", 1, equalTo("NW"));
+        FieldUtils.writeField(testOrder, "dateStopped", new Date(), true);
+        message = translator.toORM_001(testOrder);
+        testField(message, "ORC", 1, equalTo("CA"));
     }
+
+    /**
+     * Example Message from Medsynapse RIS HL7 Integration Document (Scheduled Study)
+     * MSH|^~\&|HIS_APP|HIS_FACILITY|PACS_APP|PACS_FACILITY|20130614131415||ORM^O01|MsgCtrlId_ORM|P|2.3
+     * PID|1||PatientID||PatientLast^First^Middle^^Title||20000514|F|||||Phone^Email^History|||||AdmissionId
+     * PV1|1|||||||RefPhyID^RefPhyName||||||||||OP||50
+     * ORC|NW|||||||||||RadiologistID
+     * OBR|1|HOID01|CenterID|TestID^TestName|ROUTINE||||||||||||||||AETitle|||CR|||||||^ReasonForStudy|||
+     * TechnicianID||20321025141236
+     * ZDS|1.2.3.4
+     */
+    @Test
+    public void shouldTranslateFromScheduledOrderToORM() throws Exception {
+        // Make order scheduled
+        Date scheduledDate = DateUtils.addDays(new Date(), 10);
+        String orderReason = "Check for Fracture";
+        testOrder.setScheduledDate(scheduledDate);
+        testOrder.setOrderReasonNonCoded(orderReason);
+        testOrder.setUrgency(Order.Urgency.STAT);
+
+        String dateTimeBefore = ymdhms.format(new Date());
+        String message = translator.toORM_001(testOrder);
+        String dateTimeAfter = ymdhms.format(new Date());
+
+        // The start of the MSH is expected to declare the separator character, so test that first
+        assertThat(message, startsWith("MSH|"));
+        // Add an extra delimiter so splitting works correctly
+        message = message.replace("MSH|", "MSH||");
+
+        testNumberOfFields(message, "MSH", 12);
+        testField(message, "MSH", 2, equalTo("^~\\&"));
+        testField(message, "MSH", 3, equalTo("OpenMRS"));  // sending application
+        testField(message, "MSH", 4, equalTo(visitLocation.getName())); // sending facility
+        testField(message, "MSH", 5, equalTo("PACS_APP")); // receiving application
+        testField(message, "MSH", 6, equalTo("PACS_FACILITY")); // receiving facility
+        testField(message, "MSH", 7, greaterThanOrEqualTo(dateTimeBefore)); // Date/time of message
+        testField(message, "MSH", 7, lessThanOrEqualTo(dateTimeAfter)); // Date/time of message
+        testField(message, "MSH", 8, emptyString());
+        testField(message, "MSH", 9, equalTo("ORM^O01")); // Message Type
+        testField(message, "MSH", 10, not(blankOrNullString())); // Message Control ID
+        testField(message, "MSH", 11, equalTo("P"));
+        testField(message, "MSH", 12, equalTo("2.3"));
+
+        testNumberOfFields(message, "PID", 13);
+        testField(message, "PID", 1, equalTo("1")); // Set ID
+        testField(message, "PID", 2, emptyString());
+        testField(message, "PID", 3, equalTo(patient.getUuid())); // Patient ID
+        testField(message, "PID", 4, emptyString());
+        testField(message, "PID", 5, equalTo("Hornblower^Horatio")); // Patient Name
+        testField(message, "PID", 6, emptyString());
+        testField(message, "PID", 7, equalTo(ymd.format(patient.getBirthdate())));  // Birthdate
+        testField(message, "PID", 8, equalTo("M"));  // Gender
+        testField(message, "PID", 9, emptyString());
+        testField(message, "PID", 10, emptyString());
+        testField(message, "PID", 11, emptyString());
+        testField(message, "PID", 12, emptyString());
+        testField(message, "PID", 13, equalTo("111-222-3333^^Twisted ankle"));
+
+        testNumberOfFields(message, "PV1", 18);
+        testField(message, "PV1", 1, equalTo("1")); // Set ID
+        testField(message, "PV1", 2, emptyString());
+        testField(message, "PV1", 3, emptyString());
+        testField(message, "PV1", 4, emptyString());
+        testField(message, "PV1", 5, emptyString());
+        testField(message, "PV1", 6, emptyString());
+        testField(message, "PV1", 7, emptyString());
+        testField(message, "PV1", 8, equalTo("DOC-123^Hollywood^Doc")); // Referring Doctor
+        testField(message, "PV1", 9, emptyString());
+        testField(message, "PV1", 10, emptyString());
+        testField(message, "PV1", 11, emptyString());
+        testField(message, "PV1", 12, emptyString());
+        testField(message, "PV1", 13, emptyString());
+        testField(message, "PV1", 14, emptyString());
+        testField(message, "PV1", 15, emptyString());
+        testField(message, "PV1", 16, emptyString());
+        testField(message, "PV1", 17, emptyString());
+        testField(message, "PV1", 18, equalTo("IP"));  // Patient Type
+
+        testNumberOfFields(message, "ORC", 1);
+        testField(message, "ORC", 1, equalTo("NW"));  // Order Type
+
+        testNumberOfFields(message, "OBR", 36);
+        testField(message, "OBR", 1, equalTo("1"));  // Set ID
+        testField(message, "OBR", 2, equalTo("ORD-1111"));  // Order Number
+        testField(message, "OBR", 3, equalTo("University Hospital")); // Center ID
+        testField(message, "OBR", 4, equalTo("12121^X-Ray"));  // Test Ordered
+        testField(message, "OBR", 5, equalTo("STAT"));
+        testField(message, "OBR", 6, emptyString());
+        testField(message, "OBR", 7, emptyString());
+        testField(message, "OBR", 8, emptyString());
+        testField(message, "OBR", 9, emptyString());
+        testField(message, "OBR", 10, emptyString());
+        testField(message, "OBR", 11, emptyString());
+        testField(message, "OBR", 12, emptyString());
+        testField(message, "OBR", 13, emptyString());
+        testField(message, "OBR", 14, emptyString());
+        testField(message, "OBR", 15, emptyString());
+        testField(message, "OBR", 16, emptyString());
+        testField(message, "OBR", 17, emptyString());
+        testField(message, "OBR", 18, emptyString());
+        testField(message, "OBR", 19, emptyString());
+        testField(message, "OBR", 20, emptyString());
+        testField(message, "OBR", 21, equalTo("CR"));
+        testField(message, "OBR", 22, emptyString());
+        testField(message, "OBR", 23, emptyString());
+        testField(message, "OBR", 24, equalTo("CR"));
+        testField(message, "OBR", 25, emptyString());
+        testField(message, "OBR", 26, emptyString());
+        testField(message, "OBR", 27, emptyString());
+        testField(message, "OBR", 28, emptyString());
+        testField(message, "OBR", 29, emptyString());
+        testField(message, "OBR", 30, emptyString());
+        testField(message, "OBR", 31, equalTo("^" + orderReason));
+        testField(message, "OBR", 32, emptyString());
+        testField(message, "OBR", 33, emptyString());
+        testField(message, "OBR", 34, emptyString());
+        testField(message, "OBR", 35, emptyString());
+        testField(message, "OBR", 36, equalTo(ymdhms.format(scheduledDate)));
+    }
+
 
     private String[] getMessageSegment(String message, String segment) {
         for (String line : message.split("[\\r\\n]")) {
