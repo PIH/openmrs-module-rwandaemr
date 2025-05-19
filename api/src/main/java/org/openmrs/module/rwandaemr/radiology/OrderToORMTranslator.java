@@ -82,6 +82,11 @@ public class OrderToORMTranslator {
         DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH);
         DateFormat dateTimeFormat = new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH);
 
+        Date scheduledDate = order.getScheduledDate();
+        if (scheduledDate == null) {
+            scheduledDate = order.getDateActivated();
+        }
+
         // MSH Segment
         MSH msh = message.getMSH();
         msh.getFieldSeparator().setValue("|");
@@ -146,18 +151,16 @@ public class OrderToORMTranslator {
         String modality = getModalityCode(order);
         obr.getDiagnosticServiceSectionID().setValue(modality);
 
-        // If there is a non-null scheduled date, consider this a scheduled order, which has additional supported and required fields
-        if (order.getScheduledDate() != null) {
-            obr.getFillerField2().setValue(modality); // This is the AE Title of the Equipment.  Sending modality in the absence of specific equipment code.
-            obr.getObr36_ScheduledDateTime().getTimeOfAnEvent().setValue(dateTimeFormat.format(order.getScheduledDate()));
-            obr.getPriority().setValue(order.getUrgency() == Order.Urgency.STAT ? "STAT" : "ROUTINE");
-            String orderReason = order.getOrderReasonNonCoded();
-            if (order.getOrderReason() != null) {
-                orderReason = order.getOrderReason().getDisplayString();
-            }
-            if (orderReason != null) {
-                obr.getReasonForStudy(0).getText().setValue(trim(orderReason, 64));
-            }
+        // Scheduled order information
+        obr.getFillerField2().setValue(modality); // This is the AE Title of the Equipment.  Sending modality in the absence of specific equipment code.
+        obr.getObr36_ScheduledDateTime().getTimeOfAnEvent().setValue(dateTimeFormat.format(scheduledDate));
+        obr.getPriority().setValue(order.getUrgency() == Order.Urgency.STAT ? "STAT" : "ROUTINE");
+        String orderReason = order.getOrderReasonNonCoded();
+        if (order.getOrderReason() != null) {
+            orderReason = order.getOrderReason().getDisplayString();
+        }
+        if (orderReason != null) {
+            obr.getReasonForStudy(0).getText().setValue(trim(orderReason, 64));
         }
         return parser.encode(message);
     }
