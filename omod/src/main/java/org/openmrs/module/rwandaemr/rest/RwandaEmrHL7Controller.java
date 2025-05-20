@@ -18,9 +18,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-/**
- * This is intended to be a temporary solution as we work to implement https://openmrs.atlassian.net/browse/O3-4647
- */
 @Controller
 public class RwandaEmrHL7Controller {
 
