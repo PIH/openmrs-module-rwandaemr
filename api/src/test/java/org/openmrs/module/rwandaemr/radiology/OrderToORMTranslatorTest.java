@@ -16,6 +16,7 @@ import org.openmrs.Encounter;
 import org.openmrs.Location;
 import org.openmrs.Order;
 import org.openmrs.Patient;
+import org.openmrs.PatientIdentifier;
 import org.openmrs.Person;
 import org.openmrs.PersonAttribute;
 import org.openmrs.PersonName;
@@ -129,6 +130,7 @@ public class OrderToORMTranslatorTest {
         patient.setGender("M");
         patient.setBirthdate(ymd.parse("19821128"));
         patient.addAttribute(new PersonAttribute(rwandaEmrConfig.getTelephoneNumber(), "111-222-3333"));
+        patient.addIdentifier(new PatientIdentifier("P-1234", rwandaEmrConfig.getPrimaryCareIdentifierType(), null));
 
         orderingProvider = new Provider();
         orderingProvider.setIdentifier("DOC-123");
@@ -197,7 +199,7 @@ public class OrderToORMTranslatorTest {
         testNumberOfFields(message, "PID", 13);
         testField(message, "PID", 1, equalTo("1")); // Set ID
         testField(message, "PID", 2, emptyString());
-        testField(message, "PID", 3, equalTo(patient.getUuid())); // Patient ID
+        testField(message, "PID", 3, equalTo("P-1234")); // Patient ID
         testField(message, "PID", 4, emptyString());
         testField(message, "PID", 5, equalTo("Hornblower^Horatio")); // Patient Name
         testField(message, "PID", 6, emptyString());

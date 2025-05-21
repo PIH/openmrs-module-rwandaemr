@@ -34,6 +34,7 @@ import org.openmrs.ConceptSource;
 import org.openmrs.Location;
 import org.openmrs.Order;
 import org.openmrs.Patient;
+import org.openmrs.PatientIdentifier;
 import org.openmrs.PersonAttribute;
 import org.openmrs.Provider;
 import org.openmrs.TestOrder;
@@ -107,7 +108,12 @@ public class OrderToORMTranslator {
         Patient patient = order.getPatient();
         PID pid = message.getPATIENT().getPID();
         pid.getSetIDPatientID().setValue("1");
-        pid.getPatientIDInternalID(0).getID().setValue(patient.getUuid());
+
+        String patientIdentifier = getPatientIdentifier(patient);
+        if (StringUtils.isBlank(patientIdentifier)) {
+            throw new IllegalStateException("Patient does not have a Primary Care ID");
+        }
+        pid.getPatientIDInternalID(0).getID().setValue(patientIdentifier);
         // Patient Name has a maximum length of 64 in the RIS.  Trim first and last to 30 to ensure it fits.
         pid.getPatientName(0).getFamilyName().setValue(trim(patient.getFamilyName(), 30));
         pid.getPatientName(0).getGivenName().setValue(trim(patient.getGivenName(), 30));
@@ -137,7 +143,7 @@ public class OrderToORMTranslator {
 
         // ORC Segment
         ORC orc = message.getORDER().getORC();
-        boolean isCancelled = BooleanUtils.isTrue(order.getVoided()) || order.isDiscontinuedRightNow();
+        boolean isCancelled = BooleanUtils.isTrue(order.getVoided()) || order.getDateStopped() != null;
         orc.getOrderControl().setValue(isCancelled ? "CA" : "NW");
 
         // OBR Segment
@@ -182,6 +188,11 @@ public class OrderToORMTranslator {
             log.debug("Unable to retrieve a visit location for location: " + orderLocation);
         }
         return orderLocation;
+    }
+
+    public String getPatientIdentifier(Patient patient) {
+        PatientIdentifier patientIdentifier = patient.getPatientIdentifier(rwandaEmrConfig.getPrimaryCareIdentifierType());
+        return patientIdentifier == null ? null : patientIdentifier.getIdentifier();
     }
 
     public String getPhoneNumber(Patient patient) {
