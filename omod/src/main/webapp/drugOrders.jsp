@@ -12,6 +12,6 @@
 <openmrs:require privilege="Patient Dashboard - View Drug Order Section" otherwise="/index.htm" redirect="/module/rwandaemr/drugOrders.htm"/>
 
 <!-- We deliberately do not use the patientId attribute of the portlet tag to avoid loading unnecessary data -->
-<openmrs:portlet url="drugOrderPortlet" id="DrugOrderTabId" moduleId="pharmacymanagement" patientId="${patient.patientId}" parameters="returnUrl=/module/rwandaemr/drugOrders.htm?patientId={patientId}"/>
+<openmrs:portlet url="drugOrderPortlet" id="DrugOrderTabId" moduleId="pharmacymanagement" patientId="${patient.patientId}" parameters="returnUrl=${pageContext.request.contextPath}/module/rwandaemr/drugOrders.htm?patientId={patientId}"/>
 
 <%@ include file="/WEB-INF/template/footerMinimal.jsp" %>
