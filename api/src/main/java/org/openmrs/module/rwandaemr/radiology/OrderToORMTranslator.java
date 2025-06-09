@@ -190,9 +190,12 @@ public class OrderToORMTranslator {
         return orderLocation;
     }
 
+    /**
+     * @return the primary care identifier for the patient with any "-" character removed
+     */
     public String getPatientIdentifier(Patient patient) {
         PatientIdentifier patientIdentifier = patient.getPatientIdentifier(rwandaEmrConfig.getPrimaryCareIdentifierType());
-        return patientIdentifier == null ? null : patientIdentifier.getIdentifier();
+        return patientIdentifier == null ? null : patientIdentifier.getIdentifier().replace("-", "");
     }
 
     public String getPhoneNumber(Patient patient) {
