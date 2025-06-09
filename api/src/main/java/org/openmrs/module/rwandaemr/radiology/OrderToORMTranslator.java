@@ -15,15 +15,11 @@ package org.openmrs.module.rwandaemr.radiology;
 
 import ca.uhn.hl7v2.HL7Exception;
 import ca.uhn.hl7v2.model.v23.message.ORM_O01;
-import ca.uhn.hl7v2.model.v23.segment.MSH;
 import ca.uhn.hl7v2.model.v23.segment.OBR;
 import ca.uhn.hl7v2.model.v23.segment.ORC;
 import ca.uhn.hl7v2.model.v23.segment.PID;
 import ca.uhn.hl7v2.model.v23.segment.PV1;
-import ca.uhn.hl7v2.parser.Parser;
-import ca.uhn.hl7v2.parser.PipeParser;
 import org.apache.commons.lang.BooleanUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.CareSetting;
@@ -34,7 +30,6 @@ import org.openmrs.ConceptSource;
 import org.openmrs.Location;
 import org.openmrs.Order;
 import org.openmrs.Patient;
-import org.openmrs.PatientIdentifier;
 import org.openmrs.PersonAttribute;
 import org.openmrs.Provider;
 import org.openmrs.TestOrder;
@@ -44,33 +39,22 @@ import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 
 @Component
-public class OrderToORMTranslator {
+public class OrderToORMTranslator extends BaseHL7Translator {
 
-    protected Log log = LogFactory.getLog(getClass());
-
-    private final Parser parser = new PipeParser();
-
-    private final AdtService adtService;
-    private final ConceptService conceptService;
-    private final RwandaEmrConfig rwandaEmrConfig;
+    private final Log log = LogFactory.getLog(getClass());
 
     public OrderToORMTranslator(
             @Autowired AdtService adtService,
             @Autowired ConceptService conceptService,
             @Autowired RwandaEmrConfig rwandaEmrConfig) {
-        this.adtService = adtService;
-        this.conceptService = conceptService;
-        this.rwandaEmrConfig = rwandaEmrConfig;
+        super(adtService, conceptService, rwandaEmrConfig);
     }
 
     /**
@@ -80,8 +64,6 @@ public class OrderToORMTranslator {
     public String toORM_001(TestOrder order) throws HL7Exception {
         ORM_O01 message = new ORM_O01();
         Date now = new Date();
-        DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH);
-        DateFormat dateTimeFormat = new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH);
 
         Date scheduledDate = order.getScheduledDate();
         if (scheduledDate == null) {
@@ -89,38 +71,15 @@ public class OrderToORMTranslator {
         }
 
         // MSH Segment
-        MSH msh = message.getMSH();
-        msh.getFieldSeparator().setValue("|");
-        msh.getEncodingCharacters().setValue("^~\\&");
-        msh.getSendingApplication().getNamespaceID().setValue("OpenMRS");
-        msh.getSendingFacility().getNamespaceID().setValue(getOrderLocation(order).getName());
-        // Hard-coding PACS_APP and PACS_FACILITY per instruction from vendor
-        msh.getReceivingApplication().getNamespaceID().setValue("PACS_APP");
-        msh.getReceivingFacility().getNamespaceID().setValue("PACS_FACILITY");
-        msh.getDateTimeOfMessage().getTimeOfAnEvent().setValue(dateTimeFormat.format(now));
-        msh.getMessageType().getMessageType().setValue("ORM");
-        msh.getMessageType().getTriggerEvent().setValue("O01");
-        msh.getMessageControlID().setValue(UUID.randomUUID().toString());
-        msh.getProcessingID().getProcessingID().setValue("P"); // P=Production, D=Debugging, T=Testing
-        msh.getVersionID().setValue("2.3"); // HL7 version targeted
+        populateMshSegment(message.getMSH(), getOrderLocation(order).getName(), now, "ORM", "O01");
 
         // PID Segment
         Patient patient = order.getPatient();
         PID pid = message.getPATIENT().getPID();
-        pid.getSetIDPatientID().setValue("1");
-
-        String patientIdentifier = getPatientIdentifier(patient);
-        if (StringUtils.isBlank(patientIdentifier)) {
-            throw new IllegalStateException("Patient does not have a Primary Care ID");
-        }
-        pid.getPatientIDInternalID(0).getID().setValue(patientIdentifier);
-        // Patient Name has a maximum length of 64 in the RIS.  Trim first and last to 30 to ensure it fits.
-        pid.getPatientName(0).getFamilyName().setValue(trim(patient.getFamilyName(), 30));
-        pid.getPatientName(0).getGivenName().setValue(trim(patient.getGivenName(), 30));
-        if (patient.getBirthdate() != null) {
-            pid.getDateOfBirth().getTimeOfAnEvent().setValue(dateFormat.format(order.getPatient().getBirthdate()));
-        }
-        pid.getSex().setValue(patient.getGender() == null ? "O" : patient.getGender().toUpperCase());
+        setPatientIdentifier(pid, patient);
+        setPatientName(pid, patient);
+        setPatientBirthdate(pid, patient);
+        setPatientGender(pid, patient);
 
         // TODO: Note, these seems like the wrong fields, but it is what is in the integration docs
         pid.getPhoneNumberHome(0).getXtn1_9999999X99999CAnyText().setValue(getPhoneNumber(patient));
@@ -159,7 +118,7 @@ public class OrderToORMTranslator {
 
         // Scheduled order information
         obr.getFillerField2().setValue(modality); // This is the AE Title of the Equipment.  Sending modality in the absence of specific equipment code.
-        obr.getObr36_ScheduledDateTime().getTimeOfAnEvent().setValue(dateTimeFormat.format(scheduledDate));
+        obr.getObr36_ScheduledDateTime().getTimeOfAnEvent().setValue(formatDatetime(scheduledDate));
         obr.getPriority().setValue(order.getUrgency() == Order.Urgency.STAT ? "STAT" : "ROUTINE");
         String orderReason = order.getOrderReasonNonCoded();
         if (order.getOrderReason() != null) {
@@ -169,10 +128,6 @@ public class OrderToORMTranslator {
             obr.getReasonForStudy(0).getText().setValue(trim(orderReason, 64));
         }
         return parser.encode(message);
-    }
-
-    public static String trim(String value, int maxLength) {
-        return (value == null ? null : StringUtils.substring(value.trim(), 0, maxLength));
     }
 
     public Location getOrderLocation(TestOrder testOrder) {
@@ -188,14 +143,6 @@ public class OrderToORMTranslator {
             log.debug("Unable to retrieve a visit location for location: " + orderLocation);
         }
         return orderLocation;
-    }
-
-    /**
-     * @return the primary care identifier for the patient with any "-" character removed
-     */
-    public String getPatientIdentifier(Patient patient) {
-        PatientIdentifier patientIdentifier = patient.getPatientIdentifier(rwandaEmrConfig.getPrimaryCareIdentifierType());
-        return patientIdentifier == null ? null : patientIdentifier.getIdentifier().replace("-", "");
     }
 
     public String getPhoneNumber(Patient patient) {
