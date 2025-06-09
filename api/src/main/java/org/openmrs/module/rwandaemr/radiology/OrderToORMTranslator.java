@@ -61,7 +61,7 @@ public class OrderToORMTranslator extends BaseHL7Translator {
      * For the given test order, generate an ORM^001 HL7 message
      * Used for a new unscheduled order creation or order cancellation
      */
-    public String toORM_001(TestOrder order) throws HL7Exception {
+    public String toORM_O01(TestOrder order) throws HL7Exception {
         ORM_O01 message = new ORM_O01();
         Date now = new Date();
 
