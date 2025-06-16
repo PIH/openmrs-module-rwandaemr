@@ -16,8 +16,7 @@ package org.openmrs.module.rwandaemr.radiology;
 import ca.uhn.hl7v2.HL7Exception;
 import ca.uhn.hl7v2.model.v23.segment.MSH;
 import ca.uhn.hl7v2.model.v23.segment.PID;
-import ca.uhn.hl7v2.parser.Parser;
-import ca.uhn.hl7v2.parser.PipeParser;
+import liquibase.pro.packaged.L;
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
@@ -32,8 +31,6 @@ import java.util.Locale;
 import java.util.UUID;
 
 public abstract class BaseHL7Translator {
-
-    Parser parser = new PipeParser();
 
     final AdtService adtService;
     final ConceptService conceptService;
@@ -52,8 +49,26 @@ public abstract class BaseHL7Translator {
         return new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH).format(date);
     }
 
+    Date parseDate(String yyyyMMdd) {
+        try {
+            return new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH).parse(yyyyMMdd);
+        }
+        catch (Exception e) {
+            throw new IllegalArgumentException("Could not parse date using format yyyyMMdd: " + yyyyMMdd);
+        }
+    }
+
     String formatDatetime(Date date) {
         return new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH).format(date);
+    }
+
+    Date parseDatetime(String yyyyMMddHHmmss) {
+        try {
+            return new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH).parse(yyyyMMddHHmmss);
+        }
+        catch (Exception e) {
+            throw new IllegalArgumentException("Could not parse datetime using format yyyyMMddHHmmss: " + yyyyMMddHHmmss);
+        }
     }
 
     public static String trim(String value, int maxLength) {
@@ -112,5 +127,23 @@ public abstract class BaseHL7Translator {
 
     public void setPatientGender(PID pid, Patient patient) throws HL7Exception {
         pid.getSex().setValue(patient.getGender() == null ? "O" : patient.getGender().toUpperCase());
+    }
+
+    /**
+     * This can be used as an alternative to HAPI FHIR API to retrieve a particular field segement
+     */
+    public String getField(String message, String segment, int fieldNumber) {
+        for (String line : message.split("[\\r\\n]")) {
+            String[] components = line.split("\\|");
+            if (components[0].equals(segment)) {
+                if (components.length >= (fieldNumber + 1)) {
+                    return components[fieldNumber];
+                }
+                else {
+                    return null;
+                }
+            }
+        }
+        return null;
     }
 }

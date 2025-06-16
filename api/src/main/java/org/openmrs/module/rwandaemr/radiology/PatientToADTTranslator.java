@@ -13,10 +13,13 @@
  */
 package org.openmrs.module.rwandaemr.radiology;
 
+import ca.uhn.hl7v2.DefaultHapiContext;
 import ca.uhn.hl7v2.HL7Exception;
+import ca.uhn.hl7v2.HapiContext;
 import ca.uhn.hl7v2.model.v23.message.ADT_A08;
 import ca.uhn.hl7v2.model.v23.segment.EVN;
 import ca.uhn.hl7v2.model.v23.segment.PID;
+import ca.uhn.hl7v2.parser.Parser;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.Patient;
@@ -64,6 +67,9 @@ public class PatientToADTTranslator extends BaseHL7Translator {
         setPatientName(pid, patient);
         setPatientBirthdate(pid, patient);
         setPatientGender(pid, patient);
+
+        HapiContext context = new DefaultHapiContext();
+        Parser parser = context.getPipeParser();
         return parser.encode(message);
     }
 }

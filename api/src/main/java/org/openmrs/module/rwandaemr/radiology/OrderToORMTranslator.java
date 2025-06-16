@@ -13,12 +13,15 @@
  */
 package org.openmrs.module.rwandaemr.radiology;
 
+import ca.uhn.hl7v2.DefaultHapiContext;
 import ca.uhn.hl7v2.HL7Exception;
+import ca.uhn.hl7v2.HapiContext;
 import ca.uhn.hl7v2.model.v23.message.ORM_O01;
 import ca.uhn.hl7v2.model.v23.segment.OBR;
 import ca.uhn.hl7v2.model.v23.segment.ORC;
 import ca.uhn.hl7v2.model.v23.segment.PID;
 import ca.uhn.hl7v2.model.v23.segment.PV1;
+import ca.uhn.hl7v2.parser.Parser;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -127,6 +130,9 @@ public class OrderToORMTranslator extends BaseHL7Translator {
         if (orderReason != null) {
             obr.getReasonForStudy(0).getText().setValue(trim(orderReason, 64));
         }
+
+        HapiContext context = new DefaultHapiContext();
+        Parser parser = context.getPipeParser();
         return parser.encode(message);
     }
 
