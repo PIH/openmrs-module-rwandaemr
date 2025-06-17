@@ -147,6 +147,7 @@ public class MockRwandaEmrConfig extends RwandaEmrConfig {
 	@Override
 	public Location getUnknownLocation() {
 		Location l = new Location();
+		l.setUuid("8d6c993e-c2cc-11de-8d13-0010c6dffd0f");
 		l.setName("Unknown Location");
 		return l;
 	}
@@ -154,6 +155,7 @@ public class MockRwandaEmrConfig extends RwandaEmrConfig {
 	@Override
 	public Provider getUnknownProvider() {
 		Provider p = new Provider();
+		p.setUuid("c6f220e4-b238-11e1-b05b-001e68a9fdcf");
 		p.setName("Unknown Provider");
 		Person person = new Person();
 		person.addName(new PersonName("Unknown", null, "Provider"));
