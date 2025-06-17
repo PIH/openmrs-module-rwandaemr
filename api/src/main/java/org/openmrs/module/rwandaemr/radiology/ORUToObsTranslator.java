@@ -264,7 +264,7 @@ public class ORUToObsTranslator extends BaseHL7Translator {
         if (encounter == null) {
             encounter = new Encounter();
             encounter.setPatient(order.getPatient());
-            encounter.setEncounterType(radiologyConfig.getRadiologyResultsEncounterType());
+            encounter.setEncounterType(radiologyConfig.getRadiologyReportEncounterType());
             encounter.setEncounterDatetime(reportDate);
             encounter.setLocation(rwandaEmrConfig.getUnknownLocation()); // TODO: What location to use here?
             addEncounterProvider(encounter, radiologyConfig.getPrincipalResultsInterpreterEncounterRole(), radiologist);

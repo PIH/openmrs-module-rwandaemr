@@ -38,7 +38,7 @@ public class RadiologyConfig {
 
 	public static final String RADIOLOGY_REQUEST_ENCOUNTER_UUID = "02965343-bbe7-4c3c-83c5-c3d084e715b7";
 	public static final String RADIOLOGY_STUDY_ENCOUNTER_UUID = "7d2fdd23-2cfc-11f0-bad6-56aa92787bc1";
-	public static final String RADIOLOGY_RESULTS_ENCOUNTER_UUID = "cd4f9f32-6eb6-4cad-986b-00449593e7e0";
+	public static final String RADIOLOGY_REPORT_ENCOUNTER_UUID = "207c2518-4ba8-11f0-a5b6-d21e7ba45d33";
 
 	public static final String RADIOLOGY_TECHNICIAN_ENCOUNTER_ROLE_UUID = "8f4d96e2-c97c-4285-9319-e56b9ba6029c";
 	public static final String PRINCIPAL_RESULTS_INTERPRETER_ENCOUNTER_ROLE_UUID = "08f73be2-9452-44b5-801b-bdf7418c2f71";
@@ -95,8 +95,8 @@ public class RadiologyConfig {
 		return encounterService.getEncounterTypeByUuid(RADIOLOGY_STUDY_ENCOUNTER_UUID);
 	}
 
-	public EncounterType getRadiologyResultsEncounterType() {
-		return encounterService.getEncounterTypeByUuid(RADIOLOGY_RESULTS_ENCOUNTER_UUID);
+	public EncounterType getRadiologyReportEncounterType() {
+		return encounterService.getEncounterTypeByUuid(RADIOLOGY_REPORT_ENCOUNTER_UUID);
 	}
 
 	public EncounterRole getRadiologyTechnicianEncounterRole() {

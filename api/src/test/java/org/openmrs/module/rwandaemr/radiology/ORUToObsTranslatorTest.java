@@ -48,7 +48,7 @@ public class ORUToObsTranslatorTest extends BaseHL7TranslatorTest {
 
         Encounter resultsEncounter = encounters.get(1);
         assertThat(resultsEncounter.getPatient(), equalTo(patient));
-        assertThat(resultsEncounter.getEncounterType(), equalTo(radiologyConfig.getRadiologyResultsEncounterType()));
+        assertThat(resultsEncounter.getEncounterType(), equalTo(radiologyConfig.getRadiologyReportEncounterType()));
         assertThat(resultsEncounter.getEncounterDatetime(), equalTo(ymdhms.parse("20250520220127")));
         assertThat(resultsEncounter.getLocation(), equalTo(rwandaEmrConfig.getUnknownLocation()));
         EncounterProvider resultsProvider = resultsEncounter.getEncounterProviders().iterator().next();
