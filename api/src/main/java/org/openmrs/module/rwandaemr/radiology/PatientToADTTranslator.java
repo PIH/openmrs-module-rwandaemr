@@ -31,6 +31,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.Date;
 
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.formatDatetime;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.populateMshSegment;
+
 @Component
 public class PatientToADTTranslator extends BaseHL7Translator {
 

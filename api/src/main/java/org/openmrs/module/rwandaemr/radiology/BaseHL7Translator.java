@@ -14,9 +14,7 @@
 package org.openmrs.module.rwandaemr.radiology;
 
 import ca.uhn.hl7v2.HL7Exception;
-import ca.uhn.hl7v2.model.v23.segment.MSH;
 import ca.uhn.hl7v2.model.v23.segment.PID;
-import liquibase.pro.packaged.L;
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
@@ -25,10 +23,8 @@ import org.openmrs.module.emrapi.adt.AdtService;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.UUID;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.formatDate;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.trim;
 
 public abstract class BaseHL7Translator {
 
@@ -43,52 +39,6 @@ public abstract class BaseHL7Translator {
         this.adtService = adtService;
         this.conceptService = conceptService;
         this.rwandaEmrConfig = rwandaEmrConfig;
-    }
-
-    String formatDate(Date date) {
-        return new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH).format(date);
-    }
-
-    Date parseDate(String yyyyMMdd) {
-        try {
-            return new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH).parse(yyyyMMdd);
-        }
-        catch (Exception e) {
-            throw new IllegalArgumentException("Could not parse date using format yyyyMMdd: " + yyyyMMdd);
-        }
-    }
-
-    String formatDatetime(Date date) {
-        return new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH).format(date);
-    }
-
-    Date parseDatetime(String yyyyMMddHHmmss) {
-        try {
-            return new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH).parse(yyyyMMddHHmmss);
-        }
-        catch (Exception e) {
-            throw new IllegalArgumentException("Could not parse datetime using format yyyyMMddHHmmss: " + yyyyMMddHHmmss);
-        }
-    }
-
-    public static String trim(String value, int maxLength) {
-        return (value == null ? null : StringUtils.substring(value.trim(), 0, maxLength));
-    }
-
-    void populateMshSegment(MSH msh, String sendingFacility, Date messageDate, String messageType, String triggerEvent) throws HL7Exception {
-        msh.getFieldSeparator().setValue("|");
-        msh.getEncodingCharacters().setValue("^~\\&");
-        msh.getSendingApplication().getNamespaceID().setValue("OpenMRS");
-        msh.getSendingFacility().getNamespaceID().setValue(sendingFacility);
-        // Hard-coding PACS_APP and PACS_FACILITY per instruction from vendor
-        msh.getReceivingApplication().getNamespaceID().setValue("PACS_APP");
-        msh.getReceivingFacility().getNamespaceID().setValue("PACS_FACILITY");
-        msh.getDateTimeOfMessage().getTimeOfAnEvent().setValue(formatDatetime(messageDate));
-        msh.getMessageType().getMessageType().setValue(messageType);
-        msh.getMessageType().getTriggerEvent().setValue(triggerEvent);
-        msh.getMessageControlID().setValue(UUID.randomUUID().toString());
-        msh.getProcessingID().getProcessingID().setValue("P"); // P=Production, D=Debugging, T=Testing
-        msh.getVersionID().setValue("2.3"); // HL7 version targeted
     }
 
     /**
@@ -127,23 +77,5 @@ public abstract class BaseHL7Translator {
 
     public void setPatientGender(PID pid, Patient patient) throws HL7Exception {
         pid.getSex().setValue(patient.getGender() == null ? "O" : patient.getGender().toUpperCase());
-    }
-
-    /**
-     * This can be used as an alternative to HAPI FHIR API to retrieve a particular field segement
-     */
-    public String getField(String message, String segment, int fieldNumber) {
-        for (String line : message.split("[\\r\\n]")) {
-            String[] components = line.split("\\|");
-            if (components[0].equals(segment)) {
-                if (components.length >= (fieldNumber + 1)) {
-                    return components[fieldNumber];
-                }
-                else {
-                    return null;
-                }
-            }
-        }
-        return null;
     }
 }

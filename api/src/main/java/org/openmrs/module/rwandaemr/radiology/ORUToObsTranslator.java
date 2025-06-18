@@ -44,6 +44,9 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.getField;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.parseDatetime;
+
 @Component
 public class ORUToObsTranslator extends BaseHL7Translator {
 

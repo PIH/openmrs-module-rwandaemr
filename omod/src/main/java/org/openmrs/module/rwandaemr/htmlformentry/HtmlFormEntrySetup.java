@@ -81,5 +81,6 @@ public class HtmlFormEntrySetup {
             }
         }
         log.warn("Registered " + CONFIG_FORMS.size() + " form(s) loaded from configuration for htmlformentry");
+        log.warn("HTMLFormEntry Configured");
     }
 }

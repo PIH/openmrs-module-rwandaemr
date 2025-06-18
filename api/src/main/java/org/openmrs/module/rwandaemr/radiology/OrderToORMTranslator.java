@@ -48,6 +48,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.formatDatetime;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.populateMshSegment;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.trim;
+
 @Component
 public class OrderToORMTranslator extends BaseHL7Translator {
 

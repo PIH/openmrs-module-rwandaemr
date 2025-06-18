@@ -23,6 +23,7 @@ import org.openmrs.module.reporting.config.ReportLoader;
 import org.openmrs.module.rwandaemr.config.AuthenticationSetup;
 import org.openmrs.module.rwandaemr.config.EventSetup;
 import org.openmrs.module.rwandaemr.config.GlobalResourceSetup;
+import org.openmrs.module.rwandaemr.config.HL7ListenerSetup;
 import org.openmrs.module.rwandaemr.config.InitializerSetup;
 import org.openmrs.module.rwandaemr.config.ServerSetup;
 import org.openmrs.module.rwandaemr.event.PatientEventListener;
@@ -53,9 +54,8 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 		GlobalResourceSetup.includeGlobalResources();
 		HtmlFormEntrySetup.setup();
 		EventSetup.setup();
-		log.warn("HTMLFormEntry Configured");
+		HL7ListenerSetup.startup();
 		RwandaEmrTimerTask.setEnabled(true);
-		log.warn("RwandaEmrTimerTask enabled");
 		log.warn("Rwanda EMR configuration complete");
 	}
 
@@ -63,6 +63,7 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 	 * @see ModuleActivator#stopped()
 	 */
 	public void stopped() {
+		HL7ListenerSetup.shutdown();
 		EventSetup.teardown();
 		log.info("Rwanda EMR Module stopped");
 	}

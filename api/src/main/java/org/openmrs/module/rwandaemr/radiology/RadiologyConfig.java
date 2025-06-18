@@ -31,7 +31,7 @@ import java.util.Map;
 @Component
 public class RadiologyConfig {
 
-	protected Log log = LogFactory.getLog(getClass());
+	protected static Log log = LogFactory.getLog(RadiologyConfig.class);
 
 	public static final String GP_SUPPORTED_MODALITIES = "rwandaemr.radiology.supportedModalities";
 	public static final String GP_ORDERABLES_PREFIX = "rwandaemr.radiology.orderables.";
