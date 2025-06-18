@@ -74,7 +74,7 @@ public class ORUToObsTranslator extends BaseHL7Translator {
         ORU_R01 oruR01 = (ORU_R01) message;
         OBR obr = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBR();
 
-        // TODO: Do we want to create orders if not found, or fail?
+        // RIS will not be creating orders.  Fail if the order with the given order number is not found.
         String orderNumber = obr.getObr2_PlacerOrderNumber(0).getEntityIdentifier().getValue();
         Order order = orderService.getOrderByOrderNumber(orderNumber);
         if (order == null) {
@@ -84,15 +84,24 @@ public class ORUToObsTranslator extends BaseHL7Translator {
         OBX obx1 = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBSERVATION(0).getOBX();
         OBX obx2 = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBSERVATION(1).getOBX();
 
-        // Currently only text reports are expected, which are identified by format = TX
+        // RIS is capable of both text and PDF reports.  Code here is set up to accept text, so fail if format is not TX
         String reportFormat = obx1.getObx2_ValueType().getValue();
         if (StringUtils.isNotBlank(reportFormat) && !"TX".equals(reportFormat)) {
             throw new IllegalArgumentException("Report format of TX expected, but '" + reportFormat + "' was received");
         }
 
-        // Fields for both study and report
-        String status = obx1.getObx11_ObservResultStatus().getValue();  // I=COMPLETED, R=READ, F=FINAL, P=PRINT
+        // The status should always be present.
+        // I=COMPLETED (study performed, not yet read)
+        // R=READ (read but report is preliminary)
+        // F=FINAL (read and report is final)
+        // P=PRINT (final report has been printed)
+        String status = obx1.getObx11_ObservResultStatus().getValue();
+
+        // The test performed should always be present. Fail if this is not found.
         String testIdentifier = obx1.getObx3_ObservationIdentifier().getIdentifier().getValue();
+        if (StringUtils.isBlank(testIdentifier)) {
+            throw new IllegalArgumentException("No procedure found in OBX message");
+        }
         Concept testPerformedValue = conceptService.getConceptByReference("LOINC:" + testIdentifier);
         if (testPerformedValue == null) {
             throw new IllegalArgumentException("No procedure found with LOINC code = " + testIdentifier);
@@ -106,10 +115,8 @@ public class ORUToObsTranslator extends BaseHL7Translator {
         // Report
         String reportText = obx1.getObx5_ObservationValue(0).getData().encode();
         String reportDateStr = obx1.getObx14_DateTimeOfTheObservation().getTimeOfAnEvent().getValue();
+        // Look up radiologist by id only, ignore any name passed in.
         String radiologistId = obx1.getObx16_ResponsibleObserver().getIDNumber().getValue();
-        String radiologistGivenName = obx1.getObx16_ResponsibleObserver().getGivenName().getValue();
-        String radiologistFamilyName = obx1.getObx16_ResponsibleObserver().getFamilyName().getValue();
-        // TODO: Review whether we should use provider name at all, and whether we will have provider id here
         Provider radiologist = (StringUtils.isBlank(radiologistId) ? null : rwandaEmrConfig.getProviderByIdentifier(radiologistId));
 
         // Study date and report date must both be non-null.  Determine the best dates for each

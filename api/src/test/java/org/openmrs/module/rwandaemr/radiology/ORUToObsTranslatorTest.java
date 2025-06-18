@@ -19,32 +19,18 @@ public class ORUToObsTranslatorTest extends BaseHL7TranslatorTest {
 
     @Test
     public void shouldTranslateFromORUToObs() throws Exception {
-        String hl7Message = IOUtils.resourceToString("/orur01-example-1.txt", StandardCharsets.UTF_8);
-        oruToObsTranslator.fromORU_R01(hl7Message);
+        String completedMessage = IOUtils.resourceToString("/orur01-example-1-completed.txt", StandardCharsets.UTF_8);
+        oruToObsTranslator.fromORU_R01(completedMessage);
         List<Encounter> encounters = rwandaEmrService.getEncounters();
-        assertThat(encounters.size(), equalTo(2));
+        assertThat(encounters.size(), equalTo(1));
+        testStudyEncounter(encounters.get(0), false);
+        rwandaEmrService.getEncounters().clear();
 
-        Encounter studyEncounter = encounters.get(0);
-        assertThat(studyEncounter.getPatient(), equalTo(patient));
-        assertThat(studyEncounter.getEncounterType(), equalTo(radiologyConfig.getRadiologyStudyEncounterType()));
-        assertThat(studyEncounter.getEncounterDatetime(), equalTo(ymdhms.parse("20250520000000")));
-        assertThat(studyEncounter.getLocation(), equalTo(rwandaEmrConfig.getUnknownLocation()));
-        assertThat(studyEncounter.getEncounterProviders().size(), equalTo(1));
-        EncounterProvider studyProvider = studyEncounter.getEncounterProviders().iterator().next();
-        assertThat(studyProvider.getProvider(), equalTo(rwandaEmrConfig.getUnknownProvider()));
-        assertThat(studyProvider.getEncounterRole(), equalTo(radiologyConfig.getRadiologyTechnicianEncounterRole()));
-        assertThat(studyEncounter.getObsAtTopLevel(false).size(), equalTo(1));
-        Obs studyObs = studyEncounter.getObsAtTopLevel(false).iterator().next();
-        assertThat(studyObs.getConcept(), equalTo(radiologyConfig.getRadiologyStudyConstruct()));
-        assertThat(studyObs.getOrder(), equalTo(testOrder));
-        assertThat(studyObs.getGroupMembers().size(), equalTo(3));
-        assertThat(getObs(studyObs, radiologyAccessionNumber).getValueText(), equalTo(testOrder.getOrderNumber()));
-        assertThat(getObs(studyObs, radiologyAccessionNumber).getOrder(), equalTo(testOrder));
-        assertThat(getObs(studyObs, radiologyProcedurePerformed).getValueCoded(), equalTo(xrayConcept));
-        assertThat(getObs(studyObs, radiologyProcedurePerformed).getOrder(), equalTo(testOrder));
-        assertThat(getObs(studyObs, radiologyImagesAvailable).getValueCoded(), equalTo(conceptService.getFalseConcept()));
-        assertThat(getObs(studyObs, radiologyImagesAvailable).getComment(), equalTo(""));
-        assertThat(getObs(studyObs, radiologyImagesAvailable).getOrder(), equalTo(testOrder));
+        String finalMessage = IOUtils.resourceToString("/orur01-example-1-final.txt", StandardCharsets.UTF_8);
+        oruToObsTranslator.fromORU_R01(finalMessage);
+        encounters = rwandaEmrService.getEncounters();
+        assertThat(encounters.size(), equalTo(2));
+        testStudyEncounter(encounters.get(0), true);
 
         Encounter resultsEncounter = encounters.get(1);
         assertThat(resultsEncounter.getPatient(), equalTo(patient));
@@ -67,6 +53,35 @@ public class ORUToObsTranslatorTest extends BaseHL7TranslatorTest {
         assertThat(getObs(resultObs, radiologyReportComments).getOrder(), equalTo(testOrder));
         assertThat(getObs(resultObs, radiologyReportType).getValueCoded(), equalTo(finalConcept));
         assertThat(getObs(resultObs, radiologyReportType).getOrder(), equalTo(testOrder));
+    }
+
+    private void testStudyEncounter(Encounter studyEncounter, boolean hasImageUrl) throws Exception {
+        assertThat(studyEncounter.getPatient(), equalTo(patient));
+        assertThat(studyEncounter.getEncounterType(), equalTo(radiologyConfig.getRadiologyStudyEncounterType()));
+        assertThat(studyEncounter.getEncounterDatetime(), equalTo(ymdhms.parse("20250520000000")));
+        assertThat(studyEncounter.getLocation(), equalTo(rwandaEmrConfig.getUnknownLocation()));
+        assertThat(studyEncounter.getEncounterProviders().size(), equalTo(1));
+        EncounterProvider studyProvider = studyEncounter.getEncounterProviders().iterator().next();
+        assertThat(studyProvider.getProvider(), equalTo(rwandaEmrConfig.getUnknownProvider()));
+        assertThat(studyProvider.getEncounterRole(), equalTo(radiologyConfig.getRadiologyTechnicianEncounterRole()));
+        assertThat(studyEncounter.getObsAtTopLevel(false).size(), equalTo(1));
+        Obs studyObs = studyEncounter.getObsAtTopLevel(false).iterator().next();
+        assertThat(studyObs.getConcept(), equalTo(radiologyConfig.getRadiologyStudyConstruct()));
+        assertThat(studyObs.getOrder(), equalTo(testOrder));
+        assertThat(studyObs.getGroupMembers().size(), equalTo(3));
+        assertThat(getObs(studyObs, radiologyAccessionNumber).getValueText(), equalTo(testOrder.getOrderNumber()));
+        assertThat(getObs(studyObs, radiologyAccessionNumber).getOrder(), equalTo(testOrder));
+        assertThat(getObs(studyObs, radiologyProcedurePerformed).getValueCoded(), equalTo(xrayConcept));
+        assertThat(getObs(studyObs, radiologyProcedurePerformed).getOrder(), equalTo(testOrder));
+        assertThat(getObs(studyObs, radiologyImagesAvailable).getOrder(), equalTo(testOrder));
+        if (hasImageUrl) {
+            assertThat(getObs(studyObs, radiologyImagesAvailable).getValueCoded(), equalTo(conceptService.getTrueConcept()));
+            assertThat(getObs(studyObs, radiologyImagesAvailable).getComment(), equalTo("^https://192.168.3.100/PACSAPI/Launch_Viewer?Username=hisuser&Password=hisuser&AccessionNumber=ORD-764591"));
+        }
+        else {
+            assertThat(getObs(studyObs, radiologyImagesAvailable).getValueCoded(), equalTo(conceptService.getFalseConcept()));
+            assertThat(getObs(studyObs, radiologyImagesAvailable).getComment(), equalTo(""));
+        }
     }
 
     Obs getObs(Obs obsGroup, Concept memberObs) {
