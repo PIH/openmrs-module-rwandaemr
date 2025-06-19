@@ -18,6 +18,7 @@ import org.openmrs.EncounterType;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.ConceptService;
 import org.openmrs.api.EncounterService;
+import org.openmrs.util.ConfigUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -32,6 +33,10 @@ import java.util.Map;
 public class RadiologyConfig {
 
 	protected static Log log = LogFactory.getLog(RadiologyConfig.class);
+
+	public static final String PROPERTY_INCOMING_HL7_PORT = "rwandaemr.radiology.incomingHL7Port";
+	public static final String PROPERTY_OUTGOING_HL7_HOST = "rwandaemr.radiology.outgoingHL7Host";
+	public static final String PROPERTY_OUTGOING_HL7_PORT = "rwandaemr.radiology.outgoingHL7Port";
 
 	public static final String GP_SUPPORTED_MODALITIES = "rwandaemr.radiology.supportedModalities";
 	public static final String GP_ORDERABLES_PREFIX = "rwandaemr.radiology.orderables.";
@@ -54,6 +59,36 @@ public class RadiologyConfig {
 		this.administrationService = administrationService;
 		this.conceptService = conceptService;
 		this.encounterService = encounterService;
+	}
+
+	public static Integer getIncomingHl7Port() {
+		String property = ConfigUtil.getProperty(PROPERTY_INCOMING_HL7_PORT, null);
+		if (StringUtils.isNotBlank(property)) {
+			try {
+				return Integer.parseInt(property);
+			}
+			catch (NumberFormatException e) {
+				log.error("Invalid configuration for " + PROPERTY_INCOMING_HL7_PORT + ": " + property);
+			}
+		}
+		return null;
+	}
+
+	public static String getOutgoingHl7Host() {
+		return ConfigUtil.getProperty(PROPERTY_OUTGOING_HL7_HOST, null);
+	}
+
+	public static Integer getOutgoingHl7Port() {
+		String property = ConfigUtil.getProperty(PROPERTY_OUTGOING_HL7_PORT, null);
+		if (StringUtils.isNotBlank(property)) {
+			try {
+				return Integer.parseInt(property);
+			}
+			catch (NumberFormatException e) {
+				log.error("Invalid configuration for " + PROPERTY_OUTGOING_HL7_PORT + ": " + property);
+			}
+		}
+		return null;
 	}
 
 	public Map<Modality, Concept> getModalityConceptSets() {

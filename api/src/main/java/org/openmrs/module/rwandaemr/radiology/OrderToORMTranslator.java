@@ -65,6 +65,14 @@ public class OrderToORMTranslator extends BaseHL7Translator {
     }
 
     /**
+     * @param order
+     * @return true if the given order is a supported radiology order, false otherwise
+     */
+    public boolean isRadiologyOrder(Order order) {
+        return getModalityCode(order) != null;
+    }
+
+    /**
      * For the given test order, generate an ORM^001 HL7 message
      * Used for a new unscheduled order creation or order cancellation
      */

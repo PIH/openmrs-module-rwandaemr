@@ -1,13 +1,10 @@
-package org.openmrs.module.rwandaemr.config;
+package org.openmrs.module.rwandaemr.radiology;
 
 import ca.uhn.hl7v2.app.HL7Service;
 import ca.uhn.hl7v2.app.SimpleServer;
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
-import org.openmrs.module.rwandaemr.radiology.ORUMessageListener;
-import org.openmrs.util.ConfigUtil;
 
 /**
  * Starts up the HL7 listener, if enabled
@@ -19,11 +16,11 @@ public class HL7ListenerSetup {
     private static HL7Service hl7Service;
 
     public static void startup() {
-        String property = ConfigUtil.getProperty("rwandaemr.radiology.hl7ListenerPort", null);
-        if (StringUtils.isNotEmpty(property)) {
+        Integer port = RadiologyConfig.getIncomingHl7Port();
+        if (port != null) {
             try {
-                log.info("Starting HL7 listener on port " + property);
-                hl7Service = new SimpleServer(Integer.parseInt(property));
+                log.info("Starting HL7 listener on port " + port);
+                hl7Service = new SimpleServer(port);
                 ORUMessageListener oruMessageListener = Context.getRegisteredComponents(ORUMessageListener.class).iterator().next();
                 hl7Service.registerApplication("ORU", "R01", oruMessageListener);
                 hl7Service.start();
@@ -31,6 +28,9 @@ public class HL7ListenerSetup {
             } catch (Exception e) {
                 log.error("HL7 Listener failed to startup", e);
             }
+        }
+        else {
+            log.info("Incoming HL7 listening for radiology is not enabled");
         }
     }
 
