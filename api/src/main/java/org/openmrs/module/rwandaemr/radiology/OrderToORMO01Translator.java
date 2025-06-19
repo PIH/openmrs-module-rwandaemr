@@ -13,12 +13,15 @@
  */
 package org.openmrs.module.rwandaemr.radiology;
 
+import ca.uhn.hl7v2.DefaultHapiContext;
 import ca.uhn.hl7v2.HL7Exception;
+import ca.uhn.hl7v2.HapiContext;
 import ca.uhn.hl7v2.model.v23.message.ORM_O01;
 import ca.uhn.hl7v2.model.v23.segment.OBR;
 import ca.uhn.hl7v2.model.v23.segment.ORC;
 import ca.uhn.hl7v2.model.v23.segment.PID;
 import ca.uhn.hl7v2.model.v23.segment.PV1;
+import ca.uhn.hl7v2.parser.Parser;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -45,16 +48,28 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.formatDatetime;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.populateMshSegment;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.trim;
+
 @Component
-public class OrderToORMTranslator extends BaseHL7Translator {
+public class OrderToORMO01Translator extends BaseHL7Translator {
 
     private final Log log = LogFactory.getLog(getClass());
 
-    public OrderToORMTranslator(
+    public OrderToORMO01Translator(
             @Autowired AdtService adtService,
             @Autowired ConceptService conceptService,
             @Autowired RwandaEmrConfig rwandaEmrConfig) {
         super(adtService, conceptService, rwandaEmrConfig);
+    }
+
+    /**
+     * @param order
+     * @return true if the given order is a supported radiology order, false otherwise
+     */
+    public boolean isRadiologyOrder(Order order) {
+        return getModalityCode(order) != null;
     }
 
     /**
@@ -127,6 +142,9 @@ public class OrderToORMTranslator extends BaseHL7Translator {
         if (orderReason != null) {
             obr.getReasonForStudy(0).getText().setValue(trim(orderReason, 64));
         }
+
+        HapiContext context = new DefaultHapiContext();
+        Parser parser = context.getPipeParser();
         return parser.encode(message);
     }
 

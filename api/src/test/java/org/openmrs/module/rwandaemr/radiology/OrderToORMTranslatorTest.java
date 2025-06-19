@@ -100,9 +100,9 @@ public class OrderToORMTranslatorTest extends BaseHL7TranslatorTest {
 
         testNumberOfFields(message, "OBR", 36);
         testField(message, "OBR", 1, equalTo("1"));  // Set ID
-        testField(message, "OBR", 2, equalTo("ORD-1111"));  // Order Number
+        testField(message, "OBR", 2, equalTo("ORD-764591"));  // Order Number
         testField(message, "OBR", 3, equalTo("University Hospital")); // Center ID
-        testField(message, "OBR", 4, equalTo("12121^X-Ray"));  // Test Ordered
+        testField(message, "OBR", 4, equalTo("36657-5^X-RAY, FOOT"));  // Test Ordered
         testField(message, "OBR", 5, equalTo("ROUTINE"));
         testField(message, "OBR", 6, emptyString());
         testField(message, "OBR", 7, emptyString());

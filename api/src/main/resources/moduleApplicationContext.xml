@@ -9,7 +9,10 @@
 	<bean id="rwandaEmrService" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
 		<property name="transactionManager"><ref bean="transactionManager"/></property>
 		<property name="target">
-			<bean class="org.openmrs.module.rwandaemr.RwandaEmrServiceImpl" autowire="byType"/>
+			<bean class="org.openmrs.module.rwandaemr.RwandaEmrServiceImpl" autowire="byType">
+				<property name="sessionFactory"><ref bean="dbSessionFactory"/></property>
+				<property name="encounterService"><ref bean="encounterService"/></property>
+			</bean>
 		</property>
 		<property name="preInterceptors">
 			<ref bean="serviceInterceptors"/>
