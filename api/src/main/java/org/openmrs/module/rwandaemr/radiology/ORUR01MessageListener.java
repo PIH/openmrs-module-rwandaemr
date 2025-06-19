@@ -28,12 +28,12 @@ import java.util.Date;
 import static org.openmrs.module.rwandaemr.radiology.HL7Utils.populateMshSegment;
 
 @Component
-public class ORUMessageListener implements Application {
+public class ORUR01MessageListener implements Application {
 
     private final Log log = LogFactory.getLog(getClass());
-    private final ORUToObsTranslator oruToObsTranslator;
+    private final ORUR01ToObsTranslator oruToObsTranslator;
 
-    public ORUMessageListener(@Autowired ORUToObsTranslator oruToObsTranslator) {
+    public ORUR01MessageListener(@Autowired ORUR01ToObsTranslator oruToObsTranslator) {
         this.oruToObsTranslator = oruToObsTranslator;
     }
 

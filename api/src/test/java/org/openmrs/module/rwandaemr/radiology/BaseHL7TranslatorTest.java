@@ -52,9 +52,9 @@ public abstract class BaseHL7TranslatorTest {
     MockRwandaEmrService rwandaEmrService;
     RwandaEmrConfig rwandaEmrConfig;
     RadiologyConfig radiologyConfig;
-    PatientToADTTranslator patientToADTTranslator;
-    OrderToORMTranslator orderToORMTranslator;
-    ORUToObsTranslator oruToObsTranslator;
+    PatientToADTA08Translator patientToADTTranslator;
+    OrderToORMO01Translator orderToORMTranslator;
+    ORUR01ToObsTranslator oruToObsTranslator;
     Location orderLocation;
     Location visitLocation;
     CareSetting inpatient;
@@ -96,9 +96,9 @@ public abstract class BaseHL7TranslatorTest {
         rwandaEmrService = new MockRwandaEmrService();
         radiologyConfig = new RadiologyConfig(administrationService, conceptService, encounterService);
         rwandaEmrConfig = new MockRwandaEmrConfig(null, null, null, null, null, null, radiologyConfig);
-        patientToADTTranslator = new PatientToADTTranslator(adtService, conceptService, rwandaEmrConfig);
-        orderToORMTranslator = new OrderToORMTranslator(adtService, conceptService, rwandaEmrConfig);
-        oruToObsTranslator = new ORUToObsTranslator(adtService, conceptService, rwandaEmrConfig, orderService, rwandaEmrService);
+        patientToADTTranslator = new PatientToADTA08Translator(adtService, conceptService, rwandaEmrConfig);
+        orderToORMTranslator = new OrderToORMO01Translator(adtService, conceptService, rwandaEmrConfig);
+        oruToObsTranslator = new ORUR01ToObsTranslator(adtService, conceptService, rwandaEmrConfig, orderService, rwandaEmrService);
         orderLocation = new Location();
         orderLocation.setUuid("order-location-uuid");
         orderLocation.setName("Emergency Room");

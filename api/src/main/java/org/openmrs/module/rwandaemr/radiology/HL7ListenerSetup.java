@@ -21,7 +21,7 @@ public class HL7ListenerSetup {
             try {
                 log.info("Starting HL7 listener on port " + port);
                 hl7Service = new SimpleServer(port);
-                ORUMessageListener oruMessageListener = Context.getRegisteredComponents(ORUMessageListener.class).iterator().next();
+                ORUR01MessageListener oruMessageListener = Context.getRegisteredComponents(ORUR01MessageListener.class).iterator().next();
                 hl7Service.registerApplication("ORU", "R01", oruMessageListener);
                 hl7Service.start();
                 log.info("HL7 listener started successfully");

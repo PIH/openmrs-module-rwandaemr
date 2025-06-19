@@ -35,11 +35,11 @@ import static org.openmrs.module.rwandaemr.radiology.HL7Utils.formatDatetime;
 import static org.openmrs.module.rwandaemr.radiology.HL7Utils.populateMshSegment;
 
 @Component
-public class PatientToADTTranslator extends BaseHL7Translator {
+public class PatientToADTA08Translator extends BaseHL7Translator {
 
     private final Log log = LogFactory.getLog(getClass());
 
-    public PatientToADTTranslator(
+    public PatientToADTA08Translator(
             @Autowired AdtService adtService,
             @Autowired ConceptService conceptService,
             @Autowired RwandaEmrConfig rwandaEmrConfig) {

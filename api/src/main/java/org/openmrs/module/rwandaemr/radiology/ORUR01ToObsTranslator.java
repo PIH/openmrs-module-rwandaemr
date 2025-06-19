@@ -48,14 +48,14 @@ import static org.openmrs.module.rwandaemr.radiology.HL7Utils.getField;
 import static org.openmrs.module.rwandaemr.radiology.HL7Utils.parseDatetime;
 
 @Component
-public class ORUToObsTranslator extends BaseHL7Translator {
+public class ORUR01ToObsTranslator extends BaseHL7Translator {
 
     private final Log log = LogFactory.getLog(getClass());
 
     final OrderService orderService;
     final RwandaEmrService rwandaEmrService;
 
-    public ORUToObsTranslator(
+    public ORUR01ToObsTranslator(
             @Autowired AdtService adtService,
             @Autowired ConceptService conceptService,
             @Autowired RwandaEmrConfig rwandaEmrConfig,

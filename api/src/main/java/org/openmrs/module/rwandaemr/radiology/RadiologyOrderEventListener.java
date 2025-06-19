@@ -35,10 +35,10 @@ public class RadiologyOrderEventListener implements EventListener {
 	private boolean isSubscribed = false;
 
 	private final OrderService orderService;
-	private final OrderToORMTranslator orderToORMTranslator;
+	private final OrderToORMO01Translator orderToORMTranslator;
 
 	public RadiologyOrderEventListener(@Autowired OrderService orderService,
-										  @Autowired OrderToORMTranslator orderToORMTranslator) {
+										  @Autowired OrderToORMO01Translator orderToORMTranslator) {
 		this.orderService = orderService;
 		this.orderToORMTranslator = orderToORMTranslator;
 	}

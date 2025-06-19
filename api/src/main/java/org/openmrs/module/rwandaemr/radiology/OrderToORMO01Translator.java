@@ -53,11 +53,11 @@ import static org.openmrs.module.rwandaemr.radiology.HL7Utils.populateMshSegment
 import static org.openmrs.module.rwandaemr.radiology.HL7Utils.trim;
 
 @Component
-public class OrderToORMTranslator extends BaseHL7Translator {
+public class OrderToORMO01Translator extends BaseHL7Translator {
 
     private final Log log = LogFactory.getLog(getClass());
 
-    public OrderToORMTranslator(
+    public OrderToORMO01Translator(
             @Autowired AdtService adtService,
             @Autowired ConceptService conceptService,
             @Autowired RwandaEmrConfig rwandaEmrConfig) {
