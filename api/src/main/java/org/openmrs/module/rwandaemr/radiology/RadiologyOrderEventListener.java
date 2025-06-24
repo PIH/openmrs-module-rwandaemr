@@ -1,7 +1,11 @@
 package org.openmrs.module.rwandaemr.radiology;
 
+import ca.uhn.hl7v2.DefaultHapiContext;
+import ca.uhn.hl7v2.HapiContext;
+import ca.uhn.hl7v2.app.Connection;
+import ca.uhn.hl7v2.app.Initiator;
+import ca.uhn.hl7v2.model.v23.message.ORM_O01;
 import lombok.Setter;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -17,11 +21,6 @@ import org.springframework.stereotype.Component;
 
 import javax.jms.MapMessage;
 import javax.jms.Message;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketAddress;
-import java.nio.charset.StandardCharsets;
 
 /**
  * Listener that can be registered with Patient events and which will create a
@@ -113,13 +112,13 @@ public class RadiologyOrderEventListener implements EventListener {
 	public void sendRadiologyOrderMessage(TestOrder testOrder) {
 		if (getHost() != null && getPort() != null) {
 			log.info("Sending radiology order message to PACS");
-			try (Socket socket = new Socket()) {
-				String hl7Message = orderToORMTranslator.toORM_O01(testOrder);
-				InetAddress inetAddress = InetAddress.getByName(getHost());
-				SocketAddress socketAddress = new InetSocketAddress(inetAddress, getPort());
-				int timeoutMs = 5000;   // 5s
-				socket.connect(socketAddress, timeoutMs);
-				IOUtils.write(hl7Message, socket.getOutputStream(), StandardCharsets.UTF_8);
+			try {
+				ORM_O01 hl7Message = orderToORMTranslator.toORM_O01(testOrder);
+				HapiContext context = new DefaultHapiContext();
+				Connection connection = context.newClient(getHost(), getPort(), false);
+				Initiator initiator = connection.getInitiator();
+				ca.uhn.hl7v2.model.Message response = initiator.sendAndReceive(hl7Message);
+				log.warn("Got response from PACS: " + response);
 				log.info("Radiology order sent successfully");
 			}
 			catch (Exception e) {

@@ -52,7 +52,7 @@ public class RwandaEmrHL7Controller {
         else {
             if (order instanceof TestOrder) {
                 try {
-                    hl7Message = orderToORMTranslator.toORM_O01((TestOrder) order);
+                    hl7Message = orderToORMTranslator.toORM_O01((TestOrder) order).encode();
                 }
                 catch (Exception e) {
                     errorMessage = e.getMessage();

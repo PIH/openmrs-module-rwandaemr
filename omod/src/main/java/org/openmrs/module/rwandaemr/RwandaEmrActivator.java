@@ -23,11 +23,12 @@ import org.openmrs.module.reporting.config.ReportLoader;
 import org.openmrs.module.rwandaemr.config.AuthenticationSetup;
 import org.openmrs.module.rwandaemr.config.EventSetup;
 import org.openmrs.module.rwandaemr.config.GlobalResourceSetup;
-import org.openmrs.module.rwandaemr.radiology.HL7ListenerSetup;
 import org.openmrs.module.rwandaemr.config.InitializerSetup;
 import org.openmrs.module.rwandaemr.config.ServerSetup;
 import org.openmrs.module.rwandaemr.event.PatientEventListener;
 import org.openmrs.module.rwandaemr.htmlformentry.HtmlFormEntrySetup;
+import org.openmrs.module.rwandaemr.radiology.HL7ListenerSetup;
+import org.openmrs.module.rwandaemr.radiology.ORUR01MessageListener;
 import org.openmrs.module.rwandaemr.radiology.RadiologyOrderEventListener;
 import org.openmrs.module.rwandaemr.task.RwandaEmrTimerTask;
 
@@ -74,5 +75,6 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 		RwandaEmrTimerTask.setDaemonToken(daemonToken);
 		PatientEventListener.setDaemonToken(daemonToken);
 		RadiologyOrderEventListener.setDaemonToken(daemonToken);
+		ORUR01MessageListener.setDaemonToken(daemonToken);
 	}
 }

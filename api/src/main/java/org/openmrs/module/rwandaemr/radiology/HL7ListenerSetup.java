@@ -5,6 +5,7 @@ import ca.uhn.hl7v2.app.SimpleServer;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.rwandaemr.radiology.mock.MockPacsSystem;
 
 /**
  * Starts up the HL7 listener, if enabled
@@ -23,6 +24,10 @@ public class HL7ListenerSetup {
                 hl7Service = new SimpleServer(port);
                 ORUR01MessageListener oruMessageListener = Context.getRegisteredComponents(ORUR01MessageListener.class).iterator().next();
                 hl7Service.registerApplication("ORU", "R01", oruMessageListener);
+                if (RadiologyConfig.enableMockPacsSystem()) {
+                    MockPacsSystem mockPacsSystem = Context.getRegisteredComponents(MockPacsSystem.class).iterator().next();
+                    hl7Service.registerApplication("ORM", "O01", mockPacsSystem);
+                }
                 hl7Service.start();
                 log.info("HL7 listener started successfully");
             } catch (Exception e) {

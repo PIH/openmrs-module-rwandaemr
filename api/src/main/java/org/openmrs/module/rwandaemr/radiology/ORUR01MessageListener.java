@@ -13,22 +13,22 @@
  */
 package org.openmrs.module.rwandaemr.radiology;
 
-import ca.uhn.hl7v2.HL7Exception;
 import ca.uhn.hl7v2.app.Application;
 import ca.uhn.hl7v2.model.Message;
-import ca.uhn.hl7v2.model.v23.message.ACK;
-import ca.uhn.hl7v2.model.v23.message.ORU_R01;
+import lombok.Data;
+import lombok.Setter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.openmrs.api.context.Daemon;
+import org.openmrs.module.DaemonToken;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.Date;
-
-import static org.openmrs.module.rwandaemr.radiology.HL7Utils.populateMshSegment;
-
 @Component
 public class ORUR01MessageListener implements Application {
+
+    @Setter
+    private static DaemonToken daemonToken;
 
     private final Log log = LogFactory.getLog(getClass());
     private final ORUR01ToObsTranslator oruToObsTranslator;
@@ -38,33 +38,34 @@ public class ORUR01MessageListener implements Application {
     }
 
     @Override
-    public Message processMessage(Message message) throws HL7Exception {
-        String errorMessage = null;
-        ORU_R01 oruR01 = null;
-        try {
-            oruR01 = (ORU_R01) message;
-            oruToObsTranslator.fromORU_R01(message.encode());
+    public Message processMessage(Message message) {
+        while (daemonToken == null) {
+            if (log.isTraceEnabled()) {
+                log.trace("Waiting for daemon token to be set prior to processing message");
+            }
         }
-        catch (Exception e) {
-            log.error("Unable to parse incoming ORU_RO1 message", e);
-            errorMessage = e.getMessage();
-        }
-        Date now = new Date();
-        ACK ack = new ACK();
-        populateMshSegment(ack.getMSH(), oruR01.getMSH().getReceivingFacility().getName(), now, "ACK", "O01");
-        ack.getMSA().getMessageControlID().setValue(oruR01.getMSH().getMessageControlID().getValue());
-        if (errorMessage == null) {
-            ack.getMSA().getAcknowledgementCode().setValue("AA");
-        }
-        else {
-            ack.getMSA().getAcknowledgementCode().setValue("AR");
-            ack.getMSA().getTextMessage().setValue(errorMessage);
-        }
-        return ack;
-    }
+        log.warn("Processing ORU_R01 message");
+        HL7Response hl7Response = new HL7Response();
+        Daemon.runInDaemonThreadAndWait(() -> {
+            try {
+                oruToObsTranslator.fromORU_R01(message.encode());
+                hl7Response.setMessage(HL7Utils.generateAckMessage(message, null));
+            }
+            catch (Exception e) {
+                log.error("Unable to parse incoming ORU_RO1 message", e);
+                hl7Response.setMessage(HL7Utils.generateAckMessage(message, e));
+            }
+        }, daemonToken);
+        return hl7Response.getMessage();
+    };
 
     @Override
     public boolean canProcess(Message message) {
-        return  message != null && "ORU_R01".equals(message.getName());
+        return message != null && "ORU_R01".equals(message.getName());
+    }
+
+    @Data
+    static class HL7Response {
+        Message message;
     }
 }

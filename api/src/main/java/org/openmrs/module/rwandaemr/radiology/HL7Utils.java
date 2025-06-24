@@ -13,7 +13,9 @@
  */
 package org.openmrs.module.rwandaemr.radiology;
 
+import ca.uhn.hl7v2.AcknowledgmentCode;
 import ca.uhn.hl7v2.HL7Exception;
+import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.model.v23.segment.MSH;
 import org.apache.commons.lang.StringUtils;
 
@@ -68,6 +70,26 @@ public class HL7Utils {
         msh.getMessageControlID().setValue(UUID.randomUUID().toString());
         msh.getProcessingID().getProcessingID().setValue("P"); // P=Production, D=Debugging, T=Testing
         msh.getVersionID().setValue("2.3"); // HL7 version targeted
+    }
+
+    /**
+     * For the given message and exception, generate an ACK message response
+     */
+    public static Message generateAckMessage(Message message, Exception e) {
+        try {
+            if (e == null) {
+                return message.generateACK();
+            }
+            else if (e instanceof HL7Exception) {
+                return message.generateACK(AcknowledgmentCode.AR, (HL7Exception) e);
+            }
+            else {
+                return message.generateACK(AcknowledgmentCode.AR, new HL7Exception(e));
+            }
+        }
+        catch (Exception e1) {
+            throw new RuntimeException("Error generating ACK message", e1);
+        }
     }
 
     /**

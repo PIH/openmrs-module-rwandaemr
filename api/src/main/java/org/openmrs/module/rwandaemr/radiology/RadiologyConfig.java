@@ -37,6 +37,7 @@ public class RadiologyConfig {
 	public static final String PROPERTY_INCOMING_HL7_PORT = "rwandaemr.radiology.incomingHL7Port";
 	public static final String PROPERTY_OUTGOING_HL7_HOST = "rwandaemr.radiology.outgoingHL7Host";
 	public static final String PROPERTY_OUTGOING_HL7_PORT = "rwandaemr.radiology.outgoingHL7Port";
+	public static final String PROPERTY_MOCK_PACS_ENABLED = "rwandaemr.radiology.mockPacsEnabled";
 
 	public static final String GP_SUPPORTED_MODALITIES = "rwandaemr.radiology.supportedModalities";
 	public static final String GP_ORDERABLES_PREFIX = "rwandaemr.radiology.orderables.";
@@ -89,6 +90,10 @@ public class RadiologyConfig {
 			}
 		}
 		return null;
+	}
+
+	public static boolean enableMockPacsSystem() {
+		return ConfigUtil.getProperty(PROPERTY_MOCK_PACS_ENABLED, "false").equals("true");
 	}
 
 	public Map<Modality, Concept> getModalityConceptSets() {

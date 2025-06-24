@@ -193,8 +193,7 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
 
         // Create Radiology Study Obs Group if not present
         if (radiologyStudyGroup == null) {
-            radiologyStudyGroup = new Obs();
-            radiologyStudyGroup.setOrder(order);
+            radiologyStudyGroup = createObs(encounter, order);
             radiologyStudyGroup.setConcept(radiologyConfig.getRadiologyStudyConstruct());
             encounter.addObs(radiologyStudyGroup);
         }
@@ -203,12 +202,12 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         Obs accessionNumberObs = getObsFromGroup(radiologyStudyGroup, radiologyConfig.getRadiologyAccessionNumber());
         if (accessionNumberObs != null) {
             if (!order.getOrderNumber().equals(accessionNumberObs.getValueText())) {
+                accessionNumberObs = voidAndRecreate(accessionNumberObs);
                 accessionNumberObs.setValueText(order.getOrderNumber());
             }
         }
         else {
-            accessionNumberObs = new Obs();
-            accessionNumberObs.setOrder(order);
+            accessionNumberObs = createObs(encounter, order);
             accessionNumberObs.setConcept(radiologyConfig.getRadiologyAccessionNumber());
             accessionNumberObs.setValueText(order.getOrderNumber());
             radiologyStudyGroup.addGroupMember(accessionNumberObs);
@@ -218,12 +217,12 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         Obs procedureObs = getObsFromGroup(radiologyStudyGroup, radiologyConfig.getRadiologyProcedurePerformed());
         if (procedureObs != null) {
             if (!testPerformedValue.equals(procedureObs.getValueCoded())) {
+                procedureObs = voidAndRecreate(procedureObs);
                 procedureObs.setValueCoded(testPerformedValue);
             }
         }
         else {
-            procedureObs = new Obs();
-            procedureObs.setOrder(order);
+            procedureObs = createObs(encounter, order);
             procedureObs.setConcept(radiologyConfig.getRadiologyProcedurePerformed());
             procedureObs.setValueCoded(testPerformedValue);
             radiologyStudyGroup.addGroupMember(procedureObs);
@@ -234,17 +233,16 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         Concept hasImagesValueCoded = hasImages ? conceptService.getTrueConcept() : conceptService.getFalseConcept();
         Obs hasImagesAvailableObs = getObsFromGroup(radiologyStudyGroup, radiologyConfig.getRadiologyImagesAvailable());
         if (hasImagesAvailableObs != null) {
-            Concept existingValue = hasImagesAvailableObs.getValueCoded();
-            if (existingValue == null || !existingValue.equals(hasImagesValueCoded)) {
+            boolean obsChanged = !hasImagesAvailableObs.getValueCoded().equals(hasImagesValueCoded);
+            obsChanged = obsChanged || !OpenmrsUtil.nullSafeEquals(hasImagesAvailableObs.getComment(), imageViewerLink);
+            if (obsChanged) {
+                hasImagesAvailableObs = voidAndRecreate(hasImagesAvailableObs);
                 hasImagesAvailableObs.setValueCoded(hasImagesValueCoded);
-            }
-            if (!OpenmrsUtil.nullSafeEquals(hasImagesAvailableObs.getComment(), imageViewerLink)) {
                 hasImagesAvailableObs.setComment(imageViewerLink);
             }
         }
         else {
-            hasImagesAvailableObs = new Obs();
-            hasImagesAvailableObs.setOrder(order);
+            hasImagesAvailableObs = createObs(encounter, order);
             hasImagesAvailableObs.setConcept(radiologyConfig.getRadiologyImagesAvailable());
             hasImagesAvailableObs.setValueCoded(hasImagesValueCoded);
             hasImagesAvailableObs.setComment(imageViewerLink);
@@ -290,8 +288,7 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
 
         // Create Radiology Report Obs Group if not present
         if (radiologyReportGroup == null) {
-            radiologyReportGroup = new Obs();
-            radiologyReportGroup.setOrder(order);
+            radiologyReportGroup = createObs(encounter, order);
             radiologyReportGroup.setConcept(radiologyConfig.getRadiologyReportConstruct());
             encounter.addObs(radiologyReportGroup);
         }
@@ -300,12 +297,12 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         Obs accessionNumberObs = getObsFromGroup(radiologyReportGroup, radiologyConfig.getRadiologyAccessionNumber());
         if (accessionNumberObs != null) {
             if (!order.getOrderNumber().equals(accessionNumberObs.getValueText())) {
+                accessionNumberObs = voidAndRecreate(accessionNumberObs);
                 accessionNumberObs.setValueText(order.getOrderNumber());
             }
         }
         else {
-            accessionNumberObs = new Obs();
-            accessionNumberObs.setOrder(order);
+            accessionNumberObs = createObs(encounter, order);
             accessionNumberObs.setConcept(radiologyConfig.getRadiologyAccessionNumber());
             accessionNumberObs.setValueText(order.getOrderNumber());
             radiologyReportGroup.addGroupMember(accessionNumberObs);
@@ -315,12 +312,12 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         Obs procedureObs = getObsFromGroup(radiologyReportGroup, radiologyConfig.getRadiologyProcedurePerformed());
         if (procedureObs != null) {
             if (!testPerformedValue.equals(procedureObs.getValueCoded())) {
+                procedureObs = voidAndRecreate(procedureObs);
                 procedureObs.setValueCoded(testPerformedValue);
             }
         }
         else {
-            procedureObs = new Obs();
-            procedureObs.setOrder(order);
+            procedureObs = createObs(encounter, order);
             procedureObs.setConcept(radiologyConfig.getRadiologyProcedurePerformed());
             procedureObs.setValueCoded(testPerformedValue);
             radiologyReportGroup.addGroupMember(procedureObs);
@@ -332,12 +329,12 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         if (commentsObs != null) {
             if (!reportText.equals(commentsObs.getValueText())) {
                 commentsChanged = StringUtils.isNotBlank(commentsObs.getComment());
+                commentsObs = voidAndRecreate(commentsObs);
                 commentsObs.setValueText(reportText);
             }
         }
         else {
-            commentsObs = new Obs();
-            commentsObs.setOrder(order);
+            commentsObs = createObs(encounter, order);
             commentsObs.setConcept(radiologyConfig.getRadiologyReportComments());
             commentsObs.setValueText(reportText);
             radiologyReportGroup.addGroupMember(commentsObs);
@@ -361,14 +358,14 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             }
             else {
                 if (!statusObs.getValueCoded().equals(statusConcept)) {
+                    statusObs = voidAndRecreate(statusObs);
                     statusObs.setValueCoded(statusConcept);
                 }
             }
         }
         else {
             if (statusConcept != null) {
-                statusObs = new Obs();
-                statusObs.setOrder(order);
+                statusObs = createObs(encounter, order);
                 statusObs.setConcept(radiologyConfig.getRadiologyReportType());
                 statusObs.setValueCoded(statusConcept);
                 radiologyReportGroup.addGroupMember(statusObs);
@@ -388,6 +385,24 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             }
         }
         return null;
+    }
+
+    private Obs voidAndRecreate(Obs obs) {
+        Obs newObs = Obs.newInstance(obs);
+        obs.setVoided(true);
+        obs.setVoidReason("Updated value from incoming HL7");
+        newObs.setPreviousVersion(obs);
+        return newObs;
+    }
+
+    protected Obs createObs(Encounter encounter, Order order) {
+        Obs obs = new Obs();
+        obs.setEncounter(encounter);
+        obs.setOrder(order);
+        obs.setObsDatetime(encounter.getEncounterDatetime());
+        obs.setLocation(encounter.getLocation());
+        obs.setPerson(encounter.getPatient());
+        return obs;
     }
 
     private void addEncounterProvider(Encounter encounter, EncounterRole role, Provider provider) {

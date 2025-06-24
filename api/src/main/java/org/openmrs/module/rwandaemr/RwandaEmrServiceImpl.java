@@ -66,7 +66,7 @@ public class RwandaEmrServiceImpl extends BaseOpenmrsService implements RwandaEm
 	@Authorized(PrivilegeConstants.GET_OBS)
 	@SuppressWarnings("unchecked")
 	public List<Obs> getObsByOrder(Order order) {
-		String query = "select obs from Obs o where o.order = :order and o.voided = false";
+		String query = "select o from Obs o where o.order = :order and o.voided = false";
 		return sessionFactory.getCurrentSession().createQuery(query).setParameter("order", order).list();
 	}
 
