@@ -59,9 +59,26 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             }
         });
     };
+
+    jq(document).ready(function() {
+        jq("#return-button").click(function(event) {
+            document.location.href = '${ui.pageLink("coreapps", "clinicianfacing/patient", ["patientId": patient.id])}';
+        });
+        jq("#add-button").click(function(event) {
+            document.location.href = '${ui.pageLink("htmlformentryui", "htmlform/enterHtmlFormWithStandardUi", [
+                "patientId": patient.id,
+                "definitionUiResource": "file:configuration/htmlforms/radiology-order.xml",
+                "returnUrl": ui.pageLink("rwandaemr", "patient/radiologyOrders", ["patientId": patient.id])
+            ])}';
+        });
+    });
 </script>
 
 <h3>Radiology Orders</h3>
+
+<div style="width:100%; text-align: right; padding-bottom: 5px;">
+    <button id="add-button">${ui.message("rwandaemr.drugAdministrations.add")}</button>
+</div>
 
 <table id="radiology-order-table">
     <thead>
@@ -107,3 +124,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 <a href="javascript:downloadADTA08('${patient.patient.uuid}')">
     Download ADT^A08
 </a>
+<br/><br/>
+<div>
+    <input id="return-button" type="button" class="cancel" value="${ ui.message("rwandaemr.encounterList.return") }"/>
+</div>
