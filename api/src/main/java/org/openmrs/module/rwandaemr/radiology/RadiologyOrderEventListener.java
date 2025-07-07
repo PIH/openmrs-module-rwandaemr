@@ -23,8 +23,7 @@ import javax.jms.MapMessage;
 import javax.jms.Message;
 
 /**
- * Listener that can be registered with Patient events and which will create a
- * default private insurance for that patient if they do not already have one
+ * Listener that can be registered with Order events and which will attempt to convert this order to hl7 and send
  */
 @Component
 public class RadiologyOrderEventListener implements EventListener {

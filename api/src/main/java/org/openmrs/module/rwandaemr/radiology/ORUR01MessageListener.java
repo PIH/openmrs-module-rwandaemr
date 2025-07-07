@@ -24,6 +24,10 @@ import org.openmrs.module.DaemonToken;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+/**
+ * This class is registered with the HAPI simple server that listens for incoming HL7 messages and is responsible
+ * for handling the ORU_R01 messages (observations in response to an order)
+ */
 @Component
 public class ORUR01MessageListener implements Application {
 

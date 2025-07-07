@@ -23,8 +23,10 @@ public class HL7ListenerSetup {
                 log.info("Starting HL7 listener on port " + port);
                 hl7Service = new SimpleServer(port);
                 ORUR01MessageListener oruMessageListener = Context.getRegisteredComponents(ORUR01MessageListener.class).iterator().next();
+                log.info("Listening for ORU_R01 messages enabled");
                 hl7Service.registerApplication("ORU", "R01", oruMessageListener);
                 if (RadiologyConfig.enableMockPacsSystem()) {
+                    log.info("Listening for ORM_O01 messages enabled - mock PACS system");
                     MockPacsSystem mockPacsSystem = Context.getRegisteredComponents(MockPacsSystem.class).iterator().next();
                     hl7Service.registerApplication("ORM", "O01", mockPacsSystem);
                 }

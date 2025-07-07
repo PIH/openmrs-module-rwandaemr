@@ -47,6 +47,10 @@ import java.util.List;
 import static org.openmrs.module.rwandaemr.radiology.HL7Utils.getField;
 import static org.openmrs.module.rwandaemr.radiology.HL7Utils.parseDatetime;
 
+/**
+ * This class is responsible for parsing an ORU_R01 HL7 message containing observations for a particular order
+ * and creating the necessary encounters and observations in OpenMRS that correspond to this
+ */
 @Component
 public class ORUR01ToObsTranslator extends BaseHL7Translator {
 
