@@ -80,7 +80,7 @@ public class ORUToObsTranslatorTest extends BaseHL7TranslatorTest {
         }
         else {
             assertThat(getObs(studyObs, radiologyImagesAvailable).getValueCoded(), equalTo(conceptService.getFalseConcept()));
-            assertThat(getObs(studyObs, radiologyImagesAvailable).getComment(), equalTo(""));
+            assertThat(getObs(studyObs, radiologyImagesAvailable).getComment(), nullValue());
         }
     }
 

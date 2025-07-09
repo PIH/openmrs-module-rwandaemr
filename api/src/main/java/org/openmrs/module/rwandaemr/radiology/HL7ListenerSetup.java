@@ -29,6 +29,7 @@ public class HL7ListenerSetup {
                     log.info("Listening for ORM_O01 messages enabled - mock PACS system");
                     MockPacsSystem mockPacsSystem = Context.getRegisteredComponents(MockPacsSystem.class).iterator().next();
                     hl7Service.registerApplication("ORM", "O01", mockPacsSystem);
+                    mockPacsSystem.start();
                 }
                 hl7Service.start();
                 log.info("HL7 listener started successfully");

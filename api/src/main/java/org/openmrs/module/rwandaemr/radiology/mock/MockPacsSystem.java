@@ -26,13 +26,18 @@ import ca.uhn.hl7v2.model.v23.segment.OBX;
 import ca.uhn.hl7v2.model.v23.segment.ORC;
 import ca.uhn.hl7v2.model.v23.segment.PID;
 import ca.uhn.hl7v2.model.v23.segment.PV1;
+import ca.uhn.hl7v2.parser.PipeParser;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.module.rwandaemr.radiology.HL7Utils;
 import org.openmrs.module.rwandaemr.radiology.RadiologyConfig;
+import org.openmrs.util.OpenmrsUtil;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 import static org.openmrs.module.rwandaemr.radiology.HL7Utils.populateMshSegment;
 
@@ -41,7 +46,26 @@ public class MockPacsSystem implements Application {
 
     private static final Log log = LogFactory.getLog(MockPacsSystem.class);
 
+    private static boolean enabled = false;
+
     public MockPacsSystem() {
+    }
+
+    public void start() {
+        log.warn("MockPacs: Starting message processing thread");
+        enabled = true;
+        MessageProcessor responseThread = new MessageProcessor();
+        Thread messageProcessorThread = new Thread(responseThread);
+        messageProcessorThread.start();
+        log.warn("MockPacs: Message processing thread started");
+    }
+
+    public static File getMockPacsDir() {
+        File dir = OpenmrsUtil.getDirectoryInApplicationDataDirectory("mockPacs");
+        if (dir.mkdirs()) {
+            log.warn("Created MockPacs directory: " + dir.getAbsolutePath());
+        }
+        return dir;
     }
 
     @Override
@@ -49,9 +73,12 @@ public class MockPacsSystem implements Application {
         try {
             log.warn("MockPacs:  Processing incoming message");
             ORM_O01 ormO01 = (ORM_O01) message;
-            ResponseThread responseThread = new ResponseThread(ormO01);
-            responseThread.run();
-            log.warn("MockPacs:  Generating success ACK");
+            String messageControlId = ormO01.getMSH().getMessageControlID().getValue();
+            String hl7Received = ormO01.encode();
+            log.warn("MockPacs:  Received message: " + hl7Received);
+            File messageFile = new File(getMockPacsDir(), messageControlId);
+            FileUtils.write(messageFile, hl7Received, "UTF-8");
+            log.warn("MockPacs:  Wrote message to: " + hl7Received);
             return HL7Utils.generateAckMessage(message,null);
         }
         catch (Exception e) {
@@ -65,93 +92,107 @@ public class MockPacsSystem implements Application {
         return  message != null && "ORM_O01".equals(message.getName());
     }
 
-    static class ResponseThread implements Runnable {
-
-        private final ORM_O01 ormO01;
-
-        public ResponseThread(ORM_O01 ormO01) {
-            this.ormO01 = ormO01;
-        }
+    static class MessageProcessor implements Runnable {
 
         @Override
         public void run() {
-            try {
-                log.warn("Sleeping for 5 seconds before sending first response message");
-                Thread.sleep(5000);
-                ORU_R01 oruR01 = new ORU_R01();
-                Date now = new Date();
+            while(enabled) {
+                try {
+                    File[] files = getMockPacsDir().listFiles();
+                    File fileToProcess = files == null || files.length == 0 ? null : files[0];
+                    if (fileToProcess != null) {
+                        log.info("MockPacs:  Processing file: " + fileToProcess.getAbsolutePath());
+                        String fileContents = FileUtils.readFileToString(fileToProcess, "UTF-8");
+                        PipeParser parser = new PipeParser();
+                        Message message = parser.parse(fileContents);
+                        ORM_O01 ormO01 = (ORM_O01) message;
 
-                // MSH Segment
-                populateMshSegment(oruR01.getMSH(), "Butaro", now, "ORU", "R01");
+                        ORU_R01 oruR01 = new ORU_R01();
+                        Date now = new Date();
 
-                // PID Segment
-                PID incomingPID = ormO01.getPATIENT().getPID();
-                PID pid = oruR01.getRESPONSE().getPATIENT().getPID();
-                pid.getSetIDPatientID().setValue(incomingPID.getSetIDPatientID().getValue());
-                pid.getPatientIDInternalID(0).getID().setValue(incomingPID.getPatientIDInternalID(0).getID().getValue());
-                pid.getPatientName(0).getFamilyName().setValue(incomingPID.getPatientName(0).getFamilyName().getValue());
-                pid.getPatientName(0).getGivenName().setValue(incomingPID.getPatientName(0).getGivenName().getValue());
-                pid.getDateOfBirth().getTimeOfAnEvent().setValue(incomingPID.getDateOfBirth().getTimeOfAnEvent().getValue());
-                pid.getSex().setValue(incomingPID.getSex().getValue());
-                pid.getPhoneNumberHome(0).getXtn1_9999999X99999CAnyText().setValue(incomingPID.getPhoneNumberHome(0).getXtn1_9999999X99999CAnyText().getValue());
-                pid.getPhoneNumberHome(0).getXtn2_TelecommunicationUseCode().setValue(incomingPID.getPhoneNumberHome(0).getXtn2_TelecommunicationUseCode().getValue());
-                pid.getPhoneNumberHome(0).getXtn3_TelecommunicationEquipmentType().setValue(incomingPID.getPhoneNumberHome(0).getXtn3_TelecommunicationEquipmentType().getValue());
+                        // MSH Segment
+                        populateMshSegment(oruR01.getMSH(), "Butaro", now, "ORU", "R01");
 
-                // PV1 Segment
-                PV1 pv1 = oruR01.getRESPONSE().getPATIENT().getVISIT().getPV1();
-                PV1 incomingPv1 = ormO01.getPATIENT().getPATIENT_VISIT().getPV1();
-                pv1.getSetIDPatientVisit().setValue(incomingPv1.getSetIDPatientVisit().getValue());
-                pv1.getPatientType().setValue(incomingPv1.getPatientType().getValue());
-                pv1.getReferringDoctor(0).getIDNumber().setValue(incomingPv1.getReferringDoctor(0).getIDNumber().getValue());
-                pv1.getReferringDoctor(0).getFamilyName().setValue(incomingPv1.getReferringDoctor(0).getFamilyName().getValue());
-                pv1.getReferringDoctor(0).getGivenName().setValue(incomingPv1.getReferringDoctor(0).getGivenName().getValue());
+                        // PID Segment
+                        PID incomingPID = ormO01.getPATIENT().getPID();
+                        PID pid = oruR01.getRESPONSE().getPATIENT().getPID();
+                        pid.getSetIDPatientID().setValue(incomingPID.getSetIDPatientID().getValue());
+                        pid.getPatientIDInternalID(0).getID().setValue(incomingPID.getPatientIDInternalID(0).getID().getValue());
+                        pid.getPatientName(0).getFamilyName().setValue(incomingPID.getPatientName(0).getFamilyName().getValue());
+                        pid.getPatientName(0).getGivenName().setValue(incomingPID.getPatientName(0).getGivenName().getValue());
+                        pid.getDateOfBirth().getTimeOfAnEvent().setValue(incomingPID.getDateOfBirth().getTimeOfAnEvent().getValue());
+                        pid.getSex().setValue(incomingPID.getSex().getValue());
+                        pid.getPhoneNumberHome(0).getXtn1_9999999X99999CAnyText().setValue(incomingPID.getPhoneNumberHome(0).getXtn1_9999999X99999CAnyText().getValue());
+                        pid.getPhoneNumberHome(0).getXtn2_TelecommunicationUseCode().setValue(incomingPID.getPhoneNumberHome(0).getXtn2_TelecommunicationUseCode().getValue());
+                        pid.getPhoneNumberHome(0).getXtn3_TelecommunicationEquipmentType().setValue(incomingPID.getPhoneNumberHome(0).getXtn3_TelecommunicationEquipmentType().getValue());
 
-                // ORC Segment
-                ORC orc = oruR01.getRESPONSE().getORDER_OBSERVATION().getORC();
-                orc.getOrderControl().setValue(ormO01.getORDER().getORC().getOrderControl().getValue());
+                        // PV1 Segment
+                        PV1 pv1 = oruR01.getRESPONSE().getPATIENT().getVISIT().getPV1();
+                        PV1 incomingPv1 = ormO01.getPATIENT().getPATIENT_VISIT().getPV1();
+                        pv1.getSetIDPatientVisit().setValue(incomingPv1.getSetIDPatientVisit().getValue());
+                        pv1.getPatientType().setValue(incomingPv1.getPatientType().getValue());
+                        pv1.getReferringDoctor(0).getIDNumber().setValue(incomingPv1.getReferringDoctor(0).getIDNumber().getValue());
+                        pv1.getReferringDoctor(0).getFamilyName().setValue(incomingPv1.getReferringDoctor(0).getFamilyName().getValue());
+                        pv1.getReferringDoctor(0).getGivenName().setValue(incomingPv1.getReferringDoctor(0).getGivenName().getValue());
 
-                // OBR Segment
-                OBR obr = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBR();
-                OBR incomingObr = ormO01.getORDER().getORDER_DETAIL().getOBR();
-                String incomingTestId = incomingObr.getUniversalServiceIdentifier().getIdentifier().getValue();
-                String incomingTestName = incomingObr.getUniversalServiceIdentifier().getText().getValue();
-                obr.getSetIDObservationRequest().setValue(incomingObr.getSetIDObservationRequest().getValue());
-                obr.getPlacerOrderNumber(0).getEntityIdentifier().setValue(incomingObr.getPlacerOrderNumber(0).getEntityIdentifier().getValue());
-                obr.getFillerOrderNumber().getEntityIdentifier().setValue(incomingObr.getFillerOrderNumber().getEntityIdentifier().getValue());
-                obr.getUniversalServiceIdentifier().getIdentifier().setValue(incomingTestId);
-                obr.getUniversalServiceIdentifier().getText().setValue(incomingTestName);
-                obr.getDiagnosticServiceSectionID().setValue(incomingObr.getDiagnosticServiceSectionID().getValue());
-                obr.getFillerField2().setValue(incomingObr.getFillerField2().getValue());
-                obr.getObr36_ScheduledDateTime().getTimeOfAnEvent().setValue(incomingObr.getObr36_ScheduledDateTime().getTimeOfAnEvent().getValue());
-                obr.getPriority().setValue(incomingObr.getPriority().getValue());
-                obr.getReasonForStudy(0).getText().setValue(incomingObr.getReasonForStudy(0).getText().getValue());
+                        // ORC Segment
+                        ORC orc = oruR01.getRESPONSE().getORDER_OBSERVATION().getORC();
+                        orc.getOrderControl().setValue(ormO01.getORDER().getORC().getOrderControl().getValue());
 
-                // First OBX Segment
-                OBX obx1 = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBSERVATION(0).getOBX();
-                obx1.getObx1_SetIDOBX().setValue("1");
-                obx1.getObx2_ValueType().setValue("TX");
-                obx1.getObx3_ObservationIdentifier().getIdentifier().setValue(incomingTestId);
-                obx1.getObx3_ObservationIdentifier().getText().setValue(incomingTestName);
-                obx1.getObx11_ObservResultStatus().setValue("I");
-                obx1.getObx12_DateLastObsNormalValues().getTimeOfAnEvent().setValue(HL7Utils.formatDatetime(new Date()));
+                        // OBR Segment
+                        OBR obr = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBR();
+                        OBR incomingObr = ormO01.getORDER().getORDER_DETAIL().getOBR();
+                        String incomingTestId = incomingObr.getUniversalServiceIdentifier().getIdentifier().getValue();
+                        String incomingTestName = incomingObr.getUniversalServiceIdentifier().getText().getValue();
+                        obr.getSetIDObservationRequest().setValue(incomingObr.getSetIDObservationRequest().getValue());
+                        obr.getPlacerOrderNumber(0).getEntityIdentifier().setValue(incomingObr.getPlacerOrderNumber(0).getEntityIdentifier().getValue());
+                        obr.getFillerOrderNumber().getEntityIdentifier().setValue(incomingObr.getFillerOrderNumber().getEntityIdentifier().getValue());
+                        obr.getUniversalServiceIdentifier().getIdentifier().setValue(incomingTestId);
+                        obr.getUniversalServiceIdentifier().getText().setValue(incomingTestName);
+                        obr.getDiagnosticServiceSectionID().setValue(incomingObr.getDiagnosticServiceSectionID().getValue());
+                        obr.getFillerField2().setValue(incomingObr.getFillerField2().getValue());
+                        obr.getObr36_ScheduledDateTime().getTimeOfAnEvent().setValue(incomingObr.getObr36_ScheduledDateTime().getTimeOfAnEvent().getValue());
+                        obr.getPriority().setValue(incomingObr.getPriority().getValue());
+                        obr.getReasonForStudy(0).getText().setValue(incomingObr.getReasonForStudy(0).getText().getValue());
 
-                log.warn("Sending ORU_R01");
-                sendMessage(oruR01);
+                        // First OBX Segment
+                        OBX obx1 = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBSERVATION(0).getOBX();
+                        obx1.getObx1_SetIDOBX().setValue("1");
+                        obx1.getObx2_ValueType().setValue("TX");
+                        obx1.getObx3_ObservationIdentifier().getIdentifier().setValue(incomingTestId);
+                        obx1.getObx3_ObservationIdentifier().getText().setValue(incomingTestName);
+                        obx1.getObx11_ObservResultStatus().setValue("I");
+                        obx1.getObx12_DateLastObsNormalValues().getTimeOfAnEvent().setValue(HL7Utils.formatDatetime(new Date()));
 
-                log.warn("Sleeping for 5 seconds before sending second response message");
-                obx1.getObx11_ObservResultStatus().setValue("F");
-                obx1.getObx5_ObservationValue(0).getData().parse("Radiology report message text");
-                obx1.getObx14_DateTimeOfTheObservation().getTimeOfAnEvent().setValue(HL7Utils.formatDatetime(new Date()));
-                obx1.getObx16_ResponsibleObserver().getFamilyName().setValue("pacs");
+                        log.warn("Sending first ORU_R01");
+                        log.warn(("=============================="));
+                        log.warn(oruR01.encode());
+                        log.warn("============================");
+                        sendMessage(oruR01);
 
-                OBX obx2 = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBSERVATION(1).getOBX();
-                obx2.getObx1_SetIDOBX().setValue("2");
-                obx2.getObx2_ValueType().setValue("RP");
-                obx2.getObx5_ObservationValue(0).getData().parse("PACS_IMAGE_VIEWER_URL");
-                sendMessage(oruR01);
-            }
-            catch (Exception e) {
-                log.warn("Error in MockPacsSystem: " + e.getMessage());
+                        TimeUnit.SECONDS.sleep(5);
+                        obx1.getObx11_ObservResultStatus().setValue("F");
+                        obx1.getObx5_ObservationValue(0).getData().parse("Radiology report message text");
+                        obx1.getObx14_DateTimeOfTheObservation().getTimeOfAnEvent().setValue(HL7Utils.formatDatetime(new Date()));
+                        obx1.getObx16_ResponsibleObserver().getFamilyName().setValue("pacs");
+
+                        OBX obx2 = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBSERVATION(1).getOBX();
+                        obx2.getObx1_SetIDOBX().setValue("2");
+                        obx2.getObx2_ValueType().setValue("RP");
+                        obx2.getObx5_ObservationValue(0).getData().parse("PACS_IMAGE_VIEWER_URL");
+                        log.warn("Sending second ORU_R01");
+                        log.warn(("=============================="));
+                        log.warn(oruR01.encode());
+                        log.warn("============================");
+                        sendMessage(oruR01);
+                        FileUtils.deleteQuietly(fileToProcess);
+                    }
+                    else {
+                        TimeUnit.SECONDS.sleep(10);
+                    }
+                } catch (Exception e) {
+                    log.warn("Error in MockPacsSystem: " + e.getMessage());
+                }
             }
         }
 
