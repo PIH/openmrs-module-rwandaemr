@@ -75,15 +75,26 @@ public class HieEncountersSectionFragmentController {
                             //From here make sure to translate the shrEncounter into OpenMRS encounter to easy the listing operation
                             for(ShrEncounter shrEncounter: shrEncounters){
                                 Encounter myEncounter = shrEncounterTranslator.toEncounter(shrEncounter);
-                                int location_index = visitedLocation.indexOf(myEncounter.getLocation().getName());
+                                String locationName = "";
+                                if(myEncounter.getLocation() != null){
+                                    locationName = myEncounter.getLocation().getName();
+                                } else {
+                                    locationName = "Unspecified";
+                                }
+                                int location_index = visitedLocation.indexOf(locationName);
                                 if(location_index == -1){
                                     //make sure to create the record
+                                    
                                     ShrVisit shrVisit = new ShrVisit();
-                                    shrVisit.setLocation(myEncounter.getLocation().getName());
+                                    if(myEncounter.getLocation() != null){
+                                        shrVisit.setLocation(locationName);
+                                    } else {
+                                        shrVisit.setLocation(locationName);
+                                    }
                                     shrVisit.clearEncounters();
                                     shrVisit.addEncounter(myEncounter);
                                     visits.add(shrVisit);
-                                    visitedLocation.add(myEncounter.getLocation().getName());
+                                    visitedLocation.add(locationName);
                                 } else {
                                     visits.get(location_index).addEncounter(myEncounter);
                                     
