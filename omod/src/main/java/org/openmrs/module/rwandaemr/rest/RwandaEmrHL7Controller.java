@@ -7,8 +7,8 @@ import org.openmrs.Patient;
 import org.openmrs.TestOrder;
 import org.openmrs.api.OrderService;
 import org.openmrs.api.PatientService;
-import org.openmrs.module.rwandaemr.radiology.OrderToORMTranslator;
-import org.openmrs.module.rwandaemr.radiology.PatientToADTTranslator;
+import org.openmrs.module.rwandaemr.radiology.OrderToORMO01Translator;
+import org.openmrs.module.rwandaemr.radiology.PatientToADTA08Translator;
 import org.openmrs.module.webservices.rest.SimpleObject;
 import org.openmrs.module.webservices.rest.web.response.ResponseException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,10 +27,10 @@ public class RwandaEmrHL7Controller {
     protected final Log log = LogFactory.getLog(getClass());
 
     @Autowired
-    PatientToADTTranslator patientToADTTranslator;
+    PatientToADTA08Translator patientToADTTranslator;
 
     @Autowired
-    OrderToORMTranslator orderToORMTranslator;
+    OrderToORMO01Translator orderToORMTranslator;
 
     @Autowired
     PatientService patientService;
@@ -52,7 +52,7 @@ public class RwandaEmrHL7Controller {
         else {
             if (order instanceof TestOrder) {
                 try {
-                    hl7Message = orderToORMTranslator.toORM_O01((TestOrder) order);
+                    hl7Message = orderToORMTranslator.toORM_O01((TestOrder) order).encode();
                 }
                 catch (Exception e) {
                     errorMessage = e.getMessage();

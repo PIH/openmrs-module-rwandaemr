@@ -14,10 +14,7 @@
 package org.openmrs.module.rwandaemr.radiology;
 
 import ca.uhn.hl7v2.HL7Exception;
-import ca.uhn.hl7v2.model.v23.segment.MSH;
 import ca.uhn.hl7v2.model.v23.segment.PID;
-import ca.uhn.hl7v2.parser.Parser;
-import ca.uhn.hl7v2.parser.PipeParser;
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
@@ -26,14 +23,10 @@ import org.openmrs.module.emrapi.adt.AdtService;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.UUID;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.formatDate;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.trim;
 
 public abstract class BaseHL7Translator {
-
-    Parser parser = new PipeParser();
 
     final AdtService adtService;
     final ConceptService conceptService;
@@ -46,34 +39,6 @@ public abstract class BaseHL7Translator {
         this.adtService = adtService;
         this.conceptService = conceptService;
         this.rwandaEmrConfig = rwandaEmrConfig;
-    }
-
-    String formatDate(Date date) {
-        return new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH).format(date);
-    }
-
-    String formatDatetime(Date date) {
-        return new SimpleDateFormat("yyyyMMddHHmmss", Locale.ENGLISH).format(date);
-    }
-
-    public static String trim(String value, int maxLength) {
-        return (value == null ? null : StringUtils.substring(value.trim(), 0, maxLength));
-    }
-
-    void populateMshSegment(MSH msh, String sendingFacility, Date messageDate, String messageType, String triggerEvent) throws HL7Exception {
-        msh.getFieldSeparator().setValue("|");
-        msh.getEncodingCharacters().setValue("^~\\&");
-        msh.getSendingApplication().getNamespaceID().setValue("OpenMRS");
-        msh.getSendingFacility().getNamespaceID().setValue(sendingFacility);
-        // Hard-coding PACS_APP and PACS_FACILITY per instruction from vendor
-        msh.getReceivingApplication().getNamespaceID().setValue("PACS_APP");
-        msh.getReceivingFacility().getNamespaceID().setValue("PACS_FACILITY");
-        msh.getDateTimeOfMessage().getTimeOfAnEvent().setValue(formatDatetime(messageDate));
-        msh.getMessageType().getMessageType().setValue(messageType);
-        msh.getMessageType().getTriggerEvent().setValue(triggerEvent);
-        msh.getMessageControlID().setValue(UUID.randomUUID().toString());
-        msh.getProcessingID().getProcessingID().setValue("P"); // P=Production, D=Debugging, T=Testing
-        msh.getVersionID().setValue("2.3"); // HL7 version targeted
     }
 
     /**

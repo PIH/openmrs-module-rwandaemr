@@ -1,5 +1,6 @@
 package org.openmrs.module.rwandaemr.radiology;
 
+import ca.uhn.hl7v2.model.v23.message.ORM_O01;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.Test;
@@ -38,7 +39,8 @@ public class OrderToORMTranslatorTest extends BaseHL7TranslatorTest {
     @Test
     public void shouldTranslateFromOrderToORM() throws Exception {
         String dateTimeBefore = ymdhms.format(new Date());
-        String message = orderToORMTranslator.toORM_O01(testOrder);
+        ORM_O01 orm_o01 = orderToORMTranslator.toORM_O01(testOrder);
+        String message = orm_o01.encode();
         String dateTimeAfter = ymdhms.format(new Date());
 
         // The start of the MSH is expected to declare the separator character, so test that first
@@ -100,9 +102,9 @@ public class OrderToORMTranslatorTest extends BaseHL7TranslatorTest {
 
         testNumberOfFields(message, "OBR", 36);
         testField(message, "OBR", 1, equalTo("1"));  // Set ID
-        testField(message, "OBR", 2, equalTo("ORD-1111"));  // Order Number
+        testField(message, "OBR", 2, equalTo("ORD-764591"));  // Order Number
         testField(message, "OBR", 3, equalTo("University Hospital")); // Center ID
-        testField(message, "OBR", 4, equalTo("12121^X-Ray"));  // Test Ordered
+        testField(message, "OBR", 4, equalTo("36657-5^X-RAY, FOOT"));  // Test Ordered
         testField(message, "OBR", 5, equalTo("ROUTINE"));
         testField(message, "OBR", 6, emptyString());
         testField(message, "OBR", 7, emptyString());
@@ -138,27 +140,27 @@ public class OrderToORMTranslatorTest extends BaseHL7TranslatorTest {
 
         // Test STAT order
         testOrder.setUrgency(Order.Urgency.STAT);
-        message = orderToORMTranslator.toORM_O01(testOrder);
+        message = orderToORMTranslator.toORM_O01(testOrder).encode();
         testField(message, "OBR", 5, equalTo("STAT"));
 
         // Test scheduled order
         testOrder.setUrgency(Order.Urgency.ON_SCHEDULED_DATE);
         testOrder.setScheduledDate(DateUtils.addDays(new Date(), 5));
         testOrder.setOrderReasonNonCoded("Check for Fracture");
-        message = orderToORMTranslator.toORM_O01(testOrder);
+        message = orderToORMTranslator.toORM_O01(testOrder).encode();
         testField(message, "OBR", 5, equalTo("ROUTINE"));
         testField(message, "OBR", 36, equalTo(ymdhms.format(testOrder.getScheduledDate())));
         testField(message, "OBR", 31, equalTo("^" + testOrder.getOrderReasonNonCoded()));
 
         // Test Discontinue
         testOrder.setVoided(true);
-        message = orderToORMTranslator.toORM_O01(testOrder);
+        message = orderToORMTranslator.toORM_O01(testOrder).encode();
         testField(message, "ORC", 1, equalTo("CA"));
         testOrder.setVoided(false);
-        message = orderToORMTranslator.toORM_O01(testOrder);
+        message = orderToORMTranslator.toORM_O01(testOrder).encode();
         testField(message, "ORC", 1, equalTo("NW"));
         FieldUtils.writeField(testOrder, "dateStopped", new Date(), true);
-        message = orderToORMTranslator.toORM_O01(testOrder);
+        message = orderToORMTranslator.toORM_O01(testOrder).encode();
         testField(message, "ORC", 1, equalTo("CA"));
     }
 }

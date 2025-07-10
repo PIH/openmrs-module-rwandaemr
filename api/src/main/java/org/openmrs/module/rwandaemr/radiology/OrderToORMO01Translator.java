@@ -45,12 +45,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.formatDatetime;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.populateMshSegment;
+import static org.openmrs.module.rwandaemr.radiology.HL7Utils.trim;
+
 @Component
-public class OrderToORMTranslator extends BaseHL7Translator {
+public class OrderToORMO01Translator extends BaseHL7Translator {
 
     private final Log log = LogFactory.getLog(getClass());
 
-    public OrderToORMTranslator(
+    public OrderToORMO01Translator(
             @Autowired AdtService adtService,
             @Autowired ConceptService conceptService,
             @Autowired RwandaEmrConfig rwandaEmrConfig) {
@@ -58,10 +62,18 @@ public class OrderToORMTranslator extends BaseHL7Translator {
     }
 
     /**
+     * @param order
+     * @return true if the given order is a supported radiology order, false otherwise
+     */
+    public boolean isRadiologyOrder(Order order) {
+        return getModalityCode(order) != null;
+    }
+
+    /**
      * For the given test order, generate an ORM^001 HL7 message
      * Used for a new unscheduled order creation or order cancellation
      */
-    public String toORM_O01(TestOrder order) throws HL7Exception {
+    public ORM_O01 toORM_O01(TestOrder order) throws HL7Exception {
         ORM_O01 message = new ORM_O01();
         Date now = new Date();
 
@@ -127,7 +139,7 @@ public class OrderToORMTranslator extends BaseHL7Translator {
         if (orderReason != null) {
             obr.getReasonForStudy(0).getText().setValue(trim(orderReason, 64));
         }
-        return parser.encode(message);
+        return message;
     }
 
     public Location getOrderLocation(TestOrder testOrder) {

@@ -1,29 +1,35 @@
 package org.openmrs.module.rwandaemr;
 
 import org.openmrs.EncounterType;
+import org.openmrs.Location;
 import org.openmrs.LocationAttributeType;
 import org.openmrs.PatientIdentifierType;
+import org.openmrs.Person;
 import org.openmrs.PersonAttributeType;
+import org.openmrs.PersonName;
+import org.openmrs.Provider;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.LocationService;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.PersonService;
+import org.openmrs.api.ProviderService;
 import org.openmrs.module.initializer.api.InitializerService;
 import org.openmrs.module.rwandaemr.radiology.RadiologyConfig;
 
 public class MockRwandaEmrConfig extends RwandaEmrConfig {
 
 	public MockRwandaEmrConfig() {
-		this(null, null, null, null, null, null);
+		this(null, null, null, null, null, null, null);
 	}
 
 	public MockRwandaEmrConfig(PatientService patientService,
 							   PersonService personService,
 							   LocationService locationService,
 							   EncounterService encounterService,
+							   ProviderService providerService,
 							   InitializerService initializerService,
 							   RadiologyConfig radiologyConfig) {
-		super(patientService, personService, locationService, encounterService, initializerService, radiologyConfig);
+		super(patientService, personService, locationService, encounterService, providerService, initializerService, radiologyConfig);
 	}
 
 	@Override
@@ -136,5 +142,26 @@ public class MockRwandaEmrConfig extends RwandaEmrConfig {
 		t.setUuid("eb844bfb-b1d9-11ef-8756-0242ac120002");
 		t.setName("FOSA ID");
 		return t;
+	}
+
+	@Override
+	public Location getUnknownLocation() {
+		Location l = new Location();
+		l.setUuid("8d6c993e-c2cc-11de-8d13-0010c6dffd0f");
+		l.setName("Unknown Location");
+		return l;
+	}
+
+	@Override
+	public Provider getUnknownProvider() {
+		Provider p = new Provider();
+		p.setUuid("c6f220e4-b238-11e1-b05b-001e68a9fdcf");
+		p.setName("Unknown Provider");
+		Person person = new Person();
+		person.addName(new PersonName("Unknown", null, "Provider"));
+		person.setGender("M");
+		p.setPerson(person);
+		p.setIdentifier("1");
+		return p;
 	}
 }

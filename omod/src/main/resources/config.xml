@@ -73,5 +73,10 @@
 		<file>messages.properties</file>
 	</messages>
 
+	<privilege>
+		<name>Task: rwandaemr.radiologyorders</name>
+		<description>Access the radiology orders page from the patient chart</description>
+	</privilege>
+
 </module>
 
