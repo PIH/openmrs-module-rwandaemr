@@ -10,55 +10,6 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         { label: '${ui.encodeJavaScript(ui.encodeHtmlContent(ui.format(patient.patient)))}', link: '${ui.pageLink("coreapps", "clinicianfacing/patient", ["patientId": patient.id])}' },
         { label: "Radiology Orders" }
     ];
-    const downloadADTA08 = function(patientUuid) {
-        jq.ajax({
-            type: "GET",
-            url: openmrsContextPath + '/ws/rest/v1/rwandaemr/hl7/' + patientUuid + '/adta08',
-            dataType: 'json',
-            success: function(result) {
-                if (result.errorMessage) {
-                    alert(result.errorMessage);
-                }
-                else {
-                    const blob = new Blob([result.hl7Message], {type: "text/plain"});
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = "adtA08-" + patientUuid + ".txt";
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                }
-            }
-        });
-    };
-
-    const downloadORMO01 = function(orderUuid) {
-        jq.ajax({
-            type: "GET",
-            url: openmrsContextPath + '/ws/rest/v1/rwandaemr/hl7/' + orderUuid + '/orm001',
-            dataType: 'json',
-            success: function(result) {
-                if (result.errorMessage) {
-                    alert(result.errorMessage);
-                }
-                else {
-                    const blob = new Blob([result.hl7Message], {type: "text/plain"});
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = "orm001-" + orderUuid + ".txt";
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                }
-            }
-        });
-    };
 
     jq(document).ready(function() {
         jq("#return-button").click(function(event) {
@@ -83,11 +34,13 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 <table id="radiology-order-table">
     <thead>
     <tr>
-        <th>Date Activated</th>
+        <th>Order Date</th>
         <th>Order Number</th>
-        <th>Modality</th>
         <th>Study</th>
-        <th>Actions</th>
+        <th>Images</th>
+        <th>Report Date</th>
+        <th>Report</th>
+        <th>Status</th>
     </tr>
     </thead>
     <tbody>
@@ -96,24 +49,37 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         <td colspan="5">${ ui.message("emr.none") }</td>
     </tr>
     <% } %>
-    <% orders.each { order -> %>
+    <% orders.each { order ->
+        def result = results.get(order) %>
     <tr>
         <td>
             ${ ui.format(order.dateActivated) }
         </td>
         <td>
-            ${ ui.format(order.orderNumber) }
-        </td>
-        <td>
-            ${ ui.format(orderables.get(order.concept)) }
+            <a href="${ui.pageLink("rwandaemr", "patient/radiologyOrder", ["orderId": order.id])}">
+                ${ ui.format(order.orderNumber) }
+            </a>
         </td>
         <td>
             ${ ui.format(order.concept) }
         </td>
         <td>
-            <a href="javascript:downloadORMO01('${order.uuid}')">
-                Download ORM^OO1
-            </a>
+            <% def imageUrl = result.get("imageUrl")
+            if (imageUrl) { %>
+                <a href="${ imageUrl }" target="_blank">View</a>
+            <% } %>
+        </td>
+        <td>
+            ${ ui.format(result.get("reportDate")) }
+        </td>
+        <td>
+            <% def reportText = result.get("reportText")
+            if (reportText) { %>
+                <a href="${ui.pageLink("rwandaemr", "patient/radiologyOrder", ["orderId": order.id])}">View</a>
+            <% } %>
+        </td>
+        <td>
+            ${ ui.format(result.get("reportStatus")) }
         </td>
     </tr>
     <% } %>
