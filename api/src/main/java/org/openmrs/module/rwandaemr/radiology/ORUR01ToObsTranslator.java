@@ -13,14 +13,11 @@
  */
 package org.openmrs.module.rwandaemr.radiology;
 
-import ca.uhn.hl7v2.DefaultHapiContext;
 import ca.uhn.hl7v2.HL7Exception;
-import ca.uhn.hl7v2.HapiContext;
 import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.model.v23.message.ORU_R01;
 import ca.uhn.hl7v2.model.v23.segment.OBR;
 import ca.uhn.hl7v2.model.v23.segment.OBX;
-import ca.uhn.hl7v2.parser.Parser;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -70,10 +67,7 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
     }
 
     public void fromORU_R01(String hl7MessageString) throws HL7Exception {
-        HapiContext context = new DefaultHapiContext();
-        context.getParserConfiguration().setValidating(false);
-        Parser parser = context.getPipeParser();
-        Message message = parser.parse(hl7MessageString);
+        Message message = HL7Utils.getNonValidatingPipeParser().parse(hl7MessageString);
         ORU_R01 oruR01 = (ORU_R01) message;
         OBR obr = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBR();
 

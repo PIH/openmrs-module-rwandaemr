@@ -26,7 +26,6 @@ import ca.uhn.hl7v2.model.v23.segment.OBX;
 import ca.uhn.hl7v2.model.v23.segment.ORC;
 import ca.uhn.hl7v2.model.v23.segment.PID;
 import ca.uhn.hl7v2.model.v23.segment.PV1;
-import ca.uhn.hl7v2.parser.PipeParser;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -103,8 +102,7 @@ public class MockPacsSystem implements Application {
                     if (fileToProcess != null) {
                         log.info("MockPacs:  Processing file: " + fileToProcess.getAbsolutePath());
                         String fileContents = FileUtils.readFileToString(fileToProcess, "UTF-8");
-                        PipeParser parser = new PipeParser();
-                        Message message = parser.parse(fileContents);
+                        Message message = HL7Utils.getNonValidatingPipeParser().parse(fileContents);
                         ORM_O01 ormO01 = (ORM_O01) message;
 
                         ORU_R01 oruR01 = new ORU_R01();

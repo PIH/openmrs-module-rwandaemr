@@ -14,9 +14,12 @@
 package org.openmrs.module.rwandaemr.radiology;
 
 import ca.uhn.hl7v2.AcknowledgmentCode;
+import ca.uhn.hl7v2.DefaultHapiContext;
 import ca.uhn.hl7v2.HL7Exception;
+import ca.uhn.hl7v2.HapiContext;
 import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.model.v23.segment.MSH;
+import ca.uhn.hl7v2.parser.PipeParser;
 import org.apache.commons.lang.StringUtils;
 
 import java.text.SimpleDateFormat;
@@ -54,6 +57,12 @@ public class HL7Utils {
 
     public static String trim(String value, int maxLength) {
         return (value == null ? null : StringUtils.substring(value.trim(), 0, maxLength));
+    }
+
+    public static PipeParser getNonValidatingPipeParser() {
+        HapiContext context = new DefaultHapiContext();
+        context.getParserConfiguration().setValidating(false);
+        return context.getPipeParser();
     }
 
     public static void populateMshSegment(MSH msh, String sendingFacility, Date messageDate, String messageType, String triggerEvent) throws HL7Exception {
