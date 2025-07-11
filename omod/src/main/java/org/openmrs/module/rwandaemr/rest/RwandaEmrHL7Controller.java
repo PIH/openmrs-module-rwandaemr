@@ -9,6 +9,7 @@ import org.openmrs.api.OrderService;
 import org.openmrs.api.PatientService;
 import org.openmrs.module.rwandaemr.radiology.OrderToORMO01Translator;
 import org.openmrs.module.rwandaemr.radiology.PatientToADTA08Translator;
+import org.openmrs.module.rwandaemr.radiology.RadiologyOrderEventListener;
 import org.openmrs.module.webservices.rest.SimpleObject;
 import org.openmrs.module.webservices.rest.web.response.ResponseException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
@@ -33,6 +35,9 @@ public class RwandaEmrHL7Controller {
     OrderToORMO01Translator orderToORMTranslator;
 
     @Autowired
+    RadiologyOrderEventListener radiologyOrderEventListener;
+
+    @Autowired
     PatientService patientService;
 
     @Autowired
@@ -41,6 +46,7 @@ public class RwandaEmrHL7Controller {
     @RequestMapping(value = "/rest/v1/rwandaemr/hl7/{orderUuid}/orm001", method = RequestMethod.GET)
     @ResponseBody
     public Object getORMO01(HttpServletRequest request, HttpServletResponse response,
+                            @RequestParam(name = "action", required = false) String action,
                             @PathVariable("orderUuid") String orderUuid) throws ResponseException {
         SimpleObject ret = new SimpleObject();
         Order order = orderService.getOrderByUuid(orderUuid);
@@ -52,7 +58,11 @@ public class RwandaEmrHL7Controller {
         else {
             if (order instanceof TestOrder) {
                 try {
-                    hl7Message = orderToORMTranslator.toORM_O01((TestOrder) order).encode();
+                    TestOrder testOrder = (TestOrder) order;
+                    if ("send".equals(action)) {
+                        radiologyOrderEventListener.sendRadiologyOrderMessage(testOrder);
+                    }
+                    hl7Message = orderToORMTranslator.toORM_O01(testOrder).encode();
                 }
                 catch (Exception e) {
                     errorMessage = e.getMessage();

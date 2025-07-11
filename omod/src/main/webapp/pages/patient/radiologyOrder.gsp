@@ -52,7 +52,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             dataType: 'json',
             success: function(result) {
                 if (result.errorMessage) {
-                    alert(result.errorMessage);
+                    jq().toastmessage('showErrorToast', result.errorMessage);
                 }
                 else {
                     const blob = new Blob([result.hl7Message], {type: "text/plain"});
@@ -69,6 +69,22 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             }
         });
     };
+
+    const sendORMO01 = function(orderUuid) {
+        jq.ajax({
+            type: "GET",
+            url: openmrsContextPath + '/ws/rest/v1/rwandaemr/hl7/' + orderUuid + '/orm001?action=send',
+            dataType: 'json',
+            success: function(result) {
+                if (result.errorMessage) {
+                    jq().toastmessage('showErrorToast', result.errorMessage);
+                }
+                else {
+                    jq().toastmessage('showSuccessToast', 'Message sent successfully')
+                }
+            }
+        });
+    }
 
     jq(document).ready(function() {
         jq("#return-button").click(function(event) {
@@ -141,6 +157,12 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     <a href="javascript:downloadORMO01('${order.uuid}')">
         Download ORM^OO1
     </a>
+    <% if (!imageUrl && !reportDate) { %>
+        <br/>
+        <a href="javascript:sendORMO01('${order.uuid}')">
+            Send ORM^OO1 to PACS
+        </a>
+    <% } %>
     <br/>
     <a href="javascript:downloadADTA08('${patient.patient.uuid}')">
         Download ADT^A08
