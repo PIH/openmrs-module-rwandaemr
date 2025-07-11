@@ -94,8 +94,9 @@ public class OrderToORMO01Translator extends BaseHL7Translator {
         setPatientGender(pid, patient);
 
         // TODO: Note, these seems like the wrong fields, but it is what is in the integration docs
-        pid.getPhoneNumberHome(0).getXtn1_9999999X99999CAnyText().setValue(getPhoneNumber(patient));
-        pid.getPhoneNumberHome(0).getXtn2_TelecommunicationUseCode().setValue(""); // TODO: We don't collect this data
+        // TODO: Second note, commenting these out entirely for now, as HAPI validation is enforcing a US phone number format
+        //pid.getPhoneNumberHome(0).getXtn1_9999999X99999CAnyText().setValue(getPhoneNumber(patient));
+        //pid.getPhoneNumberHome(0).getXtn2_TelecommunicationUseCode().setValue(""); // TODO: We don't collect this data
         pid.getPhoneNumberHome(0).getXtn3_TelecommunicationEquipmentType().setValue(trim(order.getClinicalHistory(), 1000));
         // TODO: Admission ID is supported to send to PACS.  Determine if there is a value for this in OpenMRS.
 

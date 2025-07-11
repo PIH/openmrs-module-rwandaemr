@@ -4,6 +4,7 @@ import ca.uhn.hl7v2.DefaultHapiContext;
 import ca.uhn.hl7v2.HapiContext;
 import ca.uhn.hl7v2.app.Connection;
 import ca.uhn.hl7v2.app.Initiator;
+import ca.uhn.hl7v2.model.v23.message.ACK;
 import ca.uhn.hl7v2.model.v23.message.ORM_O01;
 import lombok.Setter;
 import org.apache.commons.lang.StringUtils;
@@ -116,9 +117,14 @@ public class RadiologyOrderEventListener implements EventListener {
 				HapiContext context = new DefaultHapiContext();
 				Connection connection = context.newClient(getHost(), getPort(), false);
 				Initiator initiator = connection.getInitiator();
-				ca.uhn.hl7v2.model.Message response = initiator.sendAndReceive(hl7Message);
-				log.warn("Got response from PACS: " + response);
-				log.info("Radiology order sent successfully");
+				ACK response = (ACK) initiator.sendAndReceive(hl7Message);
+				if (response.getERR().isEmpty()) {
+					log.warn("Got response from PACS: " + response);
+					log.info("Radiology order sent successfully");
+				}
+				else {
+					throw new RuntimeException("Radiology order sent failed: " + response.getERR().encode());
+				}
 			}
 			catch (Exception e) {
 				log.error("Error sending radiology order message to PACS: " + e);

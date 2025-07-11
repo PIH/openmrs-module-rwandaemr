@@ -75,7 +75,7 @@ public class OrderToORMTranslatorTest extends BaseHL7TranslatorTest {
         testField(message, "PID", 10, emptyString());
         testField(message, "PID", 11, emptyString());
         testField(message, "PID", 12, emptyString());
-        testField(message, "PID", 13, equalTo("111-222-3333^^Twisted ankle"));
+        testField(message, "PID", 13, equalTo("^^Twisted ankle")); // TODO: For now we have phone number commented out
 
         testNumberOfFields(message, "PV1", 18);
         testField(message, "PV1", 1, equalTo("1")); // Set ID
