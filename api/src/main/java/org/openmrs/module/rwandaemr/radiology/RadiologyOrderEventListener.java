@@ -1,5 +1,6 @@
 package org.openmrs.module.rwandaemr.radiology;
 
+import ca.uhn.hl7v2.AcknowledgmentCode;
 import ca.uhn.hl7v2.DefaultHapiContext;
 import ca.uhn.hl7v2.HapiContext;
 import ca.uhn.hl7v2.app.Connection;
@@ -114,16 +115,27 @@ public class RadiologyOrderEventListener implements EventListener {
 			log.info("Sending radiology order message to PACS");
 			try {
 				ORM_O01 hl7Message = orderToORMTranslator.toORM_O01(testOrder);
+				if (log.isTraceEnabled()) {
+					log.trace(hl7Message.encode());
+				}
 				HapiContext context = new DefaultHapiContext();
 				Connection connection = context.newClient(getHost(), getPort(), false);
 				Initiator initiator = connection.getInitiator();
 				ACK response = (ACK) initiator.sendAndReceive(hl7Message);
-				if (response.getERR().isEmpty()) {
+				String ackCode = response.getMSA().getAcknowledgementCode().getValue();
+				if (AcknowledgmentCode.AA.name().equals(ackCode)) {
 					log.warn("Got response from PACS: " + response);
 					log.info("Radiology order sent successfully");
+					if (log.isTraceEnabled()) {
+						log.trace(response.encode());
+					}
 				}
 				else {
-					throw new RuntimeException("Radiology order sent failed: " + response.getERR().encode());
+					if (log.isTraceEnabled()) {
+						log.trace(response.encode());
+					}
+					String error = response.getERR() != null ? response.getERR().encode() : response.encode();
+					throw new RuntimeException("Radiology order sent failed: " + error);
 				}
 			}
 			catch (Exception e) {
