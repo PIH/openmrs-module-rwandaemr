@@ -178,6 +178,11 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             encounter = new Encounter();
             encounter.setPatient(order.getPatient());
             encounter.setEncounterType(radiologyConfig.getRadiologyStudyEncounterType());
+            Date now = new Date();
+            if (studyDate.after(now)) {
+                log.warn("Study date is in the future: " + studyDate + " > " + now + ", adjusting to current date.");
+                studyDate = now;
+            }
             encounter.setEncounterDatetime(studyDate);
             encounter.setLocation(rwandaEmrConfig.getUnknownLocation()); // TODO: What location to use here?
             addEncounterProvider(encounter, radiologyConfig.getRadiologyTechnicianEncounterRole(), null); // TODO: What provider to use here?
@@ -246,6 +251,11 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             encounter = new Encounter();
             encounter.setPatient(order.getPatient());
             encounter.setEncounterType(radiologyConfig.getRadiologyReportEncounterType());
+            Date now = new Date();
+            if (reportDate.after(now)) {
+                log.warn("Report date is in the future: " + reportDate + " > " + now + ", adjusting to current date.");
+                reportDate = now;
+            }
             encounter.setEncounterDatetime(reportDate);
             encounter.setLocation(rwandaEmrConfig.getUnknownLocation()); // TODO: What location to use here?
             addEncounterProvider(encounter, radiologyConfig.getPrincipalResultsInterpreterEncounterRole(), radiologist);
