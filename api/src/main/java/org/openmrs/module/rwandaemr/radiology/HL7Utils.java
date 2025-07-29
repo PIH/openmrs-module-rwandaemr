@@ -118,4 +118,17 @@ public class HL7Utils {
         }
         return null;
     }
+
+    public static String decodeReportText(String reportText) {
+        if (reportText != null) {
+            reportText = reportText.replace("\\X0D\\\\X0A\\", System.lineSeparator());
+            reportText = reportText.replace("\\X0D\\", System.lineSeparator()); // Segment separator
+            reportText = reportText.replace("\\F\\", "|"); // Fields separator
+            reportText = reportText.replace("\\S\\", "^"); // Component separator
+            reportText = reportText.replace("\\T\\", "&"); // Subcomponent separator
+            reportText = reportText.replace("\\R\\", "~"); // Field repetition separator
+            reportText = reportText.replace("\\X0A\\", System.lineSeparator()); // New line character
+        }
+        return reportText;
+    }
 }
