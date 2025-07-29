@@ -111,6 +111,7 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
 
         // Report
         String reportText = obx1.getObx5_ObservationValue(0).getData().encode();
+        reportText = HL7Utils.decodeReportText(reportText);
         String reportDateStr = obx1.getObx14_DateTimeOfTheObservation().getTimeOfAnEvent().getValue();
         // Look up radiologist by id only, ignore any name passed in.
         String radiologistId = obx1.getObx16_ResponsibleObserver().getIDNumber().getValue();
@@ -323,7 +324,6 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
 
         return encounter;
     }
-
 
     private Obs getObsFromGroup(Obs obsGroup, Concept concept) {
         if (obsGroup != null && obsGroup.hasGroupMembers()) {
