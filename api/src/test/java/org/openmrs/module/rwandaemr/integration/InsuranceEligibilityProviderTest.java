@@ -29,7 +29,7 @@ public class InsuranceEligibilityProviderTest {
 		config = new InsuranceIntegrationConfig() {
 			@Override
 			public String getEligibilityCheckUrl() {
-				return "https://rhip.moh.gov.rw/backend/rssb_integration/api/v1/members/eligibility-check";
+				return null; //"https://rhip.moh.gov.rw/backend/rssb_integration/api/v1/members/eligibility-check";
 			}
 		};
 		provider = new InsuranceEligibilityProvider(config);
