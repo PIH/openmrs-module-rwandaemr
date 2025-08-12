@@ -63,6 +63,11 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         { label: "${ pageTitle }"}
     ];
 
+    const insurancesToVerify = new Map();
+    <% insurancesToVerify.each { e -> %>
+        insurancesToVerify.set('${e.getKey().getInsuranceId()}', '${e.getValue()}');
+    <% } %>
+
     function enableVerification() {
         jq("#owner-name-field").val("").attr("disabled", "disabled");
         jq("#company-field").val("").attr("disabled", "disabled");
@@ -110,9 +115,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     jq(document).ready(function () {
         jq("#insurance-type-field").change(function () {
             const insuranceTypeId = jq(this).val();
-            console.log(insuranceTypeId);
-            const requiresValidation = ["2", "11", "4"];
-            if (insuranceTypeId === "" || requiresValidation.includes(insuranceTypeId)) {
+            if (insuranceTypeId === "" || insurancesToVerify.has(insuranceTypeId)) {
                 toggleVerificationButton();
                 enableVerification();
             }
@@ -124,6 +127,41 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 
         jq("#owner-code-field").on("change paste keyup", function () {
             toggleVerificationButton();
+        });
+
+        jq("#verify-button").click(function () {
+            jq("#verify-button").attr("disabled", "disabled");
+            const insuranceTypeId = jq("#insurance-type-field").val();
+            const insuranceType = insurancesToVerify.get(insuranceTypeId);
+            const ownerCode = jq("#owner-code-field").val();
+            jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?type=" + insuranceType + "&identifier=" + ownerCode, function(data) {
+                if (data.responseCode === 200) {
+                    const entity = data.responseEntity;
+                    if (insuranceType === 'rama') {
+                        alert(entity.details.firstName + " " + entity.details.lastName + " - " + (entity.eligible ? " is eligible" : " is not eligible"));
+                    }
+                    else if (insuranceType === 'cbhi') {
+                        alert(entity.details.totalMembers + " total members - " + (entity.eligible ? " is eligible" : " is not eligible"));
+                    }
+                }
+                else {
+                    if (!data.enabled) {
+                        alert('Insurance verification is not enabled');
+                        disableVerification();
+                    }
+                    else if (data.endpointAccessible === false) {
+                        alert('Insurance verification endpoint is not accessible');
+                        disableVerification();
+                    }
+                    else if (data.errorMessage) {
+                        alert('Insurance verification failed: ' + data.errorMessage);
+                    }
+                    else {
+                        alert('Verification failed');
+                    }
+                }
+                jq("#verify-button").removeAttr("disabled");
+            });
         });
     });
 </script>

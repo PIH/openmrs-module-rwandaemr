@@ -19,7 +19,6 @@ public class IntegrationResponse {
     private boolean enabled;
     private boolean endpointAccessible;
     private Integer responseCode;
-    private String responseData;
-    private Exception exception;
     private Object responseEntity;
+    private String errorMessage;
 }

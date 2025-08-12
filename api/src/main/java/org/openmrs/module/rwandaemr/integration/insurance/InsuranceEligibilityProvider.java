@@ -67,7 +67,6 @@ public class InsuranceEligibilityProvider {
 						data = EntityUtils.toString(entity);
 					} catch (Exception ignored) {
 					}
-					ret.setResponseData(data);
 
 					// Process into an appropriate entity
 					if (StringUtils.isNotBlank(data)) {
@@ -86,13 +85,13 @@ public class InsuranceEligibilityProvider {
 							}
 						}
 						catch (Exception e) {
-							ret.setException(e);
+							ret.setErrorMessage(e.getMessage());
 						}
 					}
 				}
 			}
 			catch (Exception e) {
-				ret.setException(e);
+				ret.setErrorMessage(e.getMessage());
 			}
 		}
 

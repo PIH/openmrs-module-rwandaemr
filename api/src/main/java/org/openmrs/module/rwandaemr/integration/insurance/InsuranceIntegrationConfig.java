@@ -12,8 +12,15 @@ package org.openmrs.module.rwandaemr.integration.insurance;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.openmrs.module.mohbilling.businesslogic.InsuranceUtil;
+import org.openmrs.module.mohbilling.model.Insurance;
 import org.openmrs.util.ConfigUtil;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Configuration of the insurance eligibility checking endpoint
@@ -35,6 +42,35 @@ public class InsuranceIntegrationConfig {
 
 	public boolean isEligibilityCheckEnabled() {
 		return StringUtils.isNotBlank(getEligibilityCheckUrl());
+	}
+
+	public List<String> getInsuranceTypesToVerify() {
+		List<String> ret = new ArrayList<>();
+		String property = ConfigUtil.getProperty(ELIGIBILITY_CHECK_PREFIX + "types");
+		if (StringUtils.isNotBlank(property)) {
+			for (String type : property.split(",")) {
+				ret.add(type.trim());
+			}
+		}
+		return ret;
+	}
+
+	public Map<Insurance, String> getInsurancesToVerify() {
+		Map<Insurance, String> insurancesToVerify = new HashMap<>();
+		List<Insurance> allInsurances = InsuranceUtil.getAllInsurances();
+		for (String category : getInsuranceTypesToVerify()) {
+			String property = ConfigUtil.getProperty(ELIGIBILITY_CHECK_PREFIX + category);
+			if (StringUtils.isNotBlank(property)) {
+				for (String s : property.split(",")) {
+					for (Insurance insurance : allInsurances) {
+						if (insurance.getCategory().equals(s) || insurance.getName().equals(s) || insurance.getInsuranceId().toString().equals(s)) {
+							insurancesToVerify.put(insurance, category);
+						}
+					}
+				}
+			}
+		}
+		return insurancesToVerify;
 	}
 
 }
