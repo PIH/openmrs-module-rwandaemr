@@ -13,6 +13,7 @@
  */
 package org.openmrs.module.rwandaemr;
 
+import lombok.Setter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.Encounter;
@@ -31,15 +32,17 @@ import org.openmrs.PersonName;
 import org.openmrs.Relationship;
 import org.openmrs.Visit;
 import org.openmrs.annotation.Authorized;
+import org.openmrs.api.EncounterService;
 import org.openmrs.api.LocationService;
 import org.openmrs.api.context.Context;
+import org.openmrs.api.db.hibernate.DbSessionFactory;
 import org.openmrs.api.db.hibernate.ImmutableOrderInterceptor;
 import org.openmrs.api.impl.BaseOpenmrsService;
 import org.openmrs.module.emrapi.EmrApiConstants;
 import org.openmrs.util.PrivilegeConstants;
 import org.openmrs.validator.ValidateUtil;
+import org.springframework.transaction.annotation.Transactional;
 
-import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -52,6 +55,28 @@ import java.util.List;
 public class RwandaEmrServiceImpl extends BaseOpenmrsService implements RwandaEmrService {
 
 	protected Log log = LogFactory.getLog(getClass());
+
+	@Setter
+	private DbSessionFactory sessionFactory;
+
+	@Setter
+	private EncounterService encounterService;
+
+	@Transactional(readOnly = true)
+	@Authorized(PrivilegeConstants.GET_OBS)
+	@SuppressWarnings("unchecked")
+	public List<Obs> getObsByOrder(Order order) {
+		String query = "select o from Obs o where o.order = :order and o.voided = false";
+		return sessionFactory.getCurrentSession().createQuery(query).setParameter("order", order).list();
+	}
+
+	@Transactional
+	@Authorized(PrivilegeConstants.ADD_ENCOUNTERS)
+	public void saveEncounters(List<Encounter> encounters) {
+		for (Encounter encounter : encounters) {
+			encounterService.saveEncounter(encounter);
+		}
+	}
 
 	@Transactional
 	@Authorized(PrivilegeConstants.EDIT_PATIENTS)
