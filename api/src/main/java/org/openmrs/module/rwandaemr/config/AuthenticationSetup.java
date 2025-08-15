@@ -41,6 +41,7 @@ public class AuthenticationSetup {
         whitelist.add("/authenticationui/login/login.page");
         whitelist.add("/appui/session/getLoginLocations.action");
         whitelist.add("/csrfguard");
+        whitelist.add("/spa/**/*");
         whitelist.add("*.js");
         whitelist.add("*.css");
         whitelist.add("*.gif");

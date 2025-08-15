@@ -12,7 +12,7 @@ import java.util.TimerTask;
  */
 public class RwandaEmrTimerTask extends TimerTask {
 
-    private final Logger log = LoggerFactory.getLogger(getClass());
+    private static final Logger log = LoggerFactory.getLogger(RwandaEmrTimerTask.class);
 
     private static DaemonToken daemonToken;
     public static void setDaemonToken(DaemonToken daemonToken) {
@@ -22,6 +22,7 @@ public class RwandaEmrTimerTask extends TimerTask {
     private static boolean enabled = false;
     public static void setEnabled(boolean enabled) {
         RwandaEmrTimerTask.enabled = enabled;
+        log.warn("RwandaEmrTimerTask enabled");
     }
     public static boolean isEnabled() {
         return enabled;

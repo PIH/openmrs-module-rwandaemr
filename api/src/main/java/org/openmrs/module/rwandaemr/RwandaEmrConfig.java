@@ -9,18 +9,23 @@
  */
 package org.openmrs.module.rwandaemr;
 
+import lombok.Getter;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.EncounterType;
+import org.openmrs.Location;
 import org.openmrs.LocationAttributeType;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.PersonAttributeType;
+import org.openmrs.Provider;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.LocationService;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.PersonService;
+import org.openmrs.api.ProviderService;
 import org.openmrs.module.initializer.api.InitializerService;
+import org.openmrs.module.rwandaemr.radiology.RadiologyConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +33,7 @@ import org.springframework.stereotype.Component;
  * Config used by the Rwanda EMR module
  */
 @Component
+@Getter
 public class RwandaEmrConfig {
 
 	protected Log log = LogFactory.getLog(getClass());
@@ -36,18 +42,25 @@ public class RwandaEmrConfig {
 	private final PatientService patientService;
 	private final LocationService locationService;
 	private final EncounterService encounterService;
+	private final ProviderService providerService;
 	private final InitializerService initializerService;
+	private final RadiologyConfig radiologyConfig;
 
-	public RwandaEmrConfig(@Autowired PatientService patientService,
+	public RwandaEmrConfig(
+						   @Autowired PatientService patientService,
 						   @Autowired PersonService personService,
 						   @Autowired LocationService locationService,
 						   @Autowired EncounterService encounterService,
-						   @Autowired InitializerService initializerService) {
+						   @Autowired ProviderService providerService,
+						   @Autowired InitializerService initializerService,
+						   @Autowired RadiologyConfig radiologyConfig) {
 		this.patientService = patientService;
 		this.personService = personService;
 		this.locationService = locationService;
 		this.encounterService = encounterService;
+		this.providerService = providerService;
 		this.initializerService = initializerService;
+		this.radiologyConfig = radiologyConfig;
 	}
 
 	public PatientIdentifierType getPrimaryCareIdentifierType() {
@@ -104,6 +117,18 @@ public class RwandaEmrConfig {
 
 	public LocationAttributeType getFosaId() {
 		return getLocationAttributeTypeByJsonKey("locationAttribute.fosaId.uuid");
+	}
+
+	public Location getUnknownLocation() {
+		return locationService.getLocation("Unknown location");
+	}
+
+	public Provider getUnknownProvider() {
+		return providerService.getUnknownProvider();
+	}
+
+	public Provider getProviderByIdentifier(String identifier) {
+		return providerService.getProviderByIdentifier(identifier);
 	}
 
 	public PatientIdentifierType getPatientIdentifierTypeByJsonKey(String jsonKey) {

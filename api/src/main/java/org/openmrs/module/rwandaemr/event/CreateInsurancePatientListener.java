@@ -109,7 +109,7 @@ public class CreateInsurancePatientListener extends PatientEventListener {
 				Admission admission = new Admission();
 				admission.setAdmissionDate(new Date());
 				admission.setInsurancePolicy(policy);
-				admission.setIsAdmitted(true);
+				admission.setIsAdmitted(false);
 				admission.setCreator(Context.getAuthenticatedUser());
 				admission.setCreatedDate(new Date());
 				admission.setDiseaseType("Default Disease Type");
