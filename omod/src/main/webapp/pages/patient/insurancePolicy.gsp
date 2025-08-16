@@ -163,137 +163,139 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     }
 
     jq(document).ready(function () {
-        jq("#insurance-type-field").change(function () {
-            const insuranceTypeId = jq(this).val();
-            if (insuranceTypeId === "" || insurancesToVerify.has(insuranceTypeId)) {
-                toggleVerificationButton();
-                enableVerification();
-            }
-            else {
-                disableVerification();
-            }
-        });
-        <% if (!hasErrors) { // Do not trigger change if returning to page after validation error on submit %>
-            jq("#insurance-type-field").change();
-        <% } %>
-
-        jq("#owner-code-field").on("change paste keyup", function () {
-            toggleVerificationButton();
-        });
-
-        jq("#verify-button").click(function () {
-            jq("#verify-button").attr("disabled", "disabled");
-            const insuranceTypeId = jq("#insurance-type-field").val();
-            const insuranceType = insurancesToVerify.get(insuranceTypeId);
-            const ownerCode = jq("#owner-code-field").val();
-
-            setVerifyResultsMessage('Checking eligibility...');
-            jq("#verify-member-table").hide();
-            verifyMemberDialog.show();
-
-            jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?type=" + insuranceType + "&identifier=" + ownerCode, function(data) {
-                console.log(data);
-                if (data.responseCode === 200) {
-                    const entity = data.responseEntity;
-                    let verifyRows = [];
-                    const details = entity.details || {};
-                    if (insuranceType === 'rama') {
-                        verifyRows.push({
-                            name: details.firstName + " " + details.lastName,
-                            gender: details.gender,
-                            birthdate: details.dateOfBirth,
-                            type: 'HEAD',
-                            headHouseholdName: details.firstName + " " + details.lastName,
-                            company: details.employerName,
-                            insuranceCardNumber: details.mainAffiliateId,
-                            startDate: '${ui.dateToString(todayDate).substring(0, 10)}',
-                            endDate: '${ui.dateToString(todayPlus3Months).substring(0, 10)}',
-                            memberId: details.cardId,
-                            eligible: entity.eligible && details.isEligible
-                        });
-                    } else if (insuranceType === 'cbhi') {
-                        let headOfHouseholdName = '';
-                        details.members.forEach((member) => {
-                            if (member.type === 'HEAD') {
-                                headOfHouseholdName = member.firstName + ' ' + member.lastName;
-                            }
-                        });
-                        details.members.forEach(member => {
-                            verifyRows.push({
-                                name: member.firstName + " " + member.lastName,
-                                gender: member.gender,
-                                birthdate: member.dateOfBirth,
-                                type: member.type,
-                                headHouseholdName: headOfHouseholdName,
-                                company: '',
-                                insuranceCardNumber: member.documentNumber,
-                                startDate: member.eligibilityStartDate ? member.eligibilityStartDate.substring(0, 10) : null,
-                                endDate: member.eligibilityStartDate ? (parseInt(member.eligibilityStartDate.substring(0, 4)) + 1) + '-06-30' : null,
-                                memberId: member.documentNumber,
-                                eligible: member.isEligible
-                            });
-                        })
-                    }
-                    if (verifyRows.length === 0) {
-                        setNoMatchingInsurancesFound(insuranceType);
-                    }
-                    else {
-                        setVerifyResultsMessage('Please choose an eligible member or cancel');
-                        verifyRows.forEach((member) => {
-                            const row = jq("#verify-member-row-template").clone();
-                            jq(row).find(".member-name").html(member.name);
-                            jq(row).find(".member-gender").html(member.gender);
-                            jq(row).find(".member-birthdate").html(getDateDisplay(member.birthdate));
-                            jq(row).find(".member-start-date").html(getDateDisplay(member.startDate));
-                            jq(row).find(".member-id").html(member.memberId);
-                            if (member.eligible) {
-                                jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
-                                jq(row).find(".member-select").click(function () {
-                                    jq("#owner-name-field").val(member.headHouseholdName);
-                                    jq("#company-field").val(member.company);
-                                    jq("#policy-number-field").val(member.insuranceCardNumber);
-                                    if (member.startDate) {
-                                        jq("#start-date-picker-field").val(member.startDate);
-                                        jq("#start-date-picker-display").val(getDateDisplay(member.startDate));
-                                    }
-                                    if (member.endDate) {
-                                        jq("#expiration-date-picker-field").val(member.endDate);
-                                        jq("#expiration-date-picker-display").val(getDateDisplay(member.endDate));
-                                    }
-                                    verifyMemberDialog.close();
-                                    disableVerification();
-                                });
-                            }
-                            else {
-                                jq(row).find(".member-eligibility").html('<span class="pill not-eligible-cell">Not Eligible</span>');
-                                jq(row).find(".member-select").attr("disabled", "disabled");
-                            }
-                            jq(row).addClass("verify-member-row");
-                            jq(row).show();
-                            jq("#verify-member-section").append(row);
-                        });
-                        jq("#verify-member-table").show();
-                    }
-                } else {
-                    if (!data.enabled) {
-                        setVerifyResultsMessage('Insurance verification is not enabled');
-                        disableVerification();
-                    } else if (data.endpointAccessible === false) {
-                        setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
-                        disableVerification();
-                    }
-                    else if (data.errorMessage) {
-                        setVerifyResultsMessage('An error occurred while checking insurance eligibility: ' + data.errorMessage);
-                        console.error(data);
-                        disableVerification();
-                    }
-                    else {
-                        setNoMatchingInsurancesFound(insuranceType);
-                    }
+        if (insurancesToVerify.size > 0) {
+            jq("#insurance-type-field").change(function () {
+                const insuranceTypeId = jq(this).val();
+                if (insuranceTypeId === "" || insurancesToVerify.has(insuranceTypeId)) {
+                    toggleVerificationButton();
+                    enableVerification();
                 }
-                jq("#verify-button").removeAttr("disabled");
+                else {
+                    disableVerification();
+                }
             });
-        });
+            <% if (!hasErrors) { // Do not trigger change if returning to page after validation error on submit %>
+                jq("#insurance-type-field").change();
+            <% } %>
+
+            jq("#owner-code-field").on("change paste keyup", function () {
+                toggleVerificationButton();
+            });
+
+            jq("#verify-button").click(function () {
+                jq("#verify-button").attr("disabled", "disabled");
+                const insuranceTypeId = jq("#insurance-type-field").val();
+                const insuranceType = insurancesToVerify.get(insuranceTypeId);
+                const ownerCode = jq("#owner-code-field").val();
+
+                setVerifyResultsMessage('Checking eligibility...');
+                jq("#verify-member-table").hide();
+                verifyMemberDialog.show();
+
+                jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?type=" + insuranceType + "&identifier=" + ownerCode, function(data) {
+                    console.log(data);
+                    if (data.responseCode === 200) {
+                        const entity = data.responseEntity;
+                        let verifyRows = [];
+                        const details = entity.details || {};
+                        if (insuranceType === 'rama') {
+                            verifyRows.push({
+                                name: details.firstName + " " + details.lastName,
+                                gender: details.gender,
+                                birthdate: details.dateOfBirth,
+                                type: 'HEAD',
+                                headHouseholdName: details.firstName + " " + details.lastName,
+                                company: details.employerName,
+                                insuranceCardNumber: details.mainAffiliateId,
+                                startDate: '${ui.dateToString(todayDate).substring(0, 10)}',
+                                endDate: '${ui.dateToString(todayPlus3Months).substring(0, 10)}',
+                                memberId: details.cardId,
+                                eligible: entity.eligible && details.isEligible
+                            });
+                        } else if (insuranceType === 'cbhi') {
+                            let headOfHouseholdName = '';
+                            details.members.forEach((member) => {
+                                if (member.type === 'HEAD') {
+                                    headOfHouseholdName = member.firstName + ' ' + member.lastName;
+                                }
+                            });
+                            details.members.forEach(member => {
+                                verifyRows.push({
+                                    name: member.firstName + " " + member.lastName,
+                                    gender: member.gender,
+                                    birthdate: member.dateOfBirth,
+                                    type: member.type,
+                                    headHouseholdName: headOfHouseholdName,
+                                    company: '',
+                                    insuranceCardNumber: member.documentNumber,
+                                    startDate: member.eligibilityStartDate ? member.eligibilityStartDate.substring(0, 10) : null,
+                                    endDate: member.eligibilityStartDate ? (parseInt(member.eligibilityStartDate.substring(0, 4)) + 1) + '-06-30' : null,
+                                    memberId: member.documentNumber,
+                                    eligible: member.isEligible
+                                });
+                            })
+                        }
+                        if (verifyRows.length === 0) {
+                            setNoMatchingInsurancesFound(insuranceType);
+                        }
+                        else {
+                            setVerifyResultsMessage('Please choose an eligible member or cancel');
+                            verifyRows.forEach((member) => {
+                                const row = jq("#verify-member-row-template").clone();
+                                jq(row).find(".member-name").html(member.name);
+                                jq(row).find(".member-gender").html(member.gender);
+                                jq(row).find(".member-birthdate").html(getDateDisplay(member.birthdate));
+                                jq(row).find(".member-start-date").html(getDateDisplay(member.startDate));
+                                jq(row).find(".member-id").html(member.memberId);
+                                if (member.eligible) {
+                                    jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
+                                    jq(row).find(".member-select").click(function () {
+                                        jq("#owner-name-field").val(member.headHouseholdName);
+                                        jq("#company-field").val(member.company);
+                                        jq("#policy-number-field").val(member.insuranceCardNumber);
+                                        if (member.startDate) {
+                                            jq("#start-date-picker-field").val(member.startDate);
+                                            jq("#start-date-picker-display").val(getDateDisplay(member.startDate));
+                                        }
+                                        if (member.endDate) {
+                                            jq("#expiration-date-picker-field").val(member.endDate);
+                                            jq("#expiration-date-picker-display").val(getDateDisplay(member.endDate));
+                                        }
+                                        verifyMemberDialog.close();
+                                        disableVerification();
+                                    });
+                                }
+                                else {
+                                    jq(row).find(".member-eligibility").html('<span class="pill not-eligible-cell">Not Eligible</span>');
+                                    jq(row).find(".member-select").attr("disabled", "disabled");
+                                }
+                                jq(row).addClass("verify-member-row");
+                                jq(row).show();
+                                jq("#verify-member-section").append(row);
+                            });
+                            jq("#verify-member-table").show();
+                        }
+                    } else {
+                        if (!data.enabled) {
+                            setVerifyResultsMessage('Insurance verification is not enabled');
+                            disableVerification();
+                        } else if (data.endpointAccessible === false) {
+                            setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
+                            disableVerification();
+                        }
+                        else if (data.errorMessage) {
+                            setVerifyResultsMessage('An error occurred while checking insurance eligibility: ' + data.errorMessage);
+                            console.error(data);
+                            disableVerification();
+                        }
+                        else {
+                            setNoMatchingInsurancesFound(insuranceType);
+                        }
+                    }
+                    jq("#verify-button").removeAttr("disabled");
+                });
+            });
+        }
     });
 </script>
 
@@ -354,9 +356,11 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             initialValue: (policyModel.ownerCode ?: ''),
                             size: 30
                     ])}
-                    <p id="verify-section">
-                        <input type="button" id="verify-button" value="Check eligibility"/>
-                    </p>
+                    <% if (!insurancesToVerify.isEmpty()) { %>
+                        <p id="verify-section">
+                            <input type="button" id="verify-button" value="Check eligibility"/>
+                        </p>
+                    <% } %>
                 <% } else { %>
                     <p>
                         <label for="view-insurance-beneficiary-ownerCode">${ui.message("rwandaemr.insurance.beneficiary.ownerCode")}</label>
