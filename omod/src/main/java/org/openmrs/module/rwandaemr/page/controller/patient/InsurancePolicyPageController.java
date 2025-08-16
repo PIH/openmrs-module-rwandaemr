@@ -74,11 +74,13 @@ public class InsurancePolicyPageController {
         model.addAttribute("thirdParties", InsurancePolicyUtil.getAllThirdParties());
         model.addAttribute("owners", getEligiblePolicyOwnersForPatient(patient));
         model.addAttribute("returnUrl", getReturnUrl(returnUrl, patient, policy));
+        model.addAttribute("hasErrors", false);
 
         return "patient/insurancePolicy";
     }
 
     public String post(@InjectBeans PatientDomainWrapper patientDomainWrapper,
+                       @SpringBean("insuranceIntegrationConfig") InsuranceIntegrationConfig insuranceIntegrationConfig,
                        @MethodParam("getPolicy") InsurancePolicy policy,
                        @BindParams InsurancePolicyModel policyModel,
                        BindingResult errors,
@@ -182,10 +184,12 @@ public class InsurancePolicyPageController {
             model.addAttribute("policy", policy);
             model.addAttribute("policyModel", policyModel);
             model.addAttribute("insurances", InsuranceUtil.getInsurances(true));
+            model.addAttribute("insurancesToVerify", insuranceIntegrationConfig.getInsurancesToVerify());
             model.addAttribute("thirdParties", InsurancePolicyUtil.getAllThirdParties());
             model.addAttribute("owners", getEligiblePolicyOwnersForPatient(patient));
             model.addAttribute("returnUrl", getReturnUrl(returnUrl, patient, policy));
             model.addAttribute("editMode", true);
+            model.addAttribute("hasErrors", true);
             return "patient/insurancePolicy";
         }
 
