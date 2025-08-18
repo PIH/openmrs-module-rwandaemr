@@ -12,6 +12,15 @@ package org.openmrs.module.rwandaemr.integration.insurance;
 import lombok.Data;
 
 @Data
-public class CbhiEligibilityResponse extends InsuranceEligibilityResponse {
-    CbhiDetails details;
+public class CbhiSpecialCaseDetails {
+    String memberId;
+    String type;
+    String fullNames;
+    String documentNumber;
+    String fatherNames;
+    String motherNames;
+    String dateOfBirth;
+    String institutionName;
+    Boolean isEligible;
+    String eligibilityStartDate;
 }

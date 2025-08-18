@@ -4,16 +4,15 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.Before;
 import org.junit.Test;
-import org.openmrs.module.rwandaemr.integration.insurance.CbhiEligibilityResponse;
+import org.openmrs.module.rwandaemr.integration.insurance.CbhiDetails;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceEligibilityProvider;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceIntegrationConfig;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceNotFoundResponse;
-import org.openmrs.module.rwandaemr.integration.insurance.RamaEligibilityResponse;
+import org.openmrs.module.rwandaemr.integration.insurance.RamaDetails;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
-import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
 public class InsuranceEligibilityProviderTest {
@@ -46,27 +45,21 @@ public class InsuranceEligibilityProviderTest {
 		IntegrationResponse response = provider.checkEligibility(type, identifier);
 		assertThat(response.isEndpointAccessible(), equalTo(true));
 		assertThat(response.getResponseCode(), equalTo(200));
-		assertThat(response.getResponseEntity(), isA(CbhiEligibilityResponse.class));
+		assertThat(response.getResponseEntity(), isA(CbhiDetails.class));
 		assertThat(response.getErrorMessage(), nullValue());
-		CbhiEligibilityResponse r = (CbhiEligibilityResponse) response.getResponseEntity();
-		assertThat(r.getEligibilityCheckType(), equalTo(type));
-		assertThat(r.getIdentifierUsed(), equalTo(identifier));
-		assertThat(r.isEligible(), equalTo(true));
-		assertThat(r.getDetails().getTotalMembers(), equalTo(1));
+		CbhiDetails details = (CbhiDetails) response.getResponseEntity();
+		assertThat(details.getTotalMembers(), equalTo(1));
 
 		identifier = "1194170010945086";
 		response = provider.checkEligibility(type, identifier);
 		assertThat(response.isEndpointAccessible(), equalTo(true));
 		assertThat(response.getResponseCode(), equalTo(200));
-		assertThat(response.getResponseEntity(), isA(CbhiEligibilityResponse.class));
+		assertThat(response.getResponseEntity(), isA(CbhiDetails.class));
 		assertThat(response.getErrorMessage(), nullValue());
-		r = (CbhiEligibilityResponse) response.getResponseEntity();
-		assertThat(r.getEligibilityCheckType(), equalTo(type));
-		assertThat(r.getIdentifierUsed(), equalTo(identifier));
-		assertThat(r.isEligible(), equalTo(true));
-		assertThat(r.getDetails().getTotalMembers(), equalTo(2));
-		assertThat(r.getDetails().getMembers().get(0).getType(), equalTo("HEAD"));
-		assertThat(r.getDetails().getMembers().get(1).getType(), equalTo("BENEFICIARY"));
+		details = (CbhiDetails) response.getResponseEntity();
+		assertThat(details.getTotalMembers(), equalTo(2));
+		assertThat(details.getMembers().get(0).getType(), equalTo("HEAD"));
+		assertThat(details.getMembers().get(1).getType(), equalTo("BENEFICIARY"));
 	}
 
 	@Test
@@ -81,13 +74,10 @@ public class InsuranceEligibilityProviderTest {
 		IntegrationResponse response = provider.checkEligibility(type, identifier);
 		assertThat(response.isEndpointAccessible(), equalTo(true));
 		assertThat(response.getResponseCode(), equalTo(200));
-		assertThat(response.getResponseEntity(), isA(RamaEligibilityResponse.class));
+		assertThat(response.getResponseEntity(), isA(RamaDetails.class));
 		assertThat(response.getErrorMessage(), nullValue());
-		RamaEligibilityResponse r = (RamaEligibilityResponse) response.getResponseEntity();
-		assertThat(r.getEligibilityCheckType(), equalTo(type));
-		assertThat(r.getIdentifierUsed(), equalTo(identifier));
-		assertThat(r.isEligible(), equalTo(true));
-		assertThat(r.getDetails().getMainAffiliateId(), equalTo(identifier));
+		RamaDetails details = (RamaDetails) response.getResponseEntity();
+		assertThat(details.getMainAffiliateId(), equalTo(identifier));
 	}
 
 	@Test

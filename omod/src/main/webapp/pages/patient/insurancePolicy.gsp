@@ -195,9 +195,8 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?type=" + insuranceType + "&identifier=" + ownerCode, function(data) {
                     console.log(data);
                     if (data.responseCode === 200) {
-                        const entity = data.responseEntity;
+                        const details = data.responseEntity;
                         let verifyRows = [];
-                        const details = entity.details || {};
                         if (insuranceType === 'rama') {
                             verifyRows.push({
                                 name: details.firstName + " " + details.lastName,
@@ -210,7 +209,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                 startDate: '${ui.dateToString(todayDate).substring(0, 10)}',
                                 endDate: '${ui.dateToString(todayPlus3Months).substring(0, 10)}',
                                 memberId: details.cardId,
-                                eligible: entity.eligible && details.isEligible
+                                eligible: details.isEligible
                             });
                         } else if (insuranceType === 'cbhi') {
                             let headOfHouseholdName = '';
@@ -234,6 +233,21 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                     eligible: member.isEligible
                                 });
                             })
+                        }
+                        else if (insuranceType === 'cbhi-special-case') {
+                            verifyRows.push({
+                                name: details.fullNames,
+                                gender: null,
+                                birthdate: details.dateOfBirth,
+                                type: 'HEAD',
+                                headHouseholdName: details.fullNames,
+                                company: details.institutionName,
+                                insuranceCardNumber: details.documentNumber,
+                                startDate: details.eligibilityStartDate ? details.eligibilityStartDate.substring(0, 10) : null,
+                                endDate: details.eligibilityStartDate ? (parseInt(details.eligibilityStartDate.substring(0, 4)) + 1) + '-06-30' : null,
+                                memberId: details.documentNumber,
+                                eligible: details.isEligible
+                            });
                         }
                         if (verifyRows.length === 0) {
                             setNoMatchingInsurancesFound(insuranceType);
