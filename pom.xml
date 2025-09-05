@@ -55,15 +55,15 @@
         <initializerVersion>2.10.0-SNAPSHOT</initializerVersion>
         <laboratorymanagementVersion>2.0.0-SNAPSHOT</laboratorymanagementVersion>
         <legacyuiVersion>1.23.0</legacyuiVersion>
-        <metadatamappingVersion>1.7.0-SNAPSHOT</metadatamappingVersion>
-        <metadatasharingVersion>1.10.0-SNAPSHOT</metadatasharingVersion>
+        <metadatamappingVersion>1.7.0</metadatamappingVersion>
+        <metadatasharingVersion>1.10.0</metadatasharingVersion>
         <mohappointmentVersion>2.0.1-SNAPSHOT</mohappointmentVersion>
         <mohbillingVersion>2.0.2-SNAPSHOT</mohbillingVersion>
         <mohdataflowmoduleVersion>0.0.5-SNAPSHOT</mohdataflowmoduleVersion>
         <mohtracVersion>2.0.0-SNAPSHOT</mohtracVersion>
         <!-- muzimacore-2.5.3-SNAPSHOT.omod -->
         <namephoneticsVersion>1.19.0</namephoneticsVersion>
-        <openconceptlabVersion>2.5.0-SNAPSHOT</openconceptlabVersion>
+        <openconceptlabVersion>2.5.0</openconceptlabVersion>
         <omodExportVersion>2.1.0</omodExportVersion>
         <orderextensionVersion>3.2.0</orderextensionVersion>
         <owaVersion>1.15.0</owaVersion>
