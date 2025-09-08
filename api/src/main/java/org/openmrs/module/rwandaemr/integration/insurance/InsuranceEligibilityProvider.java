@@ -55,6 +55,10 @@ public class InsuranceEligibilityProvider {
 				if (StringUtils.isNotBlank(apiKey)) {
 					httpGet.setHeader("x-api-key", apiKey);
 				}
+				String apiOrigin = config.getEligibilityCheckApiOrigin();
+				if (StringUtils.isNotBlank(apiOrigin)) {
+					httpGet.setHeader("Origin", apiOrigin);
+				}
 				ret.setEndpointAccessible(false);
 				try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
 					ret.setEndpointAccessible(true);

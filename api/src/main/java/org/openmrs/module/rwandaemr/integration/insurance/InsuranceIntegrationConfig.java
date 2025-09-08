@@ -33,6 +33,7 @@ public class InsuranceIntegrationConfig {
 	private static final String ELIGIBILITY_CHECK_PREFIX = "rwandaemr.insuranceEligibility.";
 	public static final String ELIGIBILITY_CHECK_URL = ELIGIBILITY_CHECK_PREFIX + "url";
 	public static final String ELIGIBILITY_CHECK_API_KEY = ELIGIBILITY_CHECK_PREFIX + "apiKey";
+	public static final String ELIGIBILITY_CHECK_API_ORIGIN = ELIGIBILITY_CHECK_PREFIX + "apiOrigin";
 
 	public InsuranceIntegrationConfig() {
 	}
@@ -43,6 +44,10 @@ public class InsuranceIntegrationConfig {
 
 	public String getEligibilityCheckApiKey() {
 		return ConfigUtil.getProperty(ELIGIBILITY_CHECK_API_KEY);
+	}
+
+	public String getEligibilityCheckApiOrigin() {
+		return ConfigUtil.getProperty(ELIGIBILITY_CHECK_API_ORIGIN);
 	}
 
 	public boolean isEligibilityCheckEnabled() {

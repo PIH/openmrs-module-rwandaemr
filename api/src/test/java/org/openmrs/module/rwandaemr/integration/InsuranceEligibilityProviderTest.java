@@ -9,6 +9,10 @@ import org.openmrs.module.rwandaemr.integration.insurance.InsuranceEligibilityPr
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceIntegrationConfig;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceNotFoundResponse;
 import org.openmrs.module.rwandaemr.integration.insurance.RamaDetails;
+import org.openmrs.util.OpenmrsUtil;
+
+import java.io.File;
+import java.util.Properties;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -21,16 +25,49 @@ public class InsuranceEligibilityProviderTest {
 
 	InsuranceEligibilityProvider provider;
 	InsuranceIntegrationConfig config;
+	Properties p;
 
 	@Before
 	public void setUp() {
+		p = new Properties();
+		try {
+			File userHome = new File(System.getProperty("user.home"));
+			OpenmrsUtil.loadProperties(p, new File(userHome, ".rwanda-insurance-test.properties"));
+		}
+		catch (Exception ignore) {}
 		config = new InsuranceIntegrationConfig() {
 			@Override
 			public String getEligibilityCheckUrl() {
-				return null; //"https://rhip.moh.gov.rw/backend/rssb_integration/api/v1/members/eligibility-check";
+				return p.getProperty(InsuranceIntegrationConfig.ELIGIBILITY_CHECK_URL, "");
+			}
+
+			@Override
+			public String getEligibilityCheckApiKey() {
+				return p.getProperty(InsuranceIntegrationConfig.ELIGIBILITY_CHECK_API_KEY, "");
+			}
+
+			@Override
+			public String getEligibilityCheckApiOrigin() {
+				return p.getProperty(InsuranceIntegrationConfig.ELIGIBILITY_CHECK_API_ORIGIN, "");
 			}
 		};
 		provider = new InsuranceEligibilityProvider(config);
+	}
+
+	@Test
+	public void shouldConnectToIntegrationEndpoint() {
+		if (!isConfiguredToRun()) {
+			log.warn("NOT EXECUTING " + getClass().getSimpleName() + " AS CONFIGURATION IS MISSING");
+			log.warn("THE REQUIRED PROPERTIES SHOULD BE SET USING `-Dproperty=value` WHEN EXECUTING THE TEST");
+			return;
+		}
+		for (String property : p.stringPropertyNames()) {
+			log.warn(property + ": " + p.getProperty(property));
+		}
+		String type = p.getProperty("connectionTest.type");
+		String identifier = p.getProperty("connectionTest.identifier");
+		IntegrationResponse response = provider.checkEligibility(type, identifier);
+		System.out.println(response);
 	}
 	
 	@Test
@@ -132,6 +169,6 @@ public class InsuranceEligibilityProviderTest {
 	}
 
 	private boolean isConfiguredToRun() {
-		return config.getEligibilityCheckUrl() != null;
+		return !p.isEmpty();
 	}
 }
