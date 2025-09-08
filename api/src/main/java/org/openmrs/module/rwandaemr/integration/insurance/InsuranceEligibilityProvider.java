@@ -51,6 +51,10 @@ public class InsuranceEligibilityProvider {
 				HttpGet httpGet = new HttpGet(url);
 				log.debug("GETTING " + config.getEligibilityCheckUrl());
 				httpGet.setHeader("Content-Type", "application/json");
+				String apiKey = config.getEligibilityCheckApiKey();
+				if (StringUtils.isNotBlank(apiKey)) {
+					httpGet.setHeader("x-api-key", config.getEligibilityCheckApiKey());
+				}
 				ret.setEndpointAccessible(false);
 				try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
 					ret.setEndpointAccessible(true);

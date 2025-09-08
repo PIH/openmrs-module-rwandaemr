@@ -32,12 +32,17 @@ public class InsuranceIntegrationConfig {
 
 	private static final String ELIGIBILITY_CHECK_PREFIX = "rwandaemr.insuranceEligibility.";
 	public static final String ELIGIBILITY_CHECK_URL = ELIGIBILITY_CHECK_PREFIX + "url";
+	public static final String ELIGIBILITY_CHECK_API_KEY = ELIGIBILITY_CHECK_PREFIX + "apiKey";
 
 	public InsuranceIntegrationConfig() {
 	}
 
 	public String getEligibilityCheckUrl() {
 		return ConfigUtil.getProperty(ELIGIBILITY_CHECK_URL);
+	}
+
+	public String getEligibilityCheckApiKey() {
+		return ConfigUtil.getProperty(ELIGIBILITY_CHECK_API_KEY);
 	}
 
 	public boolean isEligibilityCheckEnabled() {
