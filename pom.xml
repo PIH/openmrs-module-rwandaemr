@@ -67,7 +67,6 @@
         <omodExportVersion>2.1.0</omodExportVersion>
         <orderextensionVersion>3.2.0</orderextensionVersion>
         <owaVersion>1.15.0</owaVersion>
-        <patientsummaryVersion>1.4.0</patientsummaryVersion> <!-- not on production -->
         <pharmacymanagementVersion>2.0.0-SNAPSHOT</pharmacymanagementVersion>
         <providermanagementVersion>2.15.0</providermanagementVersion>
         <!-- rbcmessaging-1.0-SNAPSHOT -->
@@ -84,14 +83,12 @@
         <rwandaprimarycareVersion>2.1.0-SNAPSHOT</rwandaprimarycareVersion>
         <rwandareportsVersion>3.0.0-SNAPSHOT</rwandareportsVersion>
         <serializationVersion>0.2.16</serializationVersion>
-        <simplelabentryVersion>2.0.0</simplelabentryVersion> <!-- not on production -->
         <spaVersion>2.1.0</spaVersion>
         <syncVersion>3.1.0</syncVersion>
         <uicommonsVersion>2.26.0</uicommonsVersion>
         <uiframeworkVersion>4.0.0</uiframeworkVersion>
         <uilibraryVersion>2.0.7</uilibraryVersion>
         <usagestatisticsVersion>2.1.0</usagestatisticsVersion>
-        <validationVersion>2.0.0</validationVersion> <!-- not on production -->
         <webservicesRestVersion>2.50.0</webservicesRestVersion>
         <lombokVersion>1.18.36</lombokVersion>
         <MODULE_ID>${project.parent.artifactId}</MODULE_ID>
