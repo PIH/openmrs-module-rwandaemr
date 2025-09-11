@@ -209,7 +209,8 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                 startDate: '${ui.dateToString(todayDate).substring(0, 10)}',
                                 endDate: '${ui.dateToString(todayPlus3Months).substring(0, 10)}',
                                 memberId: details.cardId,
-                                eligible: details.isEligible
+                                eligible: details.isEligible,
+                                governmentSponsored: ''
                             });
                         } else if (insuranceType === 'cbhi') {
                             let headOfHouseholdName = '';
@@ -230,7 +231,8 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                     startDate: member.eligibilityStartDate ? member.eligibilityStartDate.substring(0, 10) : null,
                                     endDate: member.eligibilityStartDate ? (parseInt(member.eligibilityStartDate.substring(0, 4)) + 1) + '-06-30' : null,
                                     memberId: member.documentNumber,
-                                    eligible: member.isEligible
+                                    eligible: member.isEligible,
+                                    governmentSponsored: details.isGovermentSponsored ? 'True' : 'False',
                                 });
                             })
                         }
@@ -246,7 +248,8 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                 startDate: details.eligibilityStartDate ? details.eligibilityStartDate.substring(0, 10) : null,
                                 endDate: details.eligibilityStartDate ? (parseInt(details.eligibilityStartDate.substring(0, 4)) + 1) + '-06-30' : null,
                                 memberId: details.documentNumber,
-                                eligible: details.isEligible
+                                eligible: details.isEligible,
+                                governmentSponsored: details.isGovermentSponsored ? 'True' : 'False',
                             });
                         }
                         if (verifyRows.length === 0) {
@@ -261,6 +264,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                 jq(row).find(".member-birthdate").html(getDateDisplay(member.birthdate));
                                 jq(row).find(".member-start-date").html(getDateDisplay(member.startDate));
                                 jq(row).find(".member-id").html(member.memberId);
+                                jq(row).find(".member-government-sponsored").html(member.governmentSponsored)
                                 if (member.eligible) {
                                     jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
                                     jq(row).find(".member-select").click(function () {
@@ -538,6 +542,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     <th>Birthdate</th>
                     <th>Eligibility Date</th>
                     <th>Eligibility</th>
+                    <th>Government Sponsored</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -549,6 +554,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     <td class="member-birthdate"></td>
                     <td class="member-start-date"></td>
                     <td class="member-eligibility"></td>
+                    <td class="member-government-sponsored"></td>
                     <td class="member-action"><input type="button" class="member-select" value="Select"/></td>
                 </tr>
             </tbody>
