@@ -71,6 +71,12 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     .not-eligible-cell {
         background-color: darkred; color: white; font-weight: bold;
     }
+
+    .simplemodal-data {
+        max-height: 600px; /* Set a maximum height for the content */
+        overflow-y: auto; /* Enable vertical scrolling if content exceeds max-height */
+        overflow-x: hidden; /* Prevent horizontal scrolling */
+    }
 </style>
 
 <script type="text/javascript">
@@ -133,18 +139,6 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         return ymdDate ? moment(ymdDate).format("DD MMM YYYY") : '';
     }
 
-    const verifyMemberDialog = emr.setupConfirmationDialog({
-        selector: '#verify-member-dialog',
-        actions: {
-            confirm: function () {
-                alert('Confirmed!');
-            },
-            cancel: function () {
-                verifyMemberDialog.close();
-            }
-        }
-    });
-
     function setVerifyResultsMessage(message) {
         jq("#verify-member-section").find(".verify-member-row").remove();
         jq("#verify-results-message").html(message ?? "");
@@ -190,7 +184,15 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 
                 setVerifyResultsMessage('Checking eligibility...');
                 jq("#verify-member-table").hide();
-                verifyMemberDialog.show();
+
+                const dialogModal = jq.modal(jq("#verify-member-dialog"), {
+                    overlayClose: true,
+                    overlayId: "modal-overlay",
+                    opacity: 80,
+                    persist: true,
+                    closeClass: "cancel",
+                    position: [20, 50],
+                });
 
                 jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?type=" + insuranceType + "&identifier=" + ownerCode, function(data) {
                     console.log(data);
@@ -279,7 +281,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                             jq("#expiration-date-picker-field").val(member.endDate);
                                             jq("#expiration-date-picker-display").val(getDateDisplay(member.endDate));
                                         }
-                                        verifyMemberDialog.close();
+                                        dialogModal.close();
                                         disableVerification();
                                     });
                                 }
