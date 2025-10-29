@@ -69,7 +69,7 @@ public class InsuranceEligibilityProviderTest {
 		IntegrationResponse response = provider.checkEligibility(type, identifier);
 		System.out.println(response);
 	}
-	
+
 	@Test
 	public void shouldHandleValidCbhiEligibilityResponse() {
 		if (!isConfiguredToRun()) {
