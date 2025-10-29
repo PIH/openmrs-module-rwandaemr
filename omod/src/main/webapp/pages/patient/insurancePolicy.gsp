@@ -325,13 +325,14 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     <input type="hidden" value="${ui.format(policyModel.policyId)}" name="policyId" />
     <input type="hidden" value="${patient.patient.id}" name="patientId" />
 
-    <table style="width:100%"><tr>
-        <td>
+    <div class="row">
+        <div class="col-6">
             <fieldset>
                 <legend>${ui.message("rwandaemr.insurance.owner")}</legend>
 
                 <% if (editMode) { %>
                     ${ ui.includeFragment("uicommons", "field/dropDown", [
+                            id: "owner",
                             label: ui.message("rwandaemr.patientName"),
                             hideEmptyLabel: true,
                             formFieldName: "owner",
@@ -350,6 +351,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 
                 <% if (pageMode == 'create') { %>
                     ${ ui.includeFragment("uicommons", "field/dropDown", [
+                            id: "insurance-type",
                             label: ui.message("rwandaemr.insurance.name"),
                             emptyOptionLabel: "",
                             formFieldName: "insuranceId",
@@ -357,13 +359,13 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             options: insuranceOptions
                     ])}
                 <% } else { %>
-                <p>
-                    <% if (editMode) { %>
-                        <input type="hidden" name="insuranceId" value="${policyModel.insuranceId}" />
-                    <% } %>
-                    <label for="view-insurance-name">${ui.message("rwandaemr.insurance.name")}</label>
-                    <span id="view-insurance-name" class="field-value">${ui.format(policy.insurance?.name)}</span>
-                </p>
+                    <p>
+                        <% if (editMode) { %>
+                            <input type="hidden" name="insuranceId" value="${policyModel.insuranceId}" />
+                        <% } %>
+                        <label for="view-insurance-name">${ui.message("rwandaemr.insurance.name")}</label>
+                        <span id="view-insurance-name" class="field-value">${ui.format(policy.insurance?.name)}</span>
+                    </p>
                 <% } %>
 
                 <% if (editMode) { %>
@@ -443,138 +445,70 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             <% if (editMode) { %>
                 ${ ui.includeFragment("uicommons", "field/text", [
                         id: "policy-number",
-                            label: ui.message("rwandaemr.insurance.insuranceCardNo"),
-                            formFieldName: "insuranceCardNo",
-                            initialValue: (policyModel.insuranceCardNo ?: ''),
-                            size: 30,
-                            otherAttributes: ["autocomplete": "off"]
-                    ])}
-                <% } else { %>
-                    <p>
-                        <label for="view-insurance-card-number">${ui.message("rwandaemr.insurance.insuranceCardNo")}</label>
-                        <span id="view-insurance-card-number" class="field-value">${ui.format(policyModel.insuranceCardNo)}</span>
-                    </p>
-                <% } %>
+                        label: ui.message("rwandaemr.insurance.insuranceCardNo"),
+                        formFieldName: "insuranceCardNo",
+                        initialValue: (policyModel.insuranceCardNo ?: ''),
+                        size: 30,
+                        otherAttributes: ["autocomplete": "off"]
+                ])}
+            <% } else { %>
+                <p>
+                    <label for="view-insurance-card-number">${ui.message("rwandaemr.insurance.insuranceCardNo")}</label>
+                    <span id="view-insurance-card-number" class="field-value">${ui.format(policyModel.insuranceCardNo)}</span>
+                </p>
+            <% } %>
 
-                <% if (editMode) { %>
-                    ${ ui.includeFragment("uicommons", "field/datetimepicker", [
-                            id: "policy-coverarge-start-date-picker",
-                            label: ui.message("rwandaemr.insurance.coverageStartDate"),
-                            formFieldName: "coverageStartDate",
-                            defaultDate: policyModel.coverageStartDate,
-                            useTime: false
-                    ])}
-                <% } else { %>
-                    <p>
-                        <label for="view-insurance-start-date">${ui.message("rwandaemr.insurance.coverageStartDate")}</label>
-                        <span id="view-insurance-start-date" class="field-value">${ui.format(policyModel.coverageStartDate)}</span>
-                    </p>
-                <% } %>
+            <% if (editMode) { %>
+                ${ ui.includeFragment("uicommons", "field/datetimepicker", [
+                        id: "start-date-picker",
+                        label: ui.message("rwandaemr.insurance.coverageStartDate"),
+                        formFieldName: "coverageStartDate",
+                        defaultDate: policyModel.coverageStartDate,
+                        useTime: false
+                ])}
+            <% } else { %>
+                <p>
+                    <label for="view-insurance-start-date">${ui.message("rwandaemr.insurance.coverageStartDate")}</label>
+                    <span id="view-insurance-start-date" class="field-value">${ui.format(policyModel.coverageStartDate)}</span>
+                </p>
+            <% } %>
 
-                <% if (editMode) { %>
-                    ${ ui.includeFragment("uicommons", "field/datetimepicker", [
-                            id: "policy-coverarge-expiration-date-picker",
-                            label: ui.message("rwandaemr.insurance.expirationDate"),
-                            formFieldName: "expirationDate",
-                            defaultDate: policyModel.expirationDate,
-                            useTime: false
-                    ])}
-                <% } else { %>
-                    <p>
-                        <label for="view-insurance-expire-date">${ui.message("rwandaemr.insurance.expirationDate")}</label>
-                        <span id="view-insurance-expire-date" class="field-value">${ui.format(policyModel.expirationDate)}</span>
-                        <% if (policyModel.expirationDate != null && policyModel.expirationDate < new Date()) { %>
-                            <b style="color:red;">${ui.message("rwandaemr.expired")}</b>
-                        <% } %>
-                    </p>
-                <% } %>
-
-                <% if (editMode) { %>
-                    ${ ui.includeFragment("uicommons", "field/dropDown", [
-                            label: ui.message("rwandaemr.insurance.thirdParty"),
-                            emptyOptionLabel: "",
-                            formFieldName: "thirdPartyId",
-                            initialValue: (policyModel.thirdPartyId ?: ''),
-                            options: thirdPartyOptions
-                    ])}
-                <% } else { %>
-                    <p>
-                        <label for="view-insurance-third-party">${ui.message("rwandaemr.insurance.thirdParty")}</label>
-                        <span id="view-insurance-third-party" class="field-value">${ui.format(policy.thirdParty?.name)}</span>
-                    </p>
-                <% } %>
-            </fieldset>
-        </td>
-        <td>
-            <fieldset>
-                <legend>${ui.message("rwandaemr.insurance.ownershipInfo")}</legend>
-
-                <% if (editMode) { %>
-                    ${ ui.includeFragment("uicommons", "field/text", [
-                            label: ui.message("rwandaemr.insurance.beneficiary.company"),
-                            formFieldName: "company",
-                            initialValue: (policyModel.company ?: ''),
-                            size: 30
-                    ])}
-                <% } else { %>
-                    <p>
-                        <label for="view-insurance-beneficiary-company">${ui.message("rwandaemr.insurance.beneficiary.company")}</label>
-                        <span id="view-insurance-beneficiary-company" class="field-value">${ui.format(policyModel.company)}</span>
-                    </p>
-                <% } %>
-
-                <% if (editMode) { %>
-                    ${ ui.includeFragment("uicommons", "field/text", [
-                            label: ui.message("rwandaemr.insurance.beneficiary.ownerName"),
-                            formFieldName: "ownerName",
-                            initialValue: (policyModel.ownerName ?: ''),
-                            size: 30
-                    ])}
-                <% } else { %>
-                    <p>
-                        <label for="view-insurance-beneficiary-ownerName">${ui.message("rwandaemr.insurance.beneficiary.ownerName")}</label>
-                        <span id="view-insurance-beneficiary-ownerName" class="field-value">${ui.format(policyModel.ownerName)}</span>
-                    </p>
-                <% } %>
-
-                <% if (editMode) { %>
-                    ${ ui.includeFragment("uicommons", "field/text", [
-                            label: ui.message("rwandaemr.insurance.beneficiary.ownerCode"),
-                            formFieldName: "ownerCode",
-                            initialValue: (policyModel.ownerCode ?: ''),
-                            size: 30
-                    ])}
-                <% } else { %>
-                    <p>
-                        <label for="view-insurance-beneficiary-ownerCode">${ui.message("rwandaemr.insurance.beneficiary.ownerCode")}</label>
-                        <span id="view-insurance-beneficiary-ownerCode" class="field-value">${ui.format(policyModel.ownerCode)}</span>
-                    </p>
-                <% } %>
-
-                <!-- Policy mode level is deprecated.  Only show it if it has been previously recorded.  See RWA-979 -->
-                <% if (policyModel.level) { %>
-
-                    <% if (editMode) { %>
-                        ${ ui.includeFragment("uicommons", "field/dropDown", [
-                                label: ui.message("rwandaemr.insurance.beneficiary.level"),
-                                emptyOptionLabel: "",
-                                formFieldName: "level",
-                                initialValue: (policyModel.level ?: ''),
-                                options: levelOptions
-                        ])}
-                    <% } else { %>
-                        <p>
-                            <label for="view-insurance-beneficiary-level">${ui.message("rwandaemr.insurance.beneficiary.level")}</label>
-                            <span id="view-insurance-beneficiary-level" class="field-value">${policyModel.level}</span>
-                        </p>
+            <% if (editMode) { %>
+                ${ ui.includeFragment("uicommons", "field/datetimepicker", [
+                        id: "expiration-date-picker",
+                        label: ui.message("rwandaemr.insurance.expirationDate"),
+                        formFieldName: "expirationDate",
+                        defaultDate: policyModel.expirationDate,
+                        useTime: false
+                ])}
+            <% } else { %>
+                <p>
+                    <label for="view-insurance-expire-date">${ui.message("rwandaemr.insurance.expirationDate")}</label>
+                    <span id="view-insurance-expire-date" class="field-value">${ui.format(policyModel.expirationDate)}</span>
+                    <% if (policyModel.expirationDate != null && policyModel.expirationDate < new Date()) { %>
+                    <b style="color:red;">${ui.message("rwandaemr.expired")}</b>
                     <% } %>
+                </p>
+            <% } %>
 
-                <% } %>
+            <% if (editMode) { %>
+                ${ ui.includeFragment("uicommons", "field/dropDown", [
+                        id: "third-party",
+                        label: ui.message("rwandaemr.insurance.thirdParty"),
+                        emptyOptionLabel: "",
+                        formFieldName: "thirdPartyId",
+                        initialValue: (policyModel.thirdPartyId ?: ''),
+                        options: thirdPartyOptions
+                ])}
+            <% } else { %>
+                <p>
+                    <label for="view-insurance-third-party">${ui.message("rwandaemr.insurance.thirdParty")}</label>
+                    <span id="view-insurance-third-party" class="field-value">${ui.format(policy.thirdParty?.name)}</span>
+                </p>
+            <% } %>
 
-            </fieldset>
-
-        </td>
-    </tr></table>
+        </div>
+    </div>
     <br/>
     <div>
         <% if (editMode) { %>

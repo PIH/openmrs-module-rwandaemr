@@ -56,9 +56,6 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 		ReportLoader.loadReportsFromConfig();
 		GlobalResourceSetup.includeGlobalResources();
 		HtmlFormEntrySetup.setup();
-		log.warn("HTMLFormEntry Configured");
-		EventSetup.setup();
-		log.warn("Event Setup Configured");
 		EventSetup.setup();
 		HL7ListenerSetup.startup();
 		RwandaEmrTimerTask.setEnabled(true);

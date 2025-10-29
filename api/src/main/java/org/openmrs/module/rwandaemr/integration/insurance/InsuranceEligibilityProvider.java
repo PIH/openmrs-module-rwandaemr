@@ -23,9 +23,6 @@ import org.openmrs.module.rwandaemr.integration.IntegrationResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Supports connections to and operations with the insurance-eligibility endpoint in the HIE
  */
