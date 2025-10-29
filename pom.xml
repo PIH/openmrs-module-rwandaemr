@@ -3,7 +3,7 @@
 
     <groupId>org.openmrs.module</groupId>
     <artifactId>rwandaemr</artifactId>
-    <version>3.0.0-SNAPSHOT</version>
+    <version>3.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Rwanda EMR Module</name>
     <description>Module to handle Rwanda Emr adjustements and support HIE integration</description>
@@ -26,73 +26,72 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <openMRSVersion>2.6.3</openMRSVersion>
-        <addresshierarchyVersion>2.19.0</addresshierarchyVersion>
+        <openMRSVersion>2.6.15</openMRSVersion>
+        <addresshierarchyVersion>2.21.0</addresshierarchyVersion>
         <adminuiVersion>1.7.0-SNAPSHOT</adminuiVersion>
-        <allergyuiVersion>1.8.6</allergyuiVersion>
-        <appframeworkVersion>2.18.0-SNAPSHOT</appframeworkVersion>
-        <appuiVersion>1.18.0-SNAPSHOT</appuiVersion>
-        <attachmentsVersion>2.8.0</attachmentsVersion>
-        <authenticationVersion>1.1.0-SNAPSHOT</authenticationVersion>
-        <authenticationuiVersion>1.1.0-SNAPSHOT</authenticationuiVersion>
+        <allergyuiVersion>1.8.7</allergyuiVersion>
+        <appframeworkVersion>2.18.0</appframeworkVersion>
+        <appuiVersion>1.18.0</appuiVersion>
+        <attachmentsVersion>2.9.0</attachmentsVersion>
+        <authenticationVersion>1.1.0</authenticationVersion>
+        <authenticationuiVersion>1.1.0</authenticationuiVersion>
+        <bedmanagementVersion>6.2.0-SNAPSHOT</bedmanagementVersion>
         <calculationVersion>1.3.0</calculationVersion>
-        <coreappsVersion>2.1.0-SNAPSHOT</coreappsVersion>
+        <coreappsVersion>3.0.0</coreappsVersion>
         <!-- dhisconnector-1.5.6.omod -->
-        <emrapiVersion>2.1.0</emrapiVersion>
+        <emrapiVersion>2.4.0</emrapiVersion>
         <eventVersion>2.10.0</eventVersion>
-        <fhir2Version>2.3.0-SNAPSHOT</fhir2Version>
+        <fhir2Version>2.7.0</fhir2Version>
         <formconceptsVersion>2.0.1</formconceptsVersion>
         <formentryappVersion>1.4.3</formentryappVersion>
         <groovyVersion>2.3.1</groovyVersion>
         <!-- growthchart-2.2.0-SNAPSHOT.omod  -->
         <heightweighttrackerVersion>2.1.0</heightweighttrackerVersion>
-        <htmlformentryVersion>5.5.0-SNAPSHOT</htmlformentryVersion>
-        <htmlformentryuiVersion>3.0.0-SNAPSHOT</htmlformentryuiVersion>
+        <htmlformentryVersion>6.0.1</htmlformentryVersion>
+        <htmlformentryuiVersion>3.0.0</htmlformentryuiVersion>
         <htmlformflowsheetVersion>2.0.0</htmlformflowsheetVersion>
         <htmlwidgetsVersion>1.12.0-SNAPSHOT</htmlwidgetsVersion>
         <idgenVersion>4.14.0</idgenVersion>
         <imbpathologyrequestVersion>1.0.0-SNAPSHOT</imbpathologyrequestVersion>
         <initializerVersion>2.10.0-SNAPSHOT</initializerVersion>
         <laboratorymanagementVersion>2.0.0-SNAPSHOT</laboratorymanagementVersion>
-        <legacyuiVersion>1.21.0</legacyuiVersion>
-        <metadatamappingVersion>1.7.0-SNAPSHOT</metadatamappingVersion>
-        <metadatasharingVersion>1.10.0-SNAPSHOT</metadatasharingVersion>
+        <legacyuiVersion>1.23.0</legacyuiVersion>
+        <metadatamappingVersion>1.7.0</metadatamappingVersion>
+        <metadatasharingVersion>1.10.0</metadatasharingVersion>
         <mohappointmentVersion>2.0.1-SNAPSHOT</mohappointmentVersion>
         <mohbillingVersion>2.0.2-SNAPSHOT</mohbillingVersion>
         <mohdataflowmoduleVersion>0.0.5-SNAPSHOT</mohdataflowmoduleVersion>
         <mohtracVersion>2.0.0-SNAPSHOT</mohtracVersion>
         <!-- muzimacore-2.5.3-SNAPSHOT.omod -->
         <namephoneticsVersion>1.19.0</namephoneticsVersion>
-        <!-- ohrimamba-1.0.1-SNAPSHOT.omod -->
-        <omodExportVersion>2.2.0-SNAPSHOT</omodExportVersion>
-        <orderextensionVersion>3.3.0-SNAPSHOT</orderextensionVersion>
+        <openconceptlabVersion>2.5.0</openconceptlabVersion>
+        <omodExportVersion>2.1.0</omodExportVersion>
+        <orderextensionVersion>3.2.0</orderextensionVersion>
         <owaVersion>1.15.0</owaVersion>
-        <patientsummaryVersion>1.4.0</patientsummaryVersion> <!-- not on production -->
         <pharmacymanagementVersion>2.0.0-SNAPSHOT</pharmacymanagementVersion>
+        <pihappsVersion>1.1.0-SNAPSHOT</pihappsVersion>
         <providermanagementVersion>2.15.0</providermanagementVersion>
         <!-- rbcmessaging-1.0-SNAPSHOT -->
-        <registrationappVersion>1.27.0-SNAPSHOT</registrationappVersion>
+        <registrationappVersion>1.28.1</registrationappVersion>
         <registrationcoreVersion>1.13.0</registrationcoreVersion>
-        <reportingVersion>1.26.0</reportingVersion>
+        <reportingVersion>1.28.0</reportingVersion>
         <reportingcompatibilityVersion>2.0.9</reportingcompatibilityVersion>
         <reportingobjectgroupVersion>2.0.1</reportingobjectgroupVersion>
-        <reportingrestVersion>1.14.0</reportingrestVersion>
-        <reportinguiVersion>1.12.0</reportinguiVersion>
+        <reportingrestVersion>1.15.0</reportingrestVersion>
+        <reportinguiVersion>1.14.0</reportinguiVersion>
         <rowperpatientreportsVersion>2.0.0</rowperpatientreportsVersion>
         <rwandaemrVersion>${project.version}</rwandaemrVersion>
         <rwandahivflowsheetVersion>2.1.0</rwandahivflowsheetVersion>
         <rwandaprimarycareVersion>2.1.0-SNAPSHOT</rwandaprimarycareVersion>
         <rwandareportsVersion>3.0.0-SNAPSHOT</rwandareportsVersion>
         <serializationVersion>0.2.16</serializationVersion>
-        <simplelabentryVersion>2.0.0</simplelabentryVersion> <!-- not on production -->
-        <spaVersion>2.0.0</spaVersion>
-        <syncVersion>3.1.0-SNAPSHOT</syncVersion>
+        <spaVersion>2.1.0</spaVersion>
+        <syncVersion>3.1.0</syncVersion>
         <uicommonsVersion>2.26.0</uicommonsVersion>
-        <uiframeworkVersion>3.25.0</uiframeworkVersion>
+        <uiframeworkVersion>4.0.0</uiframeworkVersion>
         <uilibraryVersion>2.0.7</uilibraryVersion>
         <usagestatisticsVersion>2.1.0</usagestatisticsVersion>
-        <validationVersion>2.0.0</validationVersion> <!-- not on production -->
-        <webservicesRestVersion>2.48.0-SNAPSHOT</webservicesRestVersion>
+        <webservicesRestVersion>2.50.0</webservicesRestVersion>
         <lombokVersion>1.18.36</lombokVersion>
         <MODULE_ID>${project.parent.artifactId}</MODULE_ID>
         <MODULE_NAME>Rwanda EMR</MODULE_NAME>
@@ -200,6 +199,12 @@
             <groupId>org.openmrs.module</groupId>
             <artifactId>namephonetics-api</artifactId>
             <version>${namephoneticsVersion}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openmrs.module</groupId>
+            <artifactId>pihapps-api</artifactId>
+            <version>${pihappsVersion}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

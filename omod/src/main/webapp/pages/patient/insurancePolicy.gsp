@@ -56,6 +56,27 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     input:disabled {
         background-color: #EEE;
     }
+    .pill {
+        border: none;
+        padding: 10px 20px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        margin: 4px 2px;
+        border-radius: 16px;
+    }
+    .eligible-cell {
+        background-color: darkgreen; color: white; font-weight: bold;
+    }
+    .not-eligible-cell {
+        background-color: darkred; color: white; font-weight: bold;
+    }
+
+    .simplemodal-data {
+        max-height: 600px; /* Set a maximum height for the content */
+        overflow-y: auto; /* Enable vertical scrolling if content exceeds max-height */
+        overflow-x: hidden; /* Prevent horizontal scrolling */
+    }
 </style>
 
 <script type="text/javascript">
@@ -82,6 +103,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         jq("#expiration-date-picker-field").val("");
         jq("#expiration-date-picker-display").val("").attr("disabled", "disabled");
         jq("#expiration-date-picker-wrapper >> .icon-calendar").hide();
+        jq("#save-button").attr("disabled", "disabled");
     }
 
     function disableVerification() {
@@ -93,6 +115,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         jq("#start-date-picker-wrapper >> .icon-calendar").show();
         jq("#expiration-date-picker-display").removeAttr("disabled");
         jq("#expiration-date-picker-wrapper >> .icon-calendar").show();
+        jq("#save-button").removeAttr("disabled");
     }
 
     function toggleVerificationButton() {
@@ -116,70 +139,81 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         return ymdDate ? moment(ymdDate).format("DD MMM YYYY") : '';
     }
 
-    const verifyMemberDialog = emr.setupConfirmationDialog({
-        selector: '#verify-member-dialog',
-        actions: {
-            confirm: function () {
-                alert('Confirmed!');
-            },
-            cancel: function () {
-                verifyMemberDialog.close();
-            }
-        }
-    });
-
     function setVerifyResultsMessage(message) {
         jq("#verify-member-section").find(".verify-member-row").remove();
         jq("#verify-results-message").html(message ?? "");
     }
 
+    function setNoMatchingInsurancesFound(insuranceType) {
+        if (insuranceType === 'cbhi') {
+            setVerifyResultsMessage('Household not found');
+        }
+        else if (insuranceType === 'rama') {
+            setVerifyResultsMessage('Rama Member not found');
+        }
+        else {
+            setVerifyResultsMessage("Insurance not found");
+        }
+    }
+
     jq(document).ready(function () {
-        jq("#insurance-type-field").change(function () {
-            const insuranceTypeId = jq(this).val();
-            if (insuranceTypeId === "" || insurancesToVerify.has(insuranceTypeId)) {
+        if (insurancesToVerify.size > 0) {
+            jq("#insurance-type-field").change(function () {
+                const insuranceTypeId = jq(this).val();
+                if (insuranceTypeId === "" || insurancesToVerify.has(insuranceTypeId)) {
+                    toggleVerificationButton();
+                    enableVerification();
+                }
+                else {
+                    disableVerification();
+                }
+            });
+            <% if (!hasErrors) { // Do not trigger change if returning to page after validation error on submit %>
+                jq("#insurance-type-field").change();
+            <% } %>
+
+            jq("#owner-code-field").on("change paste keyup", function () {
                 toggleVerificationButton();
-                enableVerification();
-            }
-            else {
-                disableVerification();
-            }
-        });
-        jq("#insurance-type-field").change();
+            });
 
-        jq("#owner-code-field").on("change paste keyup", function () {
-            toggleVerificationButton();
-        });
+            jq("#verify-button").click(function () {
+                jq("#verify-button").attr("disabled", "disabled");
+                const insuranceTypeId = jq("#insurance-type-field").val();
+                const insuranceType = insurancesToVerify.get(insuranceTypeId);
+                const ownerCode = jq("#owner-code-field").val();
 
-        jq("#verify-button").click(function () {
-            jq("#verify-button").attr("disabled", "disabled");
-            const insuranceTypeId = jq("#insurance-type-field").val();
-            const insuranceType = insurancesToVerify.get(insuranceTypeId);
-            const ownerCode = jq("#owner-code-field").val();
+                setVerifyResultsMessage('Checking eligibility...');
+                jq("#verify-member-table").hide();
 
-            setVerifyResultsMessage('Checking eligibility...');
-            jq("#verify-member-table").hide();
-            verifyMemberDialog.show();
+                const dialogModal = jq.modal(jq("#verify-member-dialog"), {
+                    overlayClose: true,
+                    overlayId: "modal-overlay",
+                    opacity: 80,
+                    persist: true,
+                    closeClass: "cancel",
+                    position: [20, 50],
+                });
 
-            jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?type=" + insuranceType + "&identifier=" + ownerCode, function(data) {
-                if (data.responseCode === 200) {
-                    const entity = data.responseEntity;
-                    let verifyRows = [];
-                    if (entity.eligible) {
-                        const details = entity.details || {};
+                jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?type=" + insuranceType + "&identifier=" + ownerCode, function(data) {
+                    console.log(data);
+                    if (data.responseCode === 200) {
+                        const details = data.responseEntity;
+                        let verifyRows = [];
                         if (insuranceType === 'rama') {
-                            if (details.isEligible) {
-                                verifyRows.push({
-                                    name: details.firstName + " " + details.lastName,
-                                    gender: details.gender,
-                                    birthdate: details.dateOfBirth,
-                                    type: 'HEAD',
-                                    headHouseholdName: details.firstName + " " + details.lastName,
-                                    company: details.employerName,
-                                    insuranceCardNumber: details.mainAffiliateId,
-                                    startDate: '${ui.dateToString(todayDate).substring(0, 10)}',
-                                    endDate: '${ui.dateToString(todayPlus3Months).substring(0, 10)}'
-                                });
-                            }
+                            verifyRows.push({
+                                name: details.firstName + " " + details.lastName,
+                                gender: details.gender,
+                                birthdate: details.dateOfBirth,
+                                type: 'HEAD',
+                                headHouseholdName: details.firstName + " " + details.lastName,
+                                company: details.employerName,
+                                insuranceCardNumber: details.mainAffiliateId,
+                                startDate: '${ui.dateToString(todayDate).substring(0, 10)}',
+                                endDate: '${ui.dateToString(todayPlus3Months).substring(0, 10)}',
+                                memberId: details.cardId,
+                                eligible: details.isEligible,
+                                governmentSponsored: ''
+                            });
                         } else if (insuranceType === 'cbhi') {
                             let headOfHouseholdName = '';
                             details.members.forEach((member) => {
@@ -188,72 +222,100 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                 }
                             });
                             details.members.forEach(member => {
-                                if (member.isEligible) {
-                                    verifyRows.push({
-                                        name: member.firstName + " " + member.lastName,
-                                        gender: member.gender,
-                                        birthdate: member.dateOfBirth,
-                                        type: member.type,
-                                        headHouseholdName: headOfHouseholdName,
-                                        company: '',
-                                        insuranceCardNumber: member.documentNumber,
-                                        startDate: member.eligibilityStartDate ? member.eligibilityStartDate.substring(0, 10) : null,
-                                        endDate: member.eligibilityStartDate ? (parseInt(member.eligibilityStartDate.substring(0, 4)) + 1) + '-06-30' : null
-                                    });
-                                }
+                                verifyRows.push({
+                                    name: member.firstName + " " + member.lastName,
+                                    gender: member.gender,
+                                    birthdate: member.dateOfBirth,
+                                    type: member.type,
+                                    headHouseholdName: headOfHouseholdName,
+                                    company: '',
+                                    insuranceCardNumber: member.documentNumber,
+                                    startDate: member.eligibilityStartDate ? member.eligibilityStartDate.substring(0, 10) : null,
+                                    endDate: member.eligibilityStartDate ? (parseInt(member.eligibilityStartDate.substring(0, 4)) + 1) + '-06-30' : null,
+                                    memberId: member.documentNumber,
+                                    eligible: member.isEligible,
+                                    governmentSponsored: details.isGovermentSponsored ? 'True' : 'False',
+                                });
                             })
                         }
-                    }
-                    if (verifyRows.length === 0) {
-                        setVerifyResultsMessage('No eligible insurances found.');
-                    }
-                    else {
-                        setVerifyResultsMessage('Please choose the eligible member or cancel');
-                        verifyRows.forEach((member) => {
-                            const row = jq("#verify-member-row-template").clone();
-                            jq(row).find(".member-name").html(member.name);
-                            jq(row).find(".member-gender").html(member.gender);
-                            jq(row).find(".member-birthdate").html(getDateDisplay(member.birthdate));
-                            jq(row).find(".member-start-date").html(getDateDisplay(member.startDate));
-                            jq(row).find(".member-select").click(function () {
-                                jq("#owner-name-field").val(member.headHouseholdName);
-                                jq("#company-field").val(member.company);
-                                jq("#policy-number-field").val(member.insuranceCardNumber);
-                                if (member.startDate) {
-                                    jq("#start-date-picker-field").val(member.startDate);
-                                    jq("#start-date-picker-display").val(getDateDisplay(member.startDate));
-                                }
-                                if (member.endDate) {
-                                    jq("#expiration-date-picker-field").val(member.endDate);
-                                    jq("#expiration-date-picker-display").val(getDateDisplay(member.endDate));
-                                }
-                                verifyMemberDialog.close();
-                                disableVerification();
+                        else if (insuranceType === 'cbhi-special-case') {
+                            verifyRows.push({
+                                name: details.fullNames,
+                                gender: null,
+                                birthdate: details.dateOfBirth,
+                                type: 'HEAD',
+                                headHouseholdName: details.fullNames,
+                                company: details.institutionName,
+                                insuranceCardNumber: details.documentNumber,
+                                startDate: details.eligibilityStartDate ? details.eligibilityStartDate.substring(0, 10) : null,
+                                endDate: details.eligibilityStartDate ? (parseInt(details.eligibilityStartDate.substring(0, 4)) + 1) + '-06-30' : null,
+                                memberId: details.documentNumber,
+                                eligible: details.isEligible,
+                                governmentSponsored: details.isGovermentSponsored ? 'True' : 'False',
                             });
-                            jq(row).addClass("verify-member-row");
-                            jq(row).show();
-                            jq("#verify-member-section").append(row);
-                        });
-                        jq("#verify-member-table").show();
+                        }
+                        if (verifyRows.length === 0) {
+                            setNoMatchingInsurancesFound(insuranceType);
+                        }
+                        else {
+                            setVerifyResultsMessage('Please choose an eligible member or cancel');
+                            verifyRows.forEach((member) => {
+                                const row = jq("#verify-member-row-template").clone();
+                                jq(row).find(".member-name").html(member.name);
+                                jq(row).find(".member-gender").html(member.gender);
+                                jq(row).find(".member-birthdate").html(getDateDisplay(member.birthdate));
+                                jq(row).find(".member-start-date").html(getDateDisplay(member.startDate));
+                                jq(row).find(".member-id").html(member.memberId);
+                                jq(row).find(".member-government-sponsored").html(member.governmentSponsored)
+                                if (member.eligible) {
+                                    jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
+                                    jq(row).find(".member-select").click(function () {
+                                        jq("#owner-name-field").val(member.headHouseholdName);
+                                        jq("#company-field").val(member.company);
+                                        jq("#policy-number-field").val(member.insuranceCardNumber);
+                                        if (member.startDate) {
+                                            jq("#start-date-picker-field").val(member.startDate);
+                                            jq("#start-date-picker-display").val(getDateDisplay(member.startDate));
+                                        }
+                                        if (member.endDate) {
+                                            jq("#expiration-date-picker-field").val(member.endDate);
+                                            jq("#expiration-date-picker-display").val(getDateDisplay(member.endDate));
+                                        }
+                                        dialogModal.close();
+                                        disableVerification();
+                                    });
+                                }
+                                else {
+                                    jq(row).find(".member-eligibility").html('<span class="pill not-eligible-cell">Not Eligible</span>');
+                                    jq(row).find(".member-select").attr("disabled", "disabled");
+                                }
+                                jq(row).addClass("verify-member-row");
+                                jq(row).show();
+                                jq("#verify-member-section").append(row);
+                            });
+                            jq("#verify-member-table").show();
+                        }
+                    } else {
+                        if (!data.enabled) {
+                            setVerifyResultsMessage('Insurance verification is not enabled');
+                            disableVerification();
+                        } else if (data.endpointAccessible === false) {
+                            setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
+                            disableVerification();
+                        }
+                        else if (data.errorMessage) {
+                            setVerifyResultsMessage('An error occurred while checking insurance eligibility: ' + data.errorMessage);
+                            console.error(data);
+                            disableVerification();
+                        }
+                        else {
+                            setNoMatchingInsurancesFound(insuranceType);
+                        }
                     }
-                } else {
-                    if (!data.enabled) {
-                        setVerifyResultsMessage('Insurance verification is not enabled');
-                        disableVerification();
-                    } else if (data.endpointAccessible === false) {
-                        setVerifyResultsMessage('Insurance verification endpoint is not accessible');
-                        disableVerification();
-                    }
-                    else if (data.errorMessage) {
-                        setVerifyResultsMessage('Insurance verification failed: ' + data.errorMessage);
-                    }
-                    else {
-                        setVerifyResultsMessage('Verification failed');
-                    }
-                }
-                jq("#verify-button").removeAttr("disabled");
+                    jq("#verify-button").removeAttr("disabled");
+                });
             });
-        });
+        }
     });
 </script>
 
@@ -263,14 +325,13 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     <input type="hidden" value="${ui.format(policyModel.policyId)}" name="policyId" />
     <input type="hidden" value="${patient.patient.id}" name="patientId" />
 
-    <div class="row">
-        <div class="col-6">
+    <table style="width:100%"><tr>
+        <td>
             <fieldset>
                 <legend>${ui.message("rwandaemr.insurance.owner")}</legend>
 
                 <% if (editMode) { %>
                     ${ ui.includeFragment("uicommons", "field/dropDown", [
-                            id: "owner",
                             label: ui.message("rwandaemr.patientName"),
                             hideEmptyLabel: true,
                             formFieldName: "owner",
@@ -289,7 +350,6 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 
                 <% if (pageMode == 'create') { %>
                     ${ ui.includeFragment("uicommons", "field/dropDown", [
-                            id: "insurance-type",
                             label: ui.message("rwandaemr.insurance.name"),
                             emptyOptionLabel: "",
                             formFieldName: "insuranceId",
@@ -297,13 +357,13 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             options: insuranceOptions
                     ])}
                 <% } else { %>
-                    <p>
-                        <% if (editMode) { %>
-                            <input type="hidden" name="insuranceId" value="${policyModel.insuranceId}" />
-                        <% } %>
-                        <label for="view-insurance-name">${ui.message("rwandaemr.insurance.name")}</label>
-                        <span id="view-insurance-name" class="field-value">${ui.format(policy.insurance?.name)}</span>
-                    </p>
+                <p>
+                    <% if (editMode) { %>
+                        <input type="hidden" name="insuranceId" value="${policyModel.insuranceId}" />
+                    <% } %>
+                    <label for="view-insurance-name">${ui.message("rwandaemr.insurance.name")}</label>
+                    <span id="view-insurance-name" class="field-value">${ui.format(policy.insurance?.name)}</span>
+                </p>
                 <% } %>
 
                 <% if (editMode) { %>
@@ -314,9 +374,11 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             initialValue: (policyModel.ownerCode ?: ''),
                             size: 30
                     ])}
-                    <p id="verify-section">
-                        <input type="button" id="verify-button" value="Check eligibility"/>
-                    </p>
+                    <% if (!insurancesToVerify.isEmpty()) { %>
+                        <p id="verify-section">
+                            <input type="button" id="verify-button" value="Check eligibility"/>
+                        </p>
+                    <% } %>
                 <% } else { %>
                     <p>
                         <label for="view-insurance-beneficiary-ownerCode">${ui.message("rwandaemr.insurance.beneficiary.ownerCode")}</label>
@@ -381,70 +443,138 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             <% if (editMode) { %>
                 ${ ui.includeFragment("uicommons", "field/text", [
                         id: "policy-number",
-                        label: ui.message("rwandaemr.insurance.insuranceCardNo"),
-                        formFieldName: "insuranceCardNo",
-                        initialValue: (policyModel.insuranceCardNo ?: ''),
-                        size: 30,
-                        otherAttributes: ["autocomplete": "off"]
-                ])}
-            <% } else { %>
-                <p>
-                    <label for="view-insurance-card-number">${ui.message("rwandaemr.insurance.insuranceCardNo")}</label>
-                    <span id="view-insurance-card-number" class="field-value">${ui.format(policyModel.insuranceCardNo)}</span>
-                </p>
-            <% } %>
+                            label: ui.message("rwandaemr.insurance.insuranceCardNo"),
+                            formFieldName: "insuranceCardNo",
+                            initialValue: (policyModel.insuranceCardNo ?: ''),
+                            size: 30,
+                            otherAttributes: ["autocomplete": "off"]
+                    ])}
+                <% } else { %>
+                    <p>
+                        <label for="view-insurance-card-number">${ui.message("rwandaemr.insurance.insuranceCardNo")}</label>
+                        <span id="view-insurance-card-number" class="field-value">${ui.format(policyModel.insuranceCardNo)}</span>
+                    </p>
+                <% } %>
 
-            <% if (editMode) { %>
-                ${ ui.includeFragment("uicommons", "field/datetimepicker", [
-                        id: "start-date-picker",
-                        label: ui.message("rwandaemr.insurance.coverageStartDate"),
-                        formFieldName: "coverageStartDate",
-                        defaultDate: policyModel.coverageStartDate,
-                        useTime: false
-                ])}
-            <% } else { %>
-                <p>
-                    <label for="view-insurance-start-date">${ui.message("rwandaemr.insurance.coverageStartDate")}</label>
-                    <span id="view-insurance-start-date" class="field-value">${ui.format(policyModel.coverageStartDate)}</span>
-                </p>
-            <% } %>
+                <% if (editMode) { %>
+                    ${ ui.includeFragment("uicommons", "field/datetimepicker", [
+                            id: "policy-coverarge-start-date-picker",
+                            label: ui.message("rwandaemr.insurance.coverageStartDate"),
+                            formFieldName: "coverageStartDate",
+                            defaultDate: policyModel.coverageStartDate,
+                            useTime: false
+                    ])}
+                <% } else { %>
+                    <p>
+                        <label for="view-insurance-start-date">${ui.message("rwandaemr.insurance.coverageStartDate")}</label>
+                        <span id="view-insurance-start-date" class="field-value">${ui.format(policyModel.coverageStartDate)}</span>
+                    </p>
+                <% } %>
 
-            <% if (editMode) { %>
-                ${ ui.includeFragment("uicommons", "field/datetimepicker", [
-                        id: "expiration-date-picker",
-                        label: ui.message("rwandaemr.insurance.expirationDate"),
-                        formFieldName: "expirationDate",
-                        defaultDate: policyModel.expirationDate,
-                        useTime: false
-                ])}
-            <% } else { %>
-                <p>
-                    <label for="view-insurance-expire-date">${ui.message("rwandaemr.insurance.expirationDate")}</label>
-                    <span id="view-insurance-expire-date" class="field-value">${ui.format(policyModel.expirationDate)}</span>
-                    <% if (policyModel.expirationDate != null && policyModel.expirationDate < new Date()) { %>
-                    <b style="color:red;">${ui.message("rwandaemr.expired")}</b>
+                <% if (editMode) { %>
+                    ${ ui.includeFragment("uicommons", "field/datetimepicker", [
+                            id: "policy-coverarge-expiration-date-picker",
+                            label: ui.message("rwandaemr.insurance.expirationDate"),
+                            formFieldName: "expirationDate",
+                            defaultDate: policyModel.expirationDate,
+                            useTime: false
+                    ])}
+                <% } else { %>
+                    <p>
+                        <label for="view-insurance-expire-date">${ui.message("rwandaemr.insurance.expirationDate")}</label>
+                        <span id="view-insurance-expire-date" class="field-value">${ui.format(policyModel.expirationDate)}</span>
+                        <% if (policyModel.expirationDate != null && policyModel.expirationDate < new Date()) { %>
+                            <b style="color:red;">${ui.message("rwandaemr.expired")}</b>
+                        <% } %>
+                    </p>
+                <% } %>
+
+                <% if (editMode) { %>
+                    ${ ui.includeFragment("uicommons", "field/dropDown", [
+                            label: ui.message("rwandaemr.insurance.thirdParty"),
+                            emptyOptionLabel: "",
+                            formFieldName: "thirdPartyId",
+                            initialValue: (policyModel.thirdPartyId ?: ''),
+                            options: thirdPartyOptions
+                    ])}
+                <% } else { %>
+                    <p>
+                        <label for="view-insurance-third-party">${ui.message("rwandaemr.insurance.thirdParty")}</label>
+                        <span id="view-insurance-third-party" class="field-value">${ui.format(policy.thirdParty?.name)}</span>
+                    </p>
+                <% } %>
+            </fieldset>
+        </td>
+        <td>
+            <fieldset>
+                <legend>${ui.message("rwandaemr.insurance.ownershipInfo")}</legend>
+
+                <% if (editMode) { %>
+                    ${ ui.includeFragment("uicommons", "field/text", [
+                            label: ui.message("rwandaemr.insurance.beneficiary.company"),
+                            formFieldName: "company",
+                            initialValue: (policyModel.company ?: ''),
+                            size: 30
+                    ])}
+                <% } else { %>
+                    <p>
+                        <label for="view-insurance-beneficiary-company">${ui.message("rwandaemr.insurance.beneficiary.company")}</label>
+                        <span id="view-insurance-beneficiary-company" class="field-value">${ui.format(policyModel.company)}</span>
+                    </p>
+                <% } %>
+
+                <% if (editMode) { %>
+                    ${ ui.includeFragment("uicommons", "field/text", [
+                            label: ui.message("rwandaemr.insurance.beneficiary.ownerName"),
+                            formFieldName: "ownerName",
+                            initialValue: (policyModel.ownerName ?: ''),
+                            size: 30
+                    ])}
+                <% } else { %>
+                    <p>
+                        <label for="view-insurance-beneficiary-ownerName">${ui.message("rwandaemr.insurance.beneficiary.ownerName")}</label>
+                        <span id="view-insurance-beneficiary-ownerName" class="field-value">${ui.format(policyModel.ownerName)}</span>
+                    </p>
+                <% } %>
+
+                <% if (editMode) { %>
+                    ${ ui.includeFragment("uicommons", "field/text", [
+                            label: ui.message("rwandaemr.insurance.beneficiary.ownerCode"),
+                            formFieldName: "ownerCode",
+                            initialValue: (policyModel.ownerCode ?: ''),
+                            size: 30
+                    ])}
+                <% } else { %>
+                    <p>
+                        <label for="view-insurance-beneficiary-ownerCode">${ui.message("rwandaemr.insurance.beneficiary.ownerCode")}</label>
+                        <span id="view-insurance-beneficiary-ownerCode" class="field-value">${ui.format(policyModel.ownerCode)}</span>
+                    </p>
+                <% } %>
+
+                <!-- Policy mode level is deprecated.  Only show it if it has been previously recorded.  See RWA-979 -->
+                <% if (policyModel.level) { %>
+
+                    <% if (editMode) { %>
+                        ${ ui.includeFragment("uicommons", "field/dropDown", [
+                                label: ui.message("rwandaemr.insurance.beneficiary.level"),
+                                emptyOptionLabel: "",
+                                formFieldName: "level",
+                                initialValue: (policyModel.level ?: ''),
+                                options: levelOptions
+                        ])}
+                    <% } else { %>
+                        <p>
+                            <label for="view-insurance-beneficiary-level">${ui.message("rwandaemr.insurance.beneficiary.level")}</label>
+                            <span id="view-insurance-beneficiary-level" class="field-value">${policyModel.level}</span>
+                        </p>
                     <% } %>
-                </p>
-            <% } %>
 
-            <% if (editMode) { %>
-                ${ ui.includeFragment("uicommons", "field/dropDown", [
-                        id: "third-party",
-                        label: ui.message("rwandaemr.insurance.thirdParty"),
-                        emptyOptionLabel: "",
-                        formFieldName: "thirdPartyId",
-                        initialValue: (policyModel.thirdPartyId ?: ''),
-                        options: thirdPartyOptions
-                ])}
-            <% } else { %>
-                <p>
-                    <label for="view-insurance-third-party">${ui.message("rwandaemr.insurance.thirdParty")}</label>
-                    <span id="view-insurance-third-party" class="field-value">${ui.format(policy.thirdParty?.name)}</span>
-                </p>
-            <% } %>
+                <% } %>
 
-        </div>
-    </div>
+            </fieldset>
+
+        </td>
+    </tr></table>
     <br/>
     <div>
         <% if (editMode) { %>
@@ -476,8 +606,11 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 <tr>
                     <th>Name</th>
                     <th>Gender</th>
+                    <th>Member ID</th>
                     <th>Birthdate</th>
                     <th>Eligibility Date</th>
+                    <th>Eligibility</th>
+                    <th>Government Sponsored</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -485,8 +618,11 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 <tr id="verify-member-row-template" style="display: none;">
                     <td class="member-name"></td>
                     <td class="member-gender"></td>
+                    <td class="member-id"></td>
                     <td class="member-birthdate"></td>
                     <td class="member-start-date"></td>
+                    <td class="member-eligibility"></td>
+                    <td class="member-government-sponsored"></td>
                     <td class="member-action"><input type="button" class="member-select" value="Select"/></td>
                 </tr>
             </tbody>
