@@ -131,6 +131,10 @@ public class OpenmrsObjectEventInterceptor extends EmptyInterceptor {
 		return false;
 	}
 
+	/**
+	 * This is invoked when the collection associated with an object is removed
+	 * Consider this to be an update of the object containing the collection
+	 */
 	@Override
 	public void onCollectionRemove(Object collection, Serializable key) throws CallbackException {
 		log.trace("onCollectionRemove");
@@ -143,6 +147,10 @@ public class OpenmrsObjectEventInterceptor extends EmptyInterceptor {
 		}
 	}
 
+	/**
+	 * This is invoked when the collection associated with an object is recreated
+	 * Consider this to be an update of the object containing the collection
+	 */
 	@Override
 	public void onCollectionRecreate(Object collection, Serializable key) throws CallbackException {
 		log.trace("onCollectionRecreate");
@@ -155,6 +163,10 @@ public class OpenmrsObjectEventInterceptor extends EmptyInterceptor {
 		}
 	}
 
+	/**
+	 * This is invoked when the collection associated with an object is updated
+	 * Consider this to be an update of the object containing the collection
+	 */
 	@Override
 	public void onCollectionUpdate(Object collection, Serializable key) throws CallbackException {
 		log.trace("onCollectionUpdate");
