@@ -14,7 +14,6 @@ import org.openmrs.Order;
 import org.openmrs.Patient;
 import org.openmrs.TestOrder;
 import org.openmrs.User;
-import org.openmrs.annotation.Handler;
 import org.openmrs.api.ConceptService;
 import org.openmrs.api.OrderService;
 import org.openmrs.api.context.Context;
@@ -38,7 +37,6 @@ import java.util.Map;
  * an appointment with the Laboratory Service, it creates a new appointment for the patient
  */
 @Component
-@Handler(supports = { TestOrder.class })
 public class CreateLabAppointmentEventHandler implements OpenmrsObjectEventHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(CreateLabAppointmentEventHandler.class);
