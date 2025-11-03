@@ -56,62 +56,63 @@ public class CreateLabAppointmentEventHandler implements OpenmrsObjectEventHandl
 	@Override
 	public void beforeTransactionCompletion(int transactionDepth, List<OpenmrsObjectEvent> events) {
 		log.trace("beforeTransactionCompletion.  transactionDepth = {}; events = {}", transactionDepth, events);
-		Map<Patient, List<Order>> testOrders = new HashMap<>();
-		if (events != null) {
-			for (OpenmrsObjectEvent event : events) {
-				if (event.getOpenmrsObject() instanceof TestOrder) {
-					TestOrder order = (TestOrder) event.getOpenmrsObject();
-					if (order.getAction() == Order.Action.NEW) {
-						testOrders.computeIfAbsent(order.getPatient(), k -> new ArrayList<>()).add(order);
+		if (transactionDepth == 1) {
+			Map<Patient, List<Order>> testOrders = new HashMap<>();
+			if (events != null) {
+				for (OpenmrsObjectEvent event : events) {
+					if (event.getOpenmrsObject() instanceof TestOrder) {
+						TestOrder order = (TestOrder) event.getOpenmrsObject();
+						if (order.getAction() == Order.Action.NEW) {
+							testOrders.computeIfAbsent(order.getPatient(), k -> new ArrayList<>()).add(order);
+						}
 					}
 				}
 			}
-		}
-		if (testOrders.isEmpty()) {
-			log.trace("No new orders found");
-			return;
-		}
-
-		String labServiceLookup = ConfigUtil.getGlobalProperty("laboratorymanagement.appointmentInLaboratoryService");
-		if (StringUtils.isBlank(labServiceLookup)) {
-			log.error("Not creating lab appointment.  Missing global property value: laboratorymanagement.appointmentInLaboratoryService");
-			return;
-		}
-		Concept labServiceConcept = conceptService.getConceptByReference(labServiceLookup);
-		if (labServiceConcept == null) {
-			log.error("Not creating lab appointment.  No concept found from global property service: " + labServiceLookup);
-			return;
-		}
-		Services labService = AppointmentUtil.getServiceByConcept(labServiceConcept);
-		if (labService == null) {
-			log.error("Not creating lab appointment.  No lab service found for concept " + labServiceConcept);
-			return;
-		}
-
-		Date currentDate = new Date();
-		User currentUser = Context.getAuthenticatedUser();
-
-		for (Patient patient : testOrders.keySet()) {
-			log.debug("Found {} new test orders for patient {}", testOrders.size(), patient);
-			boolean alreadyHasAppointment = AppointmentUtil.alreadyHasAppointmentThere(patient, currentDate, labService);
-			if (alreadyHasAppointment) {
-				log.debug("Not creating lab appointment.  Patient {} already has a lab appointment not yet attended on {}", patient, currentDate);
+			if (testOrders.isEmpty()) {
+				log.trace("No new orders found");
+				return;
 			}
-			else {
-				log.debug("Creating a new lab appointment for {} on {}", patient, currentDate);
-				Appointment waitingAppointment = new Appointment();
-				waitingAppointment.setPatient(patient);
-				waitingAppointment.setService(labService);
-				waitingAppointment.setLocation(Context.getLocationService().getDefaultLocation());
-				waitingAppointment.setAppointmentDate(currentDate);
-				waitingAppointment.setAttended(false);
-				waitingAppointment.setVoided(false);
-				waitingAppointment.setCreatedDate(currentDate);
-				waitingAppointment.setCreator(currentUser);
-				waitingAppointment.setProvider(currentUser.getPerson());
-				waitingAppointment.setNote("This is a waiting patient to the Laboratory");
-				AppointmentUtil.saveWaitingAppointment(waitingAppointment);
-				log.debug("Lab appointment created for {} on {}", patient, currentDate);
+
+			String labServiceLookup = ConfigUtil.getGlobalProperty("laboratorymanagement.appointmentInLaboratoryService");
+			if (StringUtils.isBlank(labServiceLookup)) {
+				log.error("Not creating lab appointment.  Missing global property value: laboratorymanagement.appointmentInLaboratoryService");
+				return;
+			}
+			Concept labServiceConcept = conceptService.getConceptByReference(labServiceLookup);
+			if (labServiceConcept == null) {
+				log.error("Not creating lab appointment.  No concept found from global property service: " + labServiceLookup);
+				return;
+			}
+			Services labService = AppointmentUtil.getServiceByConcept(labServiceConcept);
+			if (labService == null) {
+				log.error("Not creating lab appointment.  No lab service found for concept " + labServiceConcept);
+				return;
+			}
+
+			Date currentDate = new Date();
+			User currentUser = Context.getAuthenticatedUser();
+
+			for (Patient patient : testOrders.keySet()) {
+				log.debug("Found {} new test orders for patient {}", testOrders.size(), patient);
+				boolean alreadyHasAppointment = AppointmentUtil.alreadyHasAppointmentThere(patient, currentDate, labService);
+				if (alreadyHasAppointment) {
+					log.debug("Not creating lab appointment.  Patient {} already has a lab appointment not yet attended on {}", patient, currentDate);
+				} else {
+					log.debug("Creating a new lab appointment for {} on {}", patient, currentDate);
+					Appointment waitingAppointment = new Appointment();
+					waitingAppointment.setPatient(patient);
+					waitingAppointment.setService(labService);
+					waitingAppointment.setLocation(Context.getLocationService().getDefaultLocation());
+					waitingAppointment.setAppointmentDate(currentDate);
+					waitingAppointment.setAttended(false);
+					waitingAppointment.setVoided(false);
+					waitingAppointment.setCreatedDate(currentDate);
+					waitingAppointment.setCreator(currentUser);
+					waitingAppointment.setProvider(currentUser.getPerson());
+					waitingAppointment.setNote("This is a waiting patient to the Laboratory");
+					AppointmentUtil.saveWaitingAppointment(waitingAppointment);
+					log.debug("Lab appointment created for {} on {}", patient, currentDate);
+				}
 			}
 		}
 	}
