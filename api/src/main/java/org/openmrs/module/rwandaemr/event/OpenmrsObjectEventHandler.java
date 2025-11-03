@@ -8,57 +8,37 @@
  */
 package org.openmrs.module.rwandaemr.event;
 
-import org.openmrs.OpenmrsObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 /**
  * The goal of this interface is to allow registering components that can respond to create/delete/change events
  * for a particular type of OpenmrsObject at various stages of the transaction lifecycle
  */
-public interface EventHandler<T extends OpenmrsObject> {
+public interface OpenmrsObjectEventHandler {
 
-	Logger log = LoggerFactory.getLogger(EventHandler.class);
+	Logger log = LoggerFactory.getLogger(OpenmrsObjectEventHandler.class);
 
 	/**
 	 * Called after the start of a transaction.  Useful if the handler needs to aggregate operations within a tx
 	 */
-	default void afterTransactionBegin() {
-		log.trace("afterTransactionBegin");
+	default void afterTransactionBegin(int transactionDepth, List<OpenmrsObjectEvent> events) {
+		log.trace("afterTransactionBegin.  transactionDepth = {}; events = {}", transactionDepth, events);
 	}
 
 	/**
 	 * Called before the completion of a transaction.  Useful if the handler needs to aggregate operations within a tx
 	 */
-	default void beforeTransactionCompletion() {
-		log.trace("beforeTransactionCompletion");
+	default void beforeTransactionCompletion(int transactionDepth, List<OpenmrsObjectEvent> events) {
+		log.trace("beforeTransactionCompletion.  transactionDepth = {}; events = {}", transactionDepth, events);
 	}
 
 	/**
 	 * Called after the completion of a transaction.  Useful if the handler needs to aggregate operations within a tx
 	 */
-	default void afterTransactionCompletion(int status) {
-		log.trace("afterTransactionCompletion({})", status);
-	}
-
-	/**
-	 * Called when a new entity is created or an existing entity is unvoided
-	 */
-	default void handleCreatedEntity(T entity) {
-		log.trace("handleCreatedEntity({})", entity);
-	}
-
-	/**
-	 * Called when a new non-voided entity is updated
-	 */
-	default void handleUpdatedEntity(T entity) {
-		log.trace("handleUpdatedEntity({})", entity);
-	}
-
-	/**
-	 * Called when an existing entity is either deleted or voided
-	 */
-	default void handleDeletedEntity(T entity) {
-		log.trace("handleDeletedEntity({})", entity);
+	default void afterTransactionCompletion(int transactionDepth, List<OpenmrsObjectEvent> events, int status) {
+		log.trace("afterTransactionCompletion.  status = {}; transactionDepth = {}; events = {}", status, transactionDepth, events);
 	}
 }
