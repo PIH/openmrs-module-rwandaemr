@@ -22,12 +22,12 @@ public class MarkOrdersAsFulfilledOrExpiredTask implements Runnable {
     @Override
     public void run() {
         if (isExecuting) {
-            log.info(getClass() + " is still executing, not running again");
+            log.debug(getClass() + " is still executing, not running again");
             return;
         }
         isExecuting = true;
         try {
-            log.info("Executing " + getClass());
+            log.debug("Executing " + getClass());
             RwandaEmrService rwandaEmrService = Context.getService(RwandaEmrService.class);
 
             log.debug("Completing unfulfilled lab orders with associated observations");
