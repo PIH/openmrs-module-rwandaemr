@@ -58,10 +58,12 @@ public class CreateLabAppointmentEventHandler implements OpenmrsObjectEventHandl
 			Map<Patient, List<Order>> testOrders = new HashMap<>();
 			if (events != null) {
 				for (OpenmrsObjectEvent event : events) {
-					if (event.getOpenmrsObject() instanceof TestOrder) {
-						TestOrder order = (TestOrder) event.getOpenmrsObject();
-						if (order.getAction() == Order.Action.NEW) {
-							testOrders.computeIfAbsent(order.getPatient(), k -> new ArrayList<>()).add(order);
+					if (event.getOperation() == OpenmrsObjectEvent.Operation.CREATE) {
+						if (event.getOpenmrsObject() instanceof TestOrder) {
+							TestOrder order = (TestOrder) event.getOpenmrsObject();
+							if (order.getAction() == Order.Action.NEW) {
+								testOrders.computeIfAbsent(order.getPatient(), k -> new ArrayList<>()).add(order);
+							}
 						}
 					}
 				}
