@@ -12,6 +12,7 @@
 			<bean class="org.openmrs.module.rwandaemr.RwandaEmrServiceImpl" autowire="byType">
 				<property name="sessionFactory"><ref bean="dbSessionFactory"/></property>
 				<property name="encounterService"><ref bean="encounterService"/></property>
+				<property name="orderDAO"><ref bean="orderDAO"/></property>
 			</bean>
 		</property>
 		<property name="preInterceptors">

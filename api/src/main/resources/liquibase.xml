@@ -25,4 +25,8 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="rwandaemr-update-non-active-lab-orders" author="mseaton">
+        <sqlFile path="sql/migrations/update-non-active-lab-orders.sql" relativeToChangelogFile="true" stripComments="true" />
+    </changeSet>
+
 </databaseChangeLog>
