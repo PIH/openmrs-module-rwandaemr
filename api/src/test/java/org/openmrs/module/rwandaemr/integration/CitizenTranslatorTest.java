@@ -1,8 +1,8 @@
 package org.openmrs.module.rwandaemr.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.openmrs.Patient;
 import org.openmrs.module.rwandaemr.LocationTagUtil;
 import org.openmrs.module.rwandaemr.MockRwandaEmrConfig;
@@ -23,7 +23,7 @@ public class CitizenTranslatorTest {
     IntegrationConfig integrationConfig;
     LocationTagUtil locationTagUtil;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         rwandaEmrConfig = new MockRwandaEmrConfig();
         locationTagUtil = mock(LocationTagUtil.class);

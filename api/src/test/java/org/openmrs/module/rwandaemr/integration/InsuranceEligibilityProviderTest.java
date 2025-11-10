@@ -2,8 +2,8 @@ package org.openmrs.module.rwandaemr.integration;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.openmrs.module.rwandaemr.integration.insurance.CbhiDetails;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceEligibilityProvider;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceIntegrationConfig;
@@ -27,7 +27,7 @@ public class InsuranceEligibilityProviderTest {
 	InsuranceIntegrationConfig config;
 	Properties p;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		p = new Properties();
 		try {
