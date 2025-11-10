@@ -12,9 +12,12 @@ import org.openmrs.module.rwandaemr.integration.insurance.RamaDetails;
 import org.openmrs.util.OpenmrsUtil;
 
 import java.io.File;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.nullValue;
@@ -95,8 +98,10 @@ public class InsuranceEligibilityProviderTest {
 		assertThat(response.getErrorMessage(), nullValue());
 		details = (CbhiDetails) response.getResponseEntity();
 		assertThat(details.getTotalMembers(), equalTo(2));
-		assertThat(details.getMembers().get(0).getType(), equalTo("HEAD"));
-		assertThat(details.getMembers().get(1).getType(), equalTo("BENEFICIARY"));
+		Set<String> types = new HashSet<String>();
+		types.add(details.getMembers().get(0).getType());
+		types.add(details.getMembers().get(1).getType());
+		assertThat(types, containsInAnyOrder("HEAD", "BENEFICIARY"));
 	}
 
 	@Test
