@@ -26,12 +26,12 @@ public class RwandaEmrCloseVisitsTask implements Runnable {
     @Override
     public void run() {
         if (isExecuting) {
-            log.info(getClass() + " is still executing, not running again");
+            log.debug(getClass() + " is still executing, not running again");
             return;
         }
         isExecuting = true;
         try {
-            log.info("Executing " + getClass());
+            log.debug("Executing " + getClass());
             StopWatch sw = new StopWatch();
             sw.start();
 
@@ -48,7 +48,7 @@ public class RwandaEmrCloseVisitsTask implements Runnable {
             }
 
             List<Visit> openVisits = visitService.getVisits(null, null, locations, null, null, null, null, null, null, false, false);
-            log.info("Found " + openVisits.size() + " open visits");
+            log.debug("Found " + openVisits.size() + " open visits");
             int numVisitsClosed = 0;
             for (Visit visit : openVisits) {
                 if (adtService.shouldBeClosed(visit)) {
@@ -57,13 +57,12 @@ public class RwandaEmrCloseVisitsTask implements Runnable {
                         numVisitsClosed++;
                     }
                     catch (Exception ex) {
-                        log.warn("Failed to close inactive visit " + visit, ex);
+                        log.warn("Failed to close visit " + visit, ex);
                     }
                 }
             }
             sw.stop();
-            log.info("Getting open visits completed.");
-            log.info(getClass() + " Completed in " + sw + " - " + numVisitsClosed + " Visits Closed");
+            log.debug(getClass() + " Completed in " + sw + " - " + numVisitsClosed + " Visits Closed");
         }
         finally {
             isExecuting = false;

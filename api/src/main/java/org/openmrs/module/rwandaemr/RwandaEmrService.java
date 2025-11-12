@@ -32,5 +32,9 @@ public interface RwandaEmrService extends OpenmrsService {
 
 	void saveEncounters(List<Encounter> encounters);
 
+	int markLabOrdersAsCompleted();
+
+	int markLabOrdersAsExpired();
+
 	List<String> triggerSyncForPatient(Patient patient);
 }

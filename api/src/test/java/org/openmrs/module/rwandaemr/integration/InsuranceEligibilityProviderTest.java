@@ -2,8 +2,8 @@ package org.openmrs.module.rwandaemr.integration;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.openmrs.module.rwandaemr.integration.insurance.CbhiDetails;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceEligibilityProvider;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceIntegrationConfig;
@@ -12,9 +12,12 @@ import org.openmrs.module.rwandaemr.integration.insurance.RamaDetails;
 import org.openmrs.util.OpenmrsUtil;
 
 import java.io.File;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.nullValue;
@@ -27,7 +30,7 @@ public class InsuranceEligibilityProviderTest {
 	InsuranceIntegrationConfig config;
 	Properties p;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		p = new Properties();
 		try {
@@ -95,8 +98,10 @@ public class InsuranceEligibilityProviderTest {
 		assertThat(response.getErrorMessage(), nullValue());
 		details = (CbhiDetails) response.getResponseEntity();
 		assertThat(details.getTotalMembers(), equalTo(2));
-		assertThat(details.getMembers().get(0).getType(), equalTo("HEAD"));
-		assertThat(details.getMembers().get(1).getType(), equalTo("BENEFICIARY"));
+		Set<String> types = new HashSet<String>();
+		types.add(details.getMembers().get(0).getType());
+		types.add(details.getMembers().get(1).getType());
+		assertThat(types, containsInAnyOrder("HEAD", "BENEFICIARY"));
 	}
 
 	@Test

@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustAllStrategy;
@@ -19,6 +20,10 @@ import javax.net.ssl.SSLContext;
 
 public class HttpUtils {
 
+    public static final int CONNECT_TIMEOUT = 5000; // MILLISECONDS TO ESTABLISH CONNECTION WITH REMOTE HOST
+    public static final int SOCKET_TIMEOUT = 5000; // MILLISECONDS TO WAIT FOR DATA AFTER ESTABLISHING CONNECTION
+    public static final int CONNECTION_REQUEST_TIMEOUT = 5000; // MILLISECONDS TO WAIT FOR A CONNECTION FROM THE POOL
+
     public static CloseableHttpClient getHttpClient(String username, String password, boolean trustAllCertificates) {
         try {
             HttpClientBuilder builder = HttpClients.custom();
@@ -33,6 +38,14 @@ public class HttpUtils {
                 SSLConnectionSocketFactory sslFactory = new SSLConnectionSocketFactory(sslContext, hostnameVerifier);
                 builder.setSSLSocketFactory(sslFactory);
             }
+
+            builder.setDefaultRequestConfig(RequestConfig.custom()
+                    .setConnectTimeout(CONNECT_TIMEOUT)
+                    .setSocketTimeout(SOCKET_TIMEOUT)
+                    .setConnectionRequestTimeout(CONNECTION_REQUEST_TIMEOUT)
+                    .build()
+            );
+
             return builder.build();
         }
         catch (Exception e) {

@@ -2,8 +2,8 @@ package org.openmrs.module.rwandaemr.integration;
 
 import ca.uhn.fhir.context.FhirContext;
 import org.hl7.fhir.r4.model.Bundle;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
 import org.openmrs.PersonAddress;
@@ -29,7 +29,7 @@ public class ClientRegistryPatientTranslatorTest {
 	IntegrationConfig integrationConfig;
 	LocationTagUtil locationTagUtil;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		fhirContext = FhirContext.forR4Cached();
 		rwandaEmrConfig = new MockRwandaEmrConfig();

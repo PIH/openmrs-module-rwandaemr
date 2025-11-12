@@ -69,5 +69,13 @@
 		<description>Access the radiology orders page from the patient chart</description>
 	</privilege>
 
+	<globalProperty>
+		<property>rwandaemr.autoExpireLabOrdersOlderThanDays</property>
+		<defaultValue>30</defaultValue>
+		<description>
+			Lab orders that have not been fulfilled, stopped, or expired will be auto-expired after this number of days
+		</description>
+	</globalProperty>
+
 </module>
 
