@@ -24,6 +24,7 @@ import org.openmrs.module.rwandaemr.config.AuthenticationSetup;
 import org.openmrs.module.rwandaemr.config.EventSetup;
 import org.openmrs.module.rwandaemr.config.GlobalResourceSetup;
 import org.openmrs.module.rwandaemr.config.InitializerSetup;
+import org.openmrs.module.rwandaemr.config.NameTemplateSetup;
 import org.openmrs.module.rwandaemr.config.ServerSetup;
 import org.openmrs.module.rwandaemr.event.PatientEventListener;
 import org.openmrs.module.rwandaemr.htmlformentry.HtmlFormEntrySetup;
@@ -52,6 +53,7 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 		ServerSetup.setup();
 		InitializerSetup.install();
 		AuthenticationSetup.configureAuthenticationSchemes();
+		NameTemplateSetup.setup();
 		ReportLoader.loadReportsFromConfig();
 		GlobalResourceSetup.includeGlobalResources();
 		HtmlFormEntrySetup.setup();
