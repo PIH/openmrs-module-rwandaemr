@@ -27,7 +27,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <openMRSVersion>2.8.2-SNAPSHOT</openMRSVersion>
         <addresshierarchyVersion>2.21.0</addresshierarchyVersion>
-        <adminuiVersion>1.7.0-SNAPSHOT</adminuiVersion>
+        <adminuiVersion>2.0.0-SNAPSHOT</adminuiVersion>
         <allergyuiVersion>1.8.7</allergyuiVersion>
         <appframeworkVersion>2.19.0-SNAPSHOT</appframeworkVersion>
         <appuiVersion>1.18.0</appuiVersion>
