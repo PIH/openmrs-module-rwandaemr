@@ -11,9 +11,11 @@ import org.openmrs.module.htmlformentry.HtmlForm;
 import org.openmrs.module.htmlformentry.HtmlFormEntryConstants;
 import org.openmrs.module.htmlformentry.HtmlFormEntryService;
 import org.openmrs.module.htmlformentry.HtmlFormEntryUtil;
+import org.openmrs.module.rwandaemr.config.Setup;
 import org.openmrs.ui.framework.BasicUiUtils;
 import org.openmrs.ui.framework.UiUtils;
 import org.openmrs.util.OpenmrsUtil;
+import org.springframework.stereotype.Component;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
@@ -26,7 +28,8 @@ import java.util.Objects;
 
 import static org.openmrs.module.htmlformentry.HtmlFormEntryConstants.HTML_FORM_TAG;
 
-public class HtmlFormEntrySetup {
+@Component
+public class HtmlFormEntrySetup implements Setup {
 
     protected static Log log = LogFactory.getLog(HtmlFormEntrySetup.class);
 
@@ -38,7 +41,7 @@ public class HtmlFormEntrySetup {
 
     public static final Map<String, String> CONFIG_FORMS = new HashMap<>();
 
-    public static void setup() {
+    public void initialize() {
         UiUtils uiUtils = Context.getRegisteredComponent("uiUtils", BasicUiUtils.class);
         HtmlFormEntryService htmlFormEntryService = Context.getService(HtmlFormEntryService.class);
         FormService formService = Context.getService(FormService.class);
