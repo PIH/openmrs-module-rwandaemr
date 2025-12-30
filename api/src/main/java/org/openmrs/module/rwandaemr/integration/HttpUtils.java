@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustAllStrategy;
@@ -19,9 +20,23 @@ import javax.net.ssl.SSLContext;
 
 public class HttpUtils {
 
+    // Timeout configuration constants (in milliseconds)
+    private static final int CONNECTION_TIMEOUT = 10000;  // 10 seconds to establish connection
+    private static final int SOCKET_TIMEOUT = 30000;     // 30 seconds to read data
+    private static final int CONNECTION_REQUEST_TIMEOUT = 10000; // 10 seconds to get connection from pool
+
     public static CloseableHttpClient getHttpClient(String username, String password, boolean trustAllCertificates) {
         try {
             HttpClientBuilder builder = HttpClients.custom();
+            
+            // Configure timeouts to prevent indefinite hangs
+            RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectTimeout(CONNECTION_TIMEOUT)
+                .setSocketTimeout(SOCKET_TIMEOUT)
+                .setConnectionRequestTimeout(CONNECTION_REQUEST_TIMEOUT)
+                .build();
+            builder.setDefaultRequestConfig(requestConfig);
+            
             if (StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password)) {
                 CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
                 credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(username, password));

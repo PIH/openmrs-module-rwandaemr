@@ -43,9 +43,20 @@ public class ORUR01MessageListener implements Application {
 
     @Override
     public Message processMessage(Message message) {
+        // Wait for daemon token with timeout to prevent infinite busy-wait loop
+        long startTime = System.currentTimeMillis();
+        long timeoutMs = 30000; // 30 seconds timeout
         while (daemonToken == null) {
-            if (log.isTraceEnabled()) {
-                log.trace("Waiting for daemon token to be set prior to processing message");
+            if (System.currentTimeMillis() - startTime > timeoutMs) {
+                log.error("Daemon token was not set within timeout period (30s). Cannot process message.");
+                return HL7Utils.generateAckMessage(message, new IllegalStateException("Daemon token not available within timeout"));
+            }
+            try {
+                Thread.sleep(100); // Sleep 100ms to prevent CPU spinning
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Interrupted while waiting for daemon token", e);
+                return HL7Utils.generateAckMessage(message, e);
             }
         }
         log.warn("Processing ORU_R01 message");

@@ -46,6 +46,8 @@ public class IntegrationConfig {
 	public static final String IDENTIFIER_SYSTEM_PASSPORT = "PASSPORT";
 	public static final String IDENTIFIER_SYSTEM_TEMPID = "TEMPID";
 
+	public static final String MOH_BILLING_IREMBO_PROPERTY = "mohbilling.irembopay_enabled";
+
 	private final RwandaEmrConfig rwandaEmrConfig;
 	private final LocationTagUtil locationTagUtil;
 	private Map<String, PatientIdentifierType> identifierSystems = null;
@@ -81,6 +83,11 @@ public class IntegrationConfig {
 		String username = ConfigUtil.getProperty(HIE_USERNAME_PROPERTY);
 		String password = ConfigUtil.getProperty(HIE_PASSWORD_PROPERTY);
 		return StringUtils.isNotBlank(url) && StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
+	}
+
+	public boolean isIremboPayEnabled(){
+		String status = ConfigUtil.getGlobalProperty(MOH_BILLING_IREMBO_PROPERTY);
+		return status.equalsIgnoreCase("true");
 	}
 
 	/**
