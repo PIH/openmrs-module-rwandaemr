@@ -99,7 +99,7 @@ public class ConfigureLoginLocationsPageController {
             }
 
             if (visitLocations != null && loginLocations != null) {
-                rwandaEmrService.updateVisitAndLoginLocations(visitLocations, loginLocations);
+                //rwandaEmrService.updateVisitAndLoginLocations(visitLocations, loginLocations);
 
                 Location sessionLocation = sessionContext.getSessionLocation();
                 if (!loginLocations.contains(sessionLocation)) {
