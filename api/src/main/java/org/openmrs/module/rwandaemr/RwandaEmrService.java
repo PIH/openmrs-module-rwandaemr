@@ -14,7 +14,6 @@
 package org.openmrs.module.rwandaemr;
 
 import org.openmrs.Encounter;
-import org.openmrs.Location;
 import org.openmrs.Obs;
 import org.openmrs.Order;
 import org.openmrs.Patient;
@@ -33,7 +32,9 @@ public interface RwandaEmrService extends OpenmrsService {
 
 	void saveEncounters(List<Encounter> encounters);
 
-	List<String> triggerSyncForPatient(Patient patient);
+	int markLabOrdersAsCompleted();
 
-	void updateVisitAndLoginLocations(List<Location> visitLocations, List<Location> loginLocations);
+	int markLabOrdersAsExpired();
+
+	List<String> triggerSyncForPatient(Patient patient);
 }

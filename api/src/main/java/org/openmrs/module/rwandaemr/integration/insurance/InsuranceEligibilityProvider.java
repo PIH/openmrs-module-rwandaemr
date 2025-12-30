@@ -15,17 +15,13 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 import org.openmrs.module.rwandaemr.integration.HttpUtils;
 import org.openmrs.module.rwandaemr.integration.IntegrationResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Supports connections to and operations with the insurance-eligibility endpoint in the HIE
@@ -43,22 +39,28 @@ public class InsuranceEligibilityProvider {
 		this.config = config;
 	}
 
-	public IntegrationResponse checkEligibility(String eligibilityCheckType, String identifier) {
+	public IntegrationResponse checkEligibility(String type, String identifier) {
 		IntegrationResponse ret = new IntegrationResponse();
 		ret.setEnabled(config.isEligibilityCheckEnabled());
 		if (ret.isEnabled()) {
 			try (CloseableHttpClient httpClient = HttpUtils.getHttpClient(null, null, false)) {
 				ObjectMapper mapper = new ObjectMapper();
-				HttpPost httpPost = new HttpPost(config.getEligibilityCheckUrl());
-				Map<String, String> postBody = new HashMap<>();
-				postBody.put("eligibility_check_type", eligibilityCheckType);
-				postBody.put("documentNumber", identifier);
-				postBody.put("identifier", identifier);
-				log.debug("POSTING " + config.getEligibilityCheckUrl() + ": " + postBody);
-				httpPost.setEntity(new StringEntity(mapper.writeValueAsString(postBody)));
-				httpPost.setHeader("Content-Type", "application/json");
+				String url = config.getEligibilityCheckUrl();
+				url = url.replace("{identifier}", identifier);
+				url = url.replace("{type}", type);
+				HttpGet httpGet = new HttpGet(url);
+				log.debug("GETTING " + config.getEligibilityCheckUrl());
+				httpGet.setHeader("Content-Type", "application/json");
+				String apiKey = config.getEligibilityCheckApiKey();
+				if (StringUtils.isNotBlank(apiKey)) {
+					httpGet.setHeader("x-api-key", apiKey);
+				}
+				String apiOrigin = config.getEligibilityCheckApiOrigin();
+				if (StringUtils.isNotBlank(apiOrigin)) {
+					httpGet.setHeader("Origin", apiOrigin);
+				}
 				ret.setEndpointAccessible(false);
-				try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+				try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
 					ret.setEndpointAccessible(true);
 					ret.setResponseCode(response.getStatusLine().getStatusCode());
 					HttpEntity entity = response.getEntity();
@@ -72,12 +74,14 @@ public class InsuranceEligibilityProvider {
 					if (StringUtils.isNotBlank(data)) {
 						try {
 							if (ret.getResponseCode() == 200) {
-								if ("cbhi".equalsIgnoreCase(eligibilityCheckType)) {
-									CbhiEligibilityResponse cbhiResponse = mapper.readValue(data, CbhiEligibilityResponse.class);
-									ret.setResponseEntity(cbhiResponse);
-								} else if ("rama".equalsIgnoreCase(eligibilityCheckType)) {
-									RamaEligibilityResponse ramaResponse = mapper.readValue(data, RamaEligibilityResponse.class);
-									ret.setResponseEntity(ramaResponse);
+								if ("cbhi".equalsIgnoreCase(type)) {
+									ret.setResponseEntity(mapper.readValue(data, CbhiDetails.class));
+
+								} else if ("rama".equalsIgnoreCase(type)) {
+									ret.setResponseEntity(mapper.readValue(data, RamaDetails.class));
+								}
+								else if ("cbhi-special-case".equalsIgnoreCase(type)) {
+									ret.setResponseEntity(mapper.readValue(data, CbhiSpecialCaseDetails.class));
 								}
 							}
 							else {

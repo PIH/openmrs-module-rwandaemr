@@ -11,13 +11,16 @@ import org.openmrs.module.rwandaemr.integration.UpdateClientRegistryPatientListe
 import org.openmrs.module.rwandaemr.integration.UpdateShrEncounterListener;
 import org.openmrs.module.rwandaemr.integration.UpdateShrObsListener;
 import org.openmrs.module.rwandaemr.radiology.RadiologyOrderEventListener;
+import org.springframework.stereotype.Component;
 
 /**
  * Setup event listeners
  */
-public class EventSetup {
+@Component
+public class EventSetup implements Setup {
 
-    public static void setup() {
+    @Override
+    public void initialize() {
         Event.subscribe(Patient.class, Event.Action.CREATED.name(), getCreateInsurancePatientListener());
         Event.subscribe(Patient.class, Event.Action.CREATED.name(), getUpdateClientRegistryPatientListener());
         Event.subscribe(Patient.class, Event.Action.UPDATED.name(), getUpdateClientRegistryPatientListener());
@@ -32,7 +35,8 @@ public class EventSetup {
         getRadiologyOrderEventListener().setup();
     }
 
-    public static void teardown() {
+    @Override
+    public void teardown() {
         Event.unsubscribe(Patient.class, Event.Action.CREATED, getCreateInsurancePatientListener());
         Event.unsubscribe(Patient.class, Event.Action.CREATED, getUpdateClientRegistryPatientListener());
         Event.unsubscribe(Patient.class, Event.Action.UPDATED, getUpdateClientRegistryPatientListener());

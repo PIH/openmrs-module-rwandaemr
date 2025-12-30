@@ -11,9 +11,6 @@ package org.openmrs.module.rwandaemr.integration.insurance;
 
 import lombok.Data;
 
-/**
- * Represents a response from the rssb_integration eligibility-check endpoint
- */
 @Data
 public class RamaDetails {
     String cardId;

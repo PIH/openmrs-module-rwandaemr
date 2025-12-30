@@ -17,4 +17,5 @@ public class InsuranceNotFoundResponse {
     private String message;
     private String data;
     private String status;
+    private String error;
 }

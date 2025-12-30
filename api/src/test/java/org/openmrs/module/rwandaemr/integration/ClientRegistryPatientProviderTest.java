@@ -3,8 +3,8 @@ package org.openmrs.module.rwandaemr.integration;
 import ca.uhn.fhir.context.FhirContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.openmrs.Patient;
 import org.openmrs.module.rwandaemr.LocationTagUtil;
@@ -30,7 +30,7 @@ public class ClientRegistryPatientProviderTest {
 	RwandaEmrConfig rwandaEmrConfig;
 	IntegrationConfig integrationConfig;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		fhirContext = FhirContext.forR4Cached();
 		rwandaEmrConfig = new MockRwandaEmrConfig();

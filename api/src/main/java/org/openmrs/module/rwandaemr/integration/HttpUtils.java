@@ -20,22 +20,13 @@ import javax.net.ssl.SSLContext;
 
 public class HttpUtils {
 
-    // Timeout configuration constants (in milliseconds)
-    private static final int CONNECTION_TIMEOUT = 10000;  // 10 seconds to establish connection
-    private static final int SOCKET_TIMEOUT = 30000;     // 30 seconds to read data
-    private static final int CONNECTION_REQUEST_TIMEOUT = 10000; // 10 seconds to get connection from pool
+    public static final int CONNECT_TIMEOUT = 5000; // MILLISECONDS TO ESTABLISH CONNECTION WITH REMOTE HOST
+    public static final int SOCKET_TIMEOUT = 5000; // MILLISECONDS TO WAIT FOR DATA AFTER ESTABLISHING CONNECTION
+    public static final int CONNECTION_REQUEST_TIMEOUT = 5000; // MILLISECONDS TO WAIT FOR A CONNECTION FROM THE POOL
 
     public static CloseableHttpClient getHttpClient(String username, String password, boolean trustAllCertificates) {
         try {
             HttpClientBuilder builder = HttpClients.custom();
-            
-            // Configure timeouts to prevent indefinite hangs
-            RequestConfig requestConfig = RequestConfig.custom()
-                .setConnectTimeout(CONNECTION_TIMEOUT)
-                .setSocketTimeout(SOCKET_TIMEOUT)
-                .setConnectionRequestTimeout(CONNECTION_REQUEST_TIMEOUT)
-                .build();
-            builder.setDefaultRequestConfig(requestConfig);
             
             if (StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password)) {
                 CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
@@ -48,6 +39,14 @@ public class HttpUtils {
                 SSLConnectionSocketFactory sslFactory = new SSLConnectionSocketFactory(sslContext, hostnameVerifier);
                 builder.setSSLSocketFactory(sslFactory);
             }
+
+            builder.setDefaultRequestConfig(RequestConfig.custom()
+                    .setConnectTimeout(CONNECT_TIMEOUT)
+                    .setSocketTimeout(SOCKET_TIMEOUT)
+                    .setConnectionRequestTimeout(CONNECTION_REQUEST_TIMEOUT)
+                    .build()
+            );
+
             return builder.build();
         }
         catch (Exception e) {

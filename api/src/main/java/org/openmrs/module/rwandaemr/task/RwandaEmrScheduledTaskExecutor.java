@@ -25,7 +25,8 @@ public class RwandaEmrScheduledTaskExecutor extends ScheduledExecutorFactoryBean
         setScheduledExecutorTasks(
                 task(fiveMinutes, oneHour, RwandaEmrCloseVisitsTask.class),
                 task(fiveMinutes, oneHour, UpdateClientRegistryTask.class),
-                task(fiveMinutes, oneHour, UpdateShrEncounterTask.class)
+                task(fiveMinutes, oneHour, UpdateShrEncounterTask.class),
+                task(fiveMinutes, fiveMinutes, MarkOrdersAsFulfilledOrExpiredTask.class)
         );
     }
 

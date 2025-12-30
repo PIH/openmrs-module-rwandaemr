@@ -3,7 +3,7 @@ package org.openmrs.module.rwandaemr.radiology;
 import ca.uhn.hl7v2.model.v23.message.ORM_O01;
 import org.apache.commons.lang.time.DateUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.openmrs.Order;
 
 import java.util.Date;

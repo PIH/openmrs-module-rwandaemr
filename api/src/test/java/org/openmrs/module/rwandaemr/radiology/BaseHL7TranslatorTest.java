@@ -2,7 +2,7 @@ package org.openmrs.module.rwandaemr.radiology;
 
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.hamcrest.Matcher;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 import org.openmrs.CareSetting;
 import org.openmrs.Concept;
 import org.openmrs.ConceptMap;
@@ -86,7 +86,7 @@ public abstract class BaseHL7TranslatorTest {
     Encounter encounter;
     TestOrder testOrder;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         adtService = mock(AdtService.class);
         administrationService = mock(AdministrationService.class);

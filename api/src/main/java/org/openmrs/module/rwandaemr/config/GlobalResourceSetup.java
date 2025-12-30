@@ -9,10 +9,12 @@ import org.openmrs.ui.framework.page.PageFactory;
 import org.openmrs.ui.framework.resource.Resource;
 import org.openmrs.ui.framework.resource.ResourceFactory;
 import org.openmrs.util.OpenmrsUtil;
+import org.springframework.stereotype.Component;
 
 import java.io.File;
 
-public class GlobalResourceSetup {
+@Component
+public class GlobalResourceSetup implements Setup {
 
     protected static Log log = LogFactory.getLog(GlobalResourceSetup.class);
 
@@ -22,7 +24,8 @@ public class GlobalResourceSetup {
     /**
      * Include custom styling sheets and scripts
      */
-    public static void includeGlobalResources() {
+    @Override
+    public void initialize() {
         try {
             File configDir = OpenmrsUtil.getDirectoryInApplicationDataDirectory("configuration");
             File styleDir = new File(configDir, GLOBAL_STYLES_DIR);
