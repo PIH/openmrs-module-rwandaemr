@@ -7,10 +7,11 @@ import org.openmrs.api.context.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class UpdateShrEncounterTask implements Runnable {
-
+public class UpdateShrObsTask implements Runnable {
+    
     private final Logger log = LoggerFactory.getLogger(getClass());
     private static boolean isExecuting = false;
+
 
     @Override
     public void run() {
@@ -26,9 +27,9 @@ public class UpdateShrEncounterTask implements Runnable {
             stopWatch.start();
 
             //Get the list all component to handle shr encounter synhronization
-            List<UpdateShrEncounterListener> updateShrEncounterListeners = Context.getRegisteredComponents(UpdateShrEncounterListener.class);
-            if(updateShrEncounterListeners != null && !updateShrEncounterListeners.isEmpty()){
-                UpdateShrEncounterListener listener = updateShrEncounterListeners.get(0);
+            List<UpdateShrObsListener> updateShrObsListeners = Context.getRegisteredComponents(UpdateShrObsListener.class);
+            if(updateShrObsListeners != null && !updateShrObsListeners.isEmpty()){
+                UpdateShrObsListener listener = updateShrObsListeners.get(0);
                 listener.processQueuedMessages();
             }
             //stop the counter
@@ -37,5 +38,4 @@ public class UpdateShrEncounterTask implements Runnable {
             isExecuting = false;
         }
     }
-    
 }

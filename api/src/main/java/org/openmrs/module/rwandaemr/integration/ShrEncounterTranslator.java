@@ -109,7 +109,7 @@ public class ShrEncounterTranslator {
                 Coding idTypeCoding = new Coding().setCode(patientIdentifier.getIdentifierType().getName()).setDisplay(patientIdentifier.getIdentifierType().getDescription());
                 CodeableConcept idType = new CodeableConcept().addCoding(idTypeCoding);
                 Identifier identifier = new Identifier().setType(idType).setValue(patientIdentifier.getIdentifier());
-                org.hl7.fhir.r4.model.Reference subject = new org.hl7.fhir.r4.model.Reference().setReference("Patient/" + patient.getUuid()).setType("Patient").setIdentifier(identifier).setDisplay(patient.getFamilyName() + " " + patient.getGivenName());
+                org.hl7.fhir.r4.model.Reference subject = new org.hl7.fhir.r4.model.Reference().setReference("Patient/" + patientIdentifier.getIdentifier()).setType("Patient").setIdentifier(identifier).setDisplay(patient.getFamilyName() + " " + patient.getGivenName());
                 shrEncounter.getEncounter().setSubject(subject);
             }
         }
@@ -150,6 +150,15 @@ public class ShrEncounterTranslator {
             shrEncounter.getEncounter().addLocation().setLocation(locationReference);
         }
 
+        //Adding the service type
+        CodeableConcept serviceType = new CodeableConcept()
+                .addCoding(new Coding()
+                        .setSystem("http://terminology.hl7.org/CodeSystem/service-type")
+                        .setCode("Service/"+ encounter.getLocation().getLocationId())
+                        .setDisplay(encounter.getLocation().getName())
+                ).setText(encounter.getLocation().getName());
+        shrEncounter.getEncounter().setServiceType(serviceType);
+        
         //Adding Period field to object
         if(encounter.getEncounterDatetime() != null){
             // log.info(encounter.getEncounterDatetime() + " is being used as Period Start object");

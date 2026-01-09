@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 public class HieObservationsSectionFragmentController {
 
-    protected final Log log = LogFactory.getLog(HieEncountersSectionFragmentController.class);
+    protected final Log log = LogFactory.getLog(HieObservationsSectionFragmentController.class);
     
     public void controller(
         FragmentConfiguration config,
@@ -60,10 +60,10 @@ public class HieObservationsSectionFragmentController {
             } catch(Exception e){
                 log.debug(e.getMessage());
             }
-            //log.debug(obervationsList.size() + " is the lsit of found observation to be reflected on the UI");
+            //log.debug(obervationsList.size() + " is the list of found observation to be reflected on the UI");
             //
             model.addAttribute("uuid", encounterUuid);
-            model.addAttribute("message", "Here some data are retireved now we are good to go. thanks!!!!!!!!!!!!!!");
+            model.addAttribute("message", "Here some data are retrieved now we are good to go. thanks!!!!!!!!!!!!!!");
             model.addAttribute("observations", obervationsList);
         }
 }
