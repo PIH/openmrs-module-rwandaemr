@@ -18,4 +18,5 @@ public class InsuranceEligibilityResponse {
     private String insuranceType;
     private String identifier;
     private InsuranceOwner data;
+    private String status;
 }
