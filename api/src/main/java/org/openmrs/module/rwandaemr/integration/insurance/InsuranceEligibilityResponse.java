@@ -12,14 +12,10 @@ package org.openmrs.module.rwandaemr.integration.insurance;
 import lombok.Data;
 
 @Data
-public class CbhiMember {
-    String memberId;
-    String firstName;
-    String lastName;
-    String dateOfBirth;
-    String gender;
-    String type;
-    String documentNumber;
-    Boolean isEligible;
-    String eligibilityStartDate;
+public class InsuranceEligibilityResponse {
+    private boolean success;
+    private String message;
+    private String insuranceType;
+    private String identifier;
+    private InsuranceOwner data;
 }

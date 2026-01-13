@@ -27,7 +27,8 @@ public class InsuranceEligibilityRestController {
     public Object checkInsuranceEligibility(HttpServletRequest request, HttpServletResponse response) throws ResponseException {
         String type = request.getParameter("type");
         String identifier = request.getParameter("identifier");
-        IntegrationResponse ret = insuranceEligibilityProvider.checkEligibility(type, identifier);
+        String fosaid = request.getParameter("fosaid");
+        IntegrationResponse ret = insuranceEligibilityProvider.checkEligibility(type, identifier, fosaid);
         return ret;
     }
 }

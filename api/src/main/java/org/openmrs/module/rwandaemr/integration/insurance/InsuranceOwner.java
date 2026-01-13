@@ -14,10 +14,6 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class CbhiDetails {
-    String headOfHouseholdId;
-    Boolean isGovermentSponsored;
-    String status;
-    Integer totalMembers;
-    List<CbhiMember> members;
+public class InsuranceOwner extends InsuranceMember {
+    List<InsuranceMember> dependants;
 }
