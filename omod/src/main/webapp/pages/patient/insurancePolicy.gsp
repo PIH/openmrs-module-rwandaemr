@@ -257,8 +257,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
                             disableVerification();
                         }
-                        else if (data.errorMessage) {
-                            setVerifyResultsMessage('An error occurred while checking insurance eligibility: ' + data.errorMessage);
+                        else if (data.errorMessage || data.responseEntity?.error) {
+                            const errorMessage = data.errorMessage && data.errorMessage !== 'null' ? data.errorMessage : data.responseEntity?.error;
+                            setVerifyResultsMessage('Error: ' + errorMessage ?? "Unknown");
                             console.error(data);
                             disableVerification();
                         }
