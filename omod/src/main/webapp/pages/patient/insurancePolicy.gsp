@@ -230,6 +230,16 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                         if (member.eligibilityStartDate) {
                                             jq("#start-date-picker-field").val(member.eligibilityStartDate);
                                             jq("#start-date-picker-display").val(getDateDisplay(member.eligibilityStartDate));
+                                            if (!member.endDate) {
+                                                const startDate = moment(member.eligibilityStartDate);
+                                                const startDateYear = startDate.year();
+                                                const startDateMonth = startDate.month() + 1;
+                                                const startDateDay = startDate.day();
+                                                const startDateMonthAndDay = startDateMonth + "-" + startDateDay;
+                                                const endDateMonthAndDay = "06-30";
+                                                const endDateYear = (startDateMonthAndDay >= endDateMonthAndDay ? startDateYear + 1 : startDateYear);
+                                                member.endDate = endDateYear + "-" + endDateMonthAndDay;
+                                            }
                                         }
                                         if (member.endDate) {
                                             jq("#expiration-date-picker-field").val(member.endDate);
