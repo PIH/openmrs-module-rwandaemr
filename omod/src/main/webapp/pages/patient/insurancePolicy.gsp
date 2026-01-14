@@ -205,9 +205,6 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             if (owner.dependants) {
                                 owner.dependants.forEach((dependant) => {
                                     dependant['ownerName'] = owner.fullName;
-                                    if (!dependant.documentNumber) {
-                                        dependant.documentNumber = owner.documentNumber;
-                                    }
                                     verifyRows.push(dependant);
                                 });
                             }
@@ -222,16 +219,17 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                 jq(row).find(".member-name").html(member.fullName);
                                 jq(row).find(".member-gender").html(member.gender);
                                 jq(row).find(".member-birthdate").html(getDateDisplay(member.dateOfBirth));
-                                jq(row).find(".member-telephone").html(member.telephone);
+                                jq(row).find(".member-start-date").html(getDateDisplay(member.eligibilityStartDate));
                                 jq(row).find(".member-id").html(member.documentNumber);
+                                jq(row).find(".member-government-sponsored").html(member.isGovernmentSponsored)
                                 if (member.isEligible) {
                                     jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
                                     jq(row).find(".member-select").click(function () {
                                         jq("#owner-name-field").val(member.ownerName);
                                         jq("#policy-number-field").val(member.documentNumber);
-                                        if (member.startDate) {
-                                            jq("#start-date-picker-field").val(member.startDate);
-                                            jq("#start-date-picker-display").val(getDateDisplay(member.startDate));
+                                        if (member.eligibilityStartDate) {
+                                            jq("#start-date-picker-field").val(member.eligibilityStartDate);
+                                            jq("#start-date-picker-display").val(getDateDisplay(member.eligibilityStartDate));
                                         }
                                         if (member.endDate) {
                                             jq("#expiration-date-picker-field").val(member.endDate);
@@ -498,8 +496,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     <th>Gender</th>
                     <th>Member ID</th>
                     <th>Birthdate</th>
-                    <th>Telephone</th>
+                    <th>Eligibility Date</th>
                     <th>Eligibility</th>
+                    <th>Government Sponsored</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -509,8 +508,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     <td class="member-gender"></td>
                     <td class="member-id"></td>
                     <td class="member-birthdate"></td>
-                    <td class="member-telephone"></td>
+                    <td class="member-start-date"></td>
                     <td class="member-eligibility"></td>
+                    <td class="member-government-sponsored"></td>
                     <td class="member-action"><input type="button" class="member-select" value="Select"/></td>
                 </tr>
             </tbody>

@@ -21,4 +21,7 @@ public class InsuranceMember {
     String gender;
     String dateOfBirth;
     String nid;
+    String eligibilityStartDate;
+    Boolean isGovernmentSponsored;
+    String status;
 }
