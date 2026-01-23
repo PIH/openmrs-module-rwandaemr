@@ -76,8 +76,9 @@ public class MockPacsSystem implements Application {
             String hl7Received = ormO01.encode();
             log.warn("MockPacs:  Received message: " + hl7Received);
             File messageFile = new File(getMockPacsDir(), messageControlId);
-            FileUtils.write(messageFile, hl7Received, "UTF-8");
-            log.warn("MockPacs:  Wrote message to: " + hl7Received);
+            // Use Files.write() instead of deprecated FileUtils.write()
+            java.nio.file.Files.write(messageFile.toPath(), hl7Received.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            log.warn("MockPacs:  Wrote message to: " + messageFile.getAbsolutePath());
             return HL7Utils.generateAckMessage(message,null);
         }
         catch (Exception e) {
@@ -101,7 +102,8 @@ public class MockPacsSystem implements Application {
                     File fileToProcess = files == null || files.length == 0 ? null : files[0];
                     if (fileToProcess != null) {
                         log.info("MockPacs:  Processing file: " + fileToProcess.getAbsolutePath());
-                        String fileContents = FileUtils.readFileToString(fileToProcess, "UTF-8");
+                        // Use Files.readString() instead of deprecated FileUtils.readFileToString()
+                        String fileContents = new String(java.nio.file.Files.readAllBytes(fileToProcess.toPath()), java.nio.charset.StandardCharsets.UTF_8);
                         Message message = HL7Utils.getNonValidatingPipeParser().parse(fileContents);
                         ORM_O01 ormO01 = (ORM_O01) message;
 

@@ -88,7 +88,7 @@ public class ShrObsTranslator {
             Coding idTypeCoding = new Coding().setCode(patientIdentifier.getIdentifierType().getName()).setDisplay(patientIdentifier.getIdentifierType().getDescription());
             CodeableConcept idType = new CodeableConcept().addCoding(idTypeCoding);
             Identifier identifier = new Identifier().setType(idType).setValue(patientIdentifier.getIdentifier());
-            Reference subject = new Reference().setReference("Patient/" + patient.getUuid()).setType("Patient").setIdentifier(identifier).setDisplay(patient.getFamilyName() + " " + patient.getGivenName());
+            Reference subject = new Reference().setReference("Patient/" + patientIdentifier.getIdentifier()).setType("Patient").setIdentifier(identifier).setDisplay(patient.getFamilyName() + " " + patient.getGivenName());
 
             shrObservation.getObservation().setSubject(subject);
         }
@@ -117,12 +117,44 @@ public class ShrObsTranslator {
             provenance.addAgent(agentComponent);
 
             shrObservation.getObservation().addContained(provenance);
+
+            //Adding missing performer paremeters too.
+            Reference practitioner = new Reference()
+                .setReference("Practitioner/" + creator.getUuid())
+                .setType("Practitioner")
+                .setDisplay(creator.getFamilyName() + " " + creator.getGivenName())
+                .setIdentifier(new Identifier().setValue(creator.getSystemId()))
+            ;
+
+            shrObservation.getObservation().addPerformer(practitioner);
+
         }
 
         //Make sure to category
         if(obs.getEncounter() != null){
             Reference encounterReference = new Reference().setReference("Encounter/" + obs.getEncounter().getUuid()).setType("Encounter");
             shrObservation.getObservation().setEncounter(encounterReference);
+
+            //Here use the encounter location to add HealthcareService which was missing
+            Reference healthCareServiceReference = new Reference()
+            .setReference("HealthcareService/" + obs.getEncounter().getLocation().getUuid())
+            .setType("HealthcareService")
+            .setDisplay(obs.getEncounter().getLocation().getName())
+            .setIdentifier(new Identifier().setValue(obs.getEncounter().getLocation().getName()))
+            ;
+
+            shrObservation.getObservation().addPerformer(healthCareServiceReference);
+
+            //Add the missing Location parameters
+            if(obs.getEncounter().getLocation().getCityVillage() != null){
+                Reference locationReference = new Reference()
+                .setReference("Location/" + obs.getEncounter().getLocation().getUuid())
+                .setType("Location")
+                .setDisplay(obs.getEncounter().getLocation().getCityVillage())
+                .setIdentifier(new Identifier().setValue(obs.getEncounter().getLocation().getCityVillage()))
+                ;
+                shrObservation.getObservation().addPerformer(locationReference);
+            }
         }
 
         if(obs.getDateCreated() != null){

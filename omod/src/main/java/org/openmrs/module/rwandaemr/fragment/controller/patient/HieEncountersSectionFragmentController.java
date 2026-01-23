@@ -57,6 +57,9 @@ public class HieEncountersSectionFragmentController {
         List<Encounter> encounters = new ArrayList<Encounter>();
         List<ShrVisit> visits = new ArrayList<>();
         List<String> visitedLocation = new ArrayList<>();
+        
+        //Initialize error attribute to avoid property not found errors
+        model.addAttribute("error", "");
 
         //Here make sure to get information from HIE
         try{
@@ -66,12 +69,11 @@ public class HieEncountersSectionFragmentController {
                 if(upidPatientIdentifier == null){
                     model.addAttribute("error", "No UPID found");
                 } else {
-                    model.addAttribute("error", "");
                     //as we have the UPID make sure to send the shr request
                     try{
                         List<ShrEncounter> shrEncounters = shrEncounterProvider.fetchEncounterFromShr(upidPatientIdentifier.getIdentifier());
 
-                        if(shrEncounters != null){
+                        if(shrEncounters != null && !shrEncounters.isEmpty()){
                             //From here make sure to translate the shrEncounter into OpenMRS encounter to easy the listing operation
                             for(ShrEncounter shrEncounter: shrEncounters){
                                 Encounter myEncounter = shrEncounterTranslator.toEncounter(shrEncounter);
@@ -103,7 +105,22 @@ public class HieEncountersSectionFragmentController {
                             }
                         }
                     } catch(IllegalStateException ise){
-                        model.addAttribute("error", ise.getMessage());
+                        String errorMsg = ise.getMessage();
+                        log.error("IllegalStateException caught in HIE encounters fetch: " + errorMsg);
+                        if(errorMsg == null || errorMsg.trim().isEmpty()){
+                            errorMsg = "Error retrieving HIE encounters";
+                        }
+                        model.addAttribute("error", errorMsg);
+                        log.info("Error message set in model: '" + errorMsg + "'");
+                        //Don't process encounters when there's an error - encounters list will remain empty
+                    } catch(Exception e){
+                        log.error("Unexpected exception in HIE encounters fetch: " + e.getClass().getName());
+                        String errorMsg = e.getMessage();
+                        if(errorMsg == null || errorMsg.trim().isEmpty()){
+                            errorMsg = "Error retrieving HIE encounters: " + e.getClass().getSimpleName();
+                        }
+                        model.addAttribute("error", errorMsg);
+                        log.info("Error message set in model from unexpected exception: '" + errorMsg + "'");
                     }
                 }
                 //log.debug("First get Patient UPID if not available stop the operation identifiers: " + upidPatientIdentifier.getIdentifier());
@@ -111,11 +128,22 @@ public class HieEncountersSectionFragmentController {
                 model.addAttribute("error", "Hie is not enabled on this server");
             }
         } catch(Exception e){
-            model.addAttribute("error", e.getMessage());
+            //Only handle if error hasn't been set yet (to avoid overriding more specific error messages)
+            if(model.get("error") == null){
+                String errorMsg = e.getMessage();
+                if(errorMsg == null || errorMsg.trim().isEmpty()){
+                    errorMsg = "Error retrieving HIE encounters: " + e.getClass().getSimpleName();
+                }
+                model.addAttribute("error", errorMsg);
+                log.error("Error retrieving HIE encounters", e);
+            }
         }
 
         model.addAttribute("encounters", encounters);
         model.addAttribute("visit_list", visits);
         model.addAttribute("visited_locations", visitedLocation);
+        
+        //Log for debugging
+        log.info("HIE Encounters Section - Encounters: " + encounters.size() + ", Visits: " + visits.size() + ", Error: '" + model.get("error") + "'");
     }
 }

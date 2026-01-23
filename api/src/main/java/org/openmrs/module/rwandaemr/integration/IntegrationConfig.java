@@ -38,6 +38,7 @@ public class IntegrationConfig {
 	public static final String HIE_URL_PROPERTY = "rwandaemr.hie.url";
 	public static final String HIE_USERNAME_PROPERTY = "rwandaemr.hie.username";
 	public static final String HIE_PASSWORD_PROPERTY = "rwandaemr.hie.password";
+	public static final String HIE_REGISTRATION_ENCOUNTER_TYPE_ID = "rwandaemr.hie.registration_encounter_type_id";
 
 	public static final String IDENTIFIER_SYSTEM_NID = "NID";
 	public static final String IDENTIFIER_SYSTEM_NID_APPLICATION_NUMBER = "NID_APPLICATION_NUMBER";
@@ -158,5 +159,14 @@ public class IntegrationConfig {
 			log.warn("No location is provided to determine FOSA ID");
 		}
 		return null;
+	}
+
+	public int getRegistrationEncounterType(){
+		try {
+			String encounterTypeId = ConfigUtil.getGlobalProperty(HIE_REGISTRATION_ENCOUNTER_TYPE_ID);
+			return Integer.parseInt(encounterTypeId);
+		} catch(Exception e){
+			return 0;
+		}
 	}
 }
