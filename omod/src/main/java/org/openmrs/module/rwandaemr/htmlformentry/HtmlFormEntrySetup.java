@@ -72,7 +72,8 @@ public class HtmlFormEntrySetup implements Setup {
         File formDir = Paths.get(OpenmrsUtil.getApplicationDataDirectory(), "configuration", "htmlforms").toFile();
         for (File file : Objects.requireNonNull(formDir.listFiles())) {
             try {
-                String xmlData = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
+                // Use Files.readString() instead of deprecated FileUtils.readFileToString()
+                String xmlData = new String(java.nio.file.Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
                 Document doc = HtmlFormEntryUtil.stringToDocument(xmlData);
                 Node htmlFormNode = HtmlFormEntryUtil.findChild(doc, HTML_FORM_TAG);
                 Map<String, String> nodeAttributes = HtmlFormEntryUtil.getNodeAttributes(htmlFormNode);

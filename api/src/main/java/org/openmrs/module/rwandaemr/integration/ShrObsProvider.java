@@ -49,6 +49,9 @@ public class ShrObsProvider {
             throw new IllegalStateException("The HIE connection is not enabled on this server");
         }
         try(CloseableHttpClient httpClient = HttpUtils.getHieClient()){
+            if(httpClient == null){
+                throw new IllegalStateException("HIE client could not be created. Check HIE credentials configuration.");
+            }
             String url = integrationConfig.getHieEndpointUrl("/shr/Observation", "searchSet", "ENCOUNTER", "value", encounterUuid, "page", "1", "size", "500");
 
             HttpGet httpGet = new HttpGet(url);
@@ -126,6 +129,9 @@ public class ShrObsProvider {
         //log.debug("End Point: " + endPoint);
         log.debug("Data: " + postBody);
         try(CloseableHttpClient httpClient = HttpUtils.getHieClient()){
+            if(httpClient == null){
+                throw new IllegalStateException("HIE client could not be created. Check HIE credentials configuration.");
+            }
             HttpPost httpPost = new HttpPost(integrationConfig.getHieEndpointUrl(endPoint));
             httpPost.setEntity(new StringEntity(postBody));
             httpPost.setHeader("Content-Type", "application/json");

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import javax.jms.MapMessage;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Date;
 import java.util.Objects;
 
@@ -150,10 +151,16 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 			initializeMessageDir();
 			String queueItemString = mapper.writeValueAsString(item);
 			String fileName = item.getEventDatetime().getTime() + "_" + item.getPatientUuid() + ".json";
-			FileUtils.writeStringToFile(new File(messagesDir, fileName), queueItemString, StandardCharsets.UTF_8);
+			File targetFile = new File(messagesDir, fileName);
+			// Delete existing file if it exists to avoid duplicates
+			if(targetFile.exists()){
+				FileUtils.deleteQuietly(targetFile);
+			}
+			// Use Files.write() instead of deprecated FileUtils.writeStringToFile()
+			Files.write(targetFile.toPath(), queueItemString.getBytes(StandardCharsets.UTF_8));
 		}
 		catch (Exception e) {
-			log.error("Unable to  write client registry patient queue item to file", e);
+			log.error("Unable to write client registry patient queue item to file", e);
 		}
 	}
 

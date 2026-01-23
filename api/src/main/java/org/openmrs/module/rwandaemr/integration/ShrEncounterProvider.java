@@ -58,6 +58,9 @@ public class ShrEncounterProvider {
         }
 
         try(CloseableHttpClient httpClient = HttpUtils.getHieClient()){
+            if(httpClient == null){
+                throw new IllegalStateException("HIE client could not be created. Check HIE credentials configuration.");
+            }
             String url = integrationConfig.getHieEndpointUrl("/shr/Encounter", "searchSet", "ALL","value", upid, "page", "1", "size", "50");
             HttpGet httpGet = new HttpGet(url);
             //log.debug("Getting Encounters for " + upid + " from " + url);
@@ -186,6 +189,9 @@ public class ShrEncounterProvider {
 
         //Now we are sending the request to HIE server
         try(CloseableHttpClient httpClient = HttpUtils.getHieClient()){
+            if(httpClient == null){
+                throw new IllegalStateException("HIE client could not be created. Check HIE credentials configuration.");
+            }
 
             HttpPost httpPost = new HttpPost(integrationConfig.getHieEndpointUrl(endPoint));
             httpPost.setEntity(new StringEntity(postBody));
@@ -238,6 +244,9 @@ public class ShrEncounterProvider {
                 log.debug("Consent POST body: " + consentPostBody);
                 
                 try(CloseableHttpClient httpClientConsent = HttpUtils.getHieClient()){
+                    if(httpClientConsent == null){
+                        throw new IllegalStateException("HIE client could not be created. Check HIE credentials configuration.");
+                    }
                     String consentUrl = integrationConfig.getHieEndpointUrl(consentEndPoint);
                     log.info("Sending consent creation request to: " + consentUrl);
                     HttpPost httpPost = new HttpPost(consentUrl);

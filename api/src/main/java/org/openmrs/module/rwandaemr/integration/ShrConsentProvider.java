@@ -44,6 +44,9 @@ public class ShrConsentProvider {
             throw new IllegalStateException("The HIE connection is not enabled on this server");
         }
         try(CloseableHttpClient httpClient = HttpUtils.getHieClient()){
+            if(httpClient == null){
+                throw new IllegalStateException("HIE client could not be created. Check HIE credentials configuration.");
+            }
             String url = integrationConfig.getHieEndpointUrl("/shr/Consent/$list-consents", "patient", upid, "page", "1", "size", "5","sort", "_lastUpdated,desc");
             HttpGet httpGet = new HttpGet(url);
             //log.debug("Getting Encounters for " + upid + " from " + url);

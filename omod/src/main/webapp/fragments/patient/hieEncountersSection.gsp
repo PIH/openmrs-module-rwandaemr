@@ -22,7 +22,7 @@ ui.includeCss("rwandaemr", "hie/hie.css")
 <div class="info-section">
     <div class="info-header">
         <i class="icon-calendar"></i>
-        <h3>${ ui.message(config.label ? config.label : "rwandaemr.clinicianfacing.recentHieEncounters").toUpperCase() }</h3>
+        <h3>${ ui.message(config.label ? config.label : "Past Clinical Summary").toUpperCase() }</h3>
         
     </div>
     <div class="info-body">

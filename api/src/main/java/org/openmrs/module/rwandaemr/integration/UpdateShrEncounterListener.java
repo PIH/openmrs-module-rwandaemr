@@ -2,6 +2,7 @@ package org.openmrs.module.rwandaemr.integration;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Date;
 import java.util.Objects;
 
@@ -168,9 +169,15 @@ public class UpdateShrEncounterListener extends HieEventListener {
             initializeMessageDir();
             String queueItemString = mapper.writeValueAsString(queueItem);
             String fileName = queueItem.getEventDatetime().getTime() + "_" + queueItem.getEncounterUuid() + ".json";
-            FileUtils.writeStringToFile(new File(messagesDir, fileName), queueItemString, StandardCharsets.UTF_8);
+            File targetFile = new File(messagesDir, fileName);
+            // Delete existing file if it exists to avoid duplicates
+            if(targetFile.exists()){
+                FileUtils.deleteQuietly(targetFile);
+            }
+            // Use Files.write() instead of deprecated FileUtils.writeStringToFile()
+            Files.write(targetFile.toPath(), queueItemString.getBytes(StandardCharsets.UTF_8));
         } catch(Exception e){
-            log.error("Unable to save shr encounter for later sunchronization: ", e);
+            log.error("Unable to save shr encounter for later synchronization: ", e);
         }
     }
 
