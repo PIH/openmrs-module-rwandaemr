@@ -13,7 +13,9 @@
  */
 package org.openmrs.module.rwandaemr;
 
-import org.openmrs.Location;
+import org.openmrs.Encounter;
+import org.openmrs.Obs;
+import org.openmrs.Order;
 import org.openmrs.Patient;
 import org.openmrs.api.OpenmrsService;
 
@@ -26,7 +28,13 @@ import java.util.List;
 @Transactional
 public interface RwandaEmrService extends OpenmrsService {
 
-	List<String> triggerSyncForPatient(Patient patient);
+	List<Obs> getObsByOrder(Order order);
 
-	void updateVisitAndLoginLocations(List<Location> visitLocations, List<Location> loginLocations);
+	void saveEncounters(List<Encounter> encounters);
+
+	int markLabOrdersAsCompleted();
+
+	int markLabOrdersAsExpired();
+
+	List<String> triggerSyncForPatient(Patient patient);
 }

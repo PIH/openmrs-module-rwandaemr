@@ -71,13 +71,24 @@ public class CitizenTranslator {
             }
         }
 
-        SimpleDateFormat df = new SimpleDateFormat("dd/MM/yyyy");
         if (StringUtils.isNotBlank(citizen.getDateOfBirth())) {
             try {
+                // Try dd/MM/yyyy format first (original format)
+                SimpleDateFormat df = new SimpleDateFormat("dd/MM/yyyy");
+                df.setLenient(false);
                 p.setBirthdate(df.parse(citizen.getDateOfBirth()));
             }
             catch (Exception e) {
-                log.warn("Unable to set date of birth, unexpected format: " + citizen.getDateOfBirth());
+                // If dd/MM/yyyy fails, try yyyy-MM-dd format
+                try {
+                    SimpleDateFormat df2 = new SimpleDateFormat("yyyy-MM-dd");
+                    df2.setLenient(false);
+                    p.setBirthdate(df2.parse(citizen.getDateOfBirth()));
+                    log.debug("Parsed date of birth using yyyy-MM-dd format: " + citizen.getDateOfBirth());
+                }
+                catch (Exception e2) {
+                    log.warn("Unable to set date of birth, unexpected format: " + citizen.getDateOfBirth() + ". Tried formats: dd/MM/yyyy and yyyy-MM-dd");
+                }
             }
         }
 

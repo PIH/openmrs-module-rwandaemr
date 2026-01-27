@@ -31,12 +31,26 @@ public abstract class PatientEventListener implements EventListener {
 			if (StringUtils.isBlank(patientUuid)) {
 				throw new IllegalArgumentException("unable to retrieve patient uuid from message: " + message);
 			}
+			
+			// Check if HIE is enabled BEFORE creating daemon thread to avoid thread pool exhaustion
+			// This check is done here to prevent creating unnecessary threads when HIE is disabled
+			if(!isHieEnabled()){
+				log.debug("HIE is not enabled, skipping event processing for patient uuid: " + patientUuid);
+				return;
+			}
+			
 			Daemon.runInDaemonThread(() -> handlePatient(patientUuid, mapMessage), daemonToken);
 		}
 		catch (Exception e) {
 			handleException(e);
 		}
 	}
+	
+	/**
+	 * Check if HIE is enabled. This method should be implemented by subclasses
+	 * to avoid creating unnecessary daemon threads when HIE is disabled.
+	 */
+	protected abstract boolean isHieEnabled();
 
 	public abstract void handlePatient(String patientUuid, MapMessage mapMessage);
 

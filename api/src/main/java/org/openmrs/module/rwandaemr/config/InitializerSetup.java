@@ -10,6 +10,8 @@ import org.openmrs.module.initializer.api.InitializerService;
 import org.openmrs.module.initializer.api.loaders.BaseFileLoader;
 import org.openmrs.module.initializer.api.loaders.Loader;
 import org.openmrs.util.OpenmrsUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.InputStream;
@@ -26,13 +28,22 @@ import java.util.Properties;
  * 2. Install configurations at the time when we are ready, not in the Iniz activator
  * 3. Install only some configurations based on how the current server is configured
  */
-public class InitializerSetup {
+@Component
+public class InitializerSetup implements Setup {
 
     protected static Log log = LogFactory.getLog(InitializerSetup.class);
 
     public static List<Domain> ALWAYS_RELOAD = Collections.singletonList(Domain.LOCATION_TAG_MAPS);
 
-    public static void install() {
+    private final ServerSetup serverSetup;
+
+    @Autowired
+    public InitializerSetup(ServerSetup serverSetup) {
+        this.serverSetup = serverSetup;
+    }
+
+    @Override
+    public void initialize() {
         try {
             for (Domain domain : ALWAYS_RELOAD) {
                 log.warn("Deleting checksums to force reloading of: " + domain);
@@ -55,7 +66,7 @@ public class InitializerSetup {
      * and if so, to exclude them if they are not intended for the specific config in use.
      * Any config files that contain a "-site-", and which do not end with the site name, are excluded
      */
-    public static List<String> getExclusionsForLoader(Loader loader, List<String> sitesForServer) {
+    public List<String> getExclusionsForLoader(Loader loader, List<String> sitesForServer) {
         List<String> exclusions = new ArrayList<>();
         if (loader instanceof BaseFileLoader) {
             BaseFileLoader ll = (BaseFileLoader) loader;
@@ -70,7 +81,7 @@ public class InitializerSetup {
         return exclusions;
     }
 
-    public static boolean fileIsValidForSite(String filename, List<String> sitesForServer) {
+    public boolean fileIsValidForSite(String filename, List<String> sitesForServer) {
         if (!filename.contains("-site-")) {
             return true;
         }
@@ -82,9 +93,9 @@ public class InitializerSetup {
         return false;
     }
 
-    public static List<String> getSitesForServer() {
+    public List<String> getSitesForServer() {
         List<String> ret = new ArrayList<>();
-        String site = ServerSetup.getServerName();
+        String site = serverSetup.getServerName();
         Properties p = getSiteConfigProperties();
         String sitesForServer = p.getProperty(site);
         if (StringUtils.isNotBlank(sitesForServer)) {
@@ -94,7 +105,7 @@ public class InitializerSetup {
         return ret;
     }
 
-    public static Properties getSiteConfigProperties() {
+    public Properties getSiteConfigProperties() {
         Properties p = new Properties();
         File configDir = OpenmrsUtil.getDirectoryInApplicationDataDirectory("configuration");
         File rwandaEmrDir = new File(configDir, "rwandaemr");
@@ -114,7 +125,7 @@ public class InitializerSetup {
      * Deletes the checksum files for the given domains
      * @param domains the domains for which to delete the checksum files
      */
-    public static void deleteChecksumsForDomains(Domain... domains) {
+    public void deleteChecksumsForDomains(Domain... domains) {
         String configDirPath = getInitializerService().getConfigDirPath();
         String checksumsDirPath = getInitializerService().getChecksumsDirPath();
         for (Domain domain : domains) {

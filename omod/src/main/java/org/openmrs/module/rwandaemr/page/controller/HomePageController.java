@@ -19,7 +19,6 @@ import org.openmrs.module.appframework.service.AppFrameworkService;
 import org.openmrs.module.appui.UiSessionContext;
 import org.openmrs.ui.framework.annotation.SpringBean;
 import org.openmrs.ui.framework.page.PageModel;
-import org.openmrs.util.ConfigUtil;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 

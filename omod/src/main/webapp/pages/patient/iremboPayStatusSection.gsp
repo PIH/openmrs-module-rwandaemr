@@ -1,0 +1,1 @@
+<%= ui.includeFragment("rwandaemr", "patient/iremboPayStatusSection", [ id: "", contextModel: null, app:"rwandaemr",  ]) %>

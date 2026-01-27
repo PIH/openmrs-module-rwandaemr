@@ -64,6 +64,9 @@ public class ClientRegistryPatientProvider {
 			throw new IllegalStateException("The HIE connection is not enabled on this server");
 		}
 		try (CloseableHttpClient httpClient = HttpUtils.getHieClient()) {
+			if(httpClient == null){
+				throw new IllegalStateException("HIE client could not be created. Check HIE credentials configuration.");
+			}
 			String url = integrationConfig.getHieEndpointUrl("/clientregistry/Patient", "identifier", identifier);
 			HttpGet httpGet = new HttpGet(url);
 			log.debug("Attempting to find patient " + identifier + " from client registry");
@@ -75,7 +78,7 @@ public class ClientRegistryPatientProvider {
 					data = EntityUtils.toString(entity);
 				} catch (Exception ignored) {
 				}
-				log.debug("Data: " + data);
+				// log.debug("Data: " + data);
 				if (statusCode != 200) {
 					throw new IllegalStateException("Http Status Code: " + statusCode + "; Response: " + data);
 				}
@@ -148,6 +151,9 @@ public class ClientRegistryPatientProvider {
 
 		// Post data to the client registry
 		try (CloseableHttpClient httpClient = HttpUtils.getHieClient()) {
+			if(httpClient == null){
+				throw new IllegalStateException("HIE client could not be created. Check HIE credentials configuration.");
+			}
 			HttpPost httpPost = new HttpPost(integrationConfig.getHieEndpointUrl(endpoint));
 			log.debug("POSTING " + endpoint + ": " + postBody);
 			httpPost.setEntity(new StringEntity(postBody));

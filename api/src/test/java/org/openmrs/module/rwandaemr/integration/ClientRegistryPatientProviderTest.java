@@ -1,17 +1,15 @@
-package org.openmrs.module.rwandaemr;
+package org.openmrs.module.rwandaemr.integration;
 
 import ca.uhn.fhir.context.FhirContext;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.openmrs.Patient;
-import org.openmrs.module.rwandaemr.integration.CitizenTranslator;
-import org.openmrs.module.rwandaemr.integration.ClientRegistryPatient;
-import org.openmrs.module.rwandaemr.integration.ClientRegistryPatientProvider;
-import org.openmrs.module.rwandaemr.integration.ClientRegistryPatientTranslator;
-import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
+import org.openmrs.module.rwandaemr.LocationTagUtil;
+import org.openmrs.module.rwandaemr.MockRwandaEmrConfig;
+import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.util.ConfigUtil;
 
 import java.text.SimpleDateFormat;
@@ -32,7 +30,7 @@ public class ClientRegistryPatientProviderTest {
 	RwandaEmrConfig rwandaEmrConfig;
 	IntegrationConfig integrationConfig;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		fhirContext = FhirContext.forR4Cached();
 		rwandaEmrConfig = new MockRwandaEmrConfig();

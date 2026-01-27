@@ -20,16 +20,28 @@ import java.util.List;
 public class UpdateClientRegistryTask implements Runnable {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
-    private static boolean isExecuting = false;
+    private static volatile boolean isExecuting = false; // Make volatile for thread safety
 
     @Override
     public void run() {
         if (isExecuting) {
-            log.info(getClass() + " is still executing, not running again");
+            log.warn(getClass().getSimpleName() + " is still executing, skipping this run to prevent overlap");
             return;
         }
         isExecuting = true;
         try {
+            // Check if HIE is enabled before doing any work
+            List<IntegrationConfig> configs = Context.getRegisteredComponents(IntegrationConfig.class);
+            if(configs == null || configs.isEmpty()){
+                log.debug("IntegrationConfig not found, skipping " + getClass().getSimpleName());
+                return;
+            }
+            IntegrationConfig integrationConfig = configs.get(0);
+            if(!integrationConfig.isHieEnabled()){
+                log.debug("HIE is not enabled, skipping " + getClass().getSimpleName());
+                return;
+            }
+            
             log.info("Executing " + getClass());
             StopWatch sw = new StopWatch();
             sw.start();
@@ -41,6 +53,8 @@ public class UpdateClientRegistryTask implements Runnable {
             }
 
             sw.stop();
+        } catch(Exception e){
+            log.error("Error in " + getClass().getSimpleName(), e);
         }
         finally {
             isExecuting = false;

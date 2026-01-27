@@ -1,6 +1,8 @@
 package org.openmrs.module.rwandaemr.task;
 
 import org.openmrs.module.rwandaemr.integration.UpdateClientRegistryTask;
+import org.openmrs.module.rwandaemr.integration.UpdateShrEncounterTask;
+import org.openmrs.module.rwandaemr.integration.UpdateShrObsTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.concurrent.ScheduledExecutorFactoryBean;
@@ -23,7 +25,10 @@ public class RwandaEmrScheduledTaskExecutor extends ScheduledExecutorFactoryBean
     public RwandaEmrScheduledTaskExecutor() {
         setScheduledExecutorTasks(
                 task(fiveMinutes, oneHour, RwandaEmrCloseVisitsTask.class),
-                task(fiveMinutes, oneHour, UpdateClientRegistryTask.class)
+                task(fiveMinutes, oneHour, UpdateClientRegistryTask.class),
+                task(fiveMinutes, oneHour, UpdateShrEncounterTask.class),
+                task(fiveMinutes, oneHour, UpdateShrObsTask.class),
+                task(fiveMinutes, fiveMinutes, MarkOrdersAsFulfilledOrExpiredTask.class)
         );
     }
 
