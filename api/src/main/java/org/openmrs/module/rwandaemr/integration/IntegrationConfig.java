@@ -52,6 +52,9 @@ public class IntegrationConfig {
 	private final RwandaEmrConfig rwandaEmrConfig;
 	private final LocationTagUtil locationTagUtil;
 	private Map<String, PatientIdentifierType> identifierSystems = null;
+	private volatile Boolean hieEnabledCache = null; // Cache HIE enabled status to avoid repeated property lookups
+	private volatile long hieEnabledCacheTime = 0; // Timestamp when cache was set
+	private static final long CACHE_TTL_MS = 60000; // Cache for 1 minute
 
 	public IntegrationConfig(@Autowired RwandaEmrConfig rwandaEmrConfig, @Autowired LocationTagUtil locationTagUtil) {
 		this.rwandaEmrConfig = rwandaEmrConfig;
@@ -80,10 +83,21 @@ public class IntegrationConfig {
 	}
 
 	public boolean isHieEnabled() {
+		// Use cached value if still valid (within TTL)
+		long now = System.currentTimeMillis();
+		if (hieEnabledCache != null && (now - hieEnabledCacheTime) < CACHE_TTL_MS) {
+			return hieEnabledCache;
+		}
+		
+		// Refresh cache
 		String url = ConfigUtil.getProperty(HIE_URL_PROPERTY);
 		String username = ConfigUtil.getProperty(HIE_USERNAME_PROPERTY);
 		String password = ConfigUtil.getProperty(HIE_PASSWORD_PROPERTY);
-		return StringUtils.isNotBlank(url) && StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
+		boolean enabled = StringUtils.isNotBlank(url) && StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
+		
+		hieEnabledCache = enabled;
+		hieEnabledCacheTime = now;
+		return enabled;
 	}
 
 	public boolean isIremboPayEnabled(){

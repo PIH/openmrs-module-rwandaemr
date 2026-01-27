@@ -30,7 +30,7 @@ public class UpdateShrEncounterListener extends HieEventListener {
     private final IntegrationConfig integrationConfig;
     private final ShrEncounterProvider shrEncounterProvider;
 
-    private static boolean processing = false;
+    private static volatile boolean processing = false;
     private final ObjectMapper mapper = new ObjectMapper();
     private File messagesDir;
 
@@ -42,6 +42,11 @@ public class UpdateShrEncounterListener extends HieEventListener {
         this.encounterService = encounterService;
         this.integrationConfig = integrationConfig;
         this.shrEncounterProvider = shrEncounterProvider;
+    }
+
+    @Override
+    protected boolean isHieEnabled() {
+        return integrationConfig.isHieEnabled();
     }
 
     @Override
@@ -112,17 +117,27 @@ public class UpdateShrEncounterListener extends HieEventListener {
 
                 //get the list of files not synced to HIE
                 File[] files = Objects.requireNonNull(messagesDir.listFiles());
-                log.warn("Processing " + files.length + " messages from " + messagesDir.getAbsolutePath());
+                // Limit processing to prevent long-running operations that could freeze the system
+                int maxFilesPerRun = 100;
+                if(files.length > maxFilesPerRun){
+                    log.warn("Limiting processing to " + maxFilesPerRun + " files out of " + files.length + " total to prevent system freeze");
+                }
+                int filesToProcess = Math.min(files.length, maxFilesPerRun);
+                log.warn("Processing " + filesToProcess + " messages from " + messagesDir.getAbsolutePath());
 
                 int numSuccess = 0;
                 int numFailure = 0;
 
-                for(File file : files){
+                for(int i = 0; i < filesToProcess; i++){
+                    File file = files[i];
                     ShrEncounterQueueItem item = null;
                     try{
                         item = mapper.readValue(file, ShrEncounterQueueItem.class);
                         if(item.getNumAttempts() != null && item.getNumAttempts() > 5){
-                            log.warn("Skipping file, as number of attempts = " + item.getNumAttempts());
+                            log.warn("Skipping and deleting file after " + item.getNumAttempts() + " failed attempts: " + file.getName());
+                            // Delete files that exceeded max attempts to prevent disk space issues
+                            FileUtils.deleteQuietly(file);
+                            numFailure++;
                             continue;
                         }
 
@@ -136,14 +151,22 @@ public class UpdateShrEncounterListener extends HieEventListener {
                         if(item != null){
                             item.setLatestAttemptDatetime(new Date());
                             item.setLatestAttemptResponse(e.getMessage());
+                            // Increment attempt count
+                            if(item.getNumAttempts() == null){
+                                item.setNumAttempts(1);
+                            } else {
+                                item.setNumAttempts(item.getNumAttempts() + 1);
+                            }
                             writeMessafeToFile(item);
+                            // Delete old file to avoid duplicates
+                            FileUtils.deleteQuietly(file);
                         }
                         //mark log message for later referance
                         log.debug("Error while processing the " + file.getName(), e);
                         numFailure++;
                     }
                 }
-                log.info("\n++++++++++++++++++++++++++++++\nProcessing " + files.length + " completed with " + numSuccess + " successful sync and " + numFailure + "failed sync\n++++++++++++++++++++++++++++++\n");
+                log.info("\n++++++++++++++++++++++++++++++\nProcessing " + filesToProcess + " completed with " + numSuccess + " successful sync and " + numFailure + " failed sync\n++++++++++++++++++++++++++++++\n");
             } finally {
                 processing = false;
             }

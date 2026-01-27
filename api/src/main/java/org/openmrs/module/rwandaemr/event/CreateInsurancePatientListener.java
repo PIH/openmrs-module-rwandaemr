@@ -42,6 +42,13 @@ public class CreateInsurancePatientListener extends PatientEventListener {
 	}
 
 	@Override
+	protected boolean isHieEnabled() {
+		// This listener doesn't depend on HIE, it creates insurance policies
+		// Always return true to allow processing
+		return true;
+	}
+
+	@Override
 	public void handlePatient(String patientUuid, MapMessage mapMessage) {
 		// This functionality is enabled or disabled by setting or unsetting this global property value
 		String insuranceName = ConfigUtil.getProperty("rwandaemr.autoCreateInsuranceType");
