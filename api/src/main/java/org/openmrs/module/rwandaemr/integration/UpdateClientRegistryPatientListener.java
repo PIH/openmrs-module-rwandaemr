@@ -32,7 +32,7 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 	private final IntegrationConfig integrationConfig;
 	private final ClientRegistryPatientProvider clientRegistryPatientProvider;
 
-	private static boolean processing = false;
+	private static volatile boolean processing = false;
 	private final ObjectMapper mapper = new ObjectMapper();
 	private File messagesDir;
 
@@ -43,6 +43,11 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 		this.patientService = patientService;
 		this.integrationConfig = integrationConfig;
 		this.clientRegistryPatientProvider = clientRegistryPatientProvider;
+	}
+
+	@Override
+	protected boolean isHieEnabled() {
+		return integrationConfig.isHieEnabled();
 	}
 
 	@Override
@@ -95,17 +100,26 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 				processing = true;
 				initializeMessageDir();
 				File[] files = Objects.requireNonNull(messagesDir.listFiles());
-				log.warn("Processing " + files.length + " messages from " + messagesDir.getAbsolutePath());
+				// Limit processing to prevent long-running operations that could freeze the system
+				int maxFilesPerRun = 100;
+				if(files.length > maxFilesPerRun){
+					log.warn("Limiting processing to " + maxFilesPerRun + " files out of " + files.length + " total to prevent system freeze");
+				}
+				int filesToProcess = Math.min(files.length, maxFilesPerRun);
+				log.warn("Processing " + filesToProcess + " messages from " + messagesDir.getAbsolutePath());
 				int numSuccess = 0;
 				int numFailure = 0;
-				initializeMessageDir();
-				for (File file : files) {
+				for (int i = 0; i < filesToProcess; i++) {
+					File file = files[i];
 					ClientRegistryPatientQueueItem item = null;
 					try {
 						log.warn("Processing message file: " + file.getName());
 						item = mapper.readValue(file, ClientRegistryPatientQueueItem.class);
 						if (item.getNumAttempts() != null && item.getNumAttempts() > 5) {
-							log.warn("Skipping file, as number of attempts = " + item.getNumAttempts());
+							log.warn("Skipping and deleting file after " + item.getNumAttempts() + " failed attempts: " + file.getName());
+							// Delete files that exceeded max attempts to prevent disk space issues
+							FileUtils.deleteQuietly(file);
+							numFailure++;
 							continue;
 						}
 						processItem(item);
@@ -117,13 +131,21 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 						if (item != null) {
 							item.setLatestAttemptDatetime(new Date());
 							item.setLatestAttemptResponse(e.getMessage());
+							// Increment attempt count
+							if(item.getNumAttempts() == null){
+								item.setNumAttempts(1);
+							} else {
+								item.setNumAttempts(item.getNumAttempts() + 1);
+							}
 							writeMessageToFile(item);
+							// Delete old file to avoid duplicates
+							FileUtils.deleteQuietly(file);
 						}
 						log.debug("Error processing file " + file.getName(), e);
 						numFailure++;
 					}
 				}
-				log.warn("Processing " + files.length + " complete: " + numSuccess + " successful " + numFailure + " failed");
+				log.warn("Processing " + filesToProcess + " complete: " + numSuccess + " successful " + numFailure + " failed");
 			}
 			finally {
 				processing = false;

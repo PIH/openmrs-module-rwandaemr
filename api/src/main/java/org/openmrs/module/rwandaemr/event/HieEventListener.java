@@ -29,11 +29,24 @@ public abstract class HieEventListener implements EventListener{
                 throw new IllegalArgumentException("Unable to retrieve encounter uuid from message: " + message);
             }
 
+            // Check if HIE is enabled BEFORE creating daemon thread to avoid thread pool exhaustion
+            // This check is done here to prevent creating unnecessary threads when HIE is disabled
+            if(!isHieEnabled()){
+                log.debug("HIE is not enabled, skipping event processing for uuid: " + uuid);
+                return;
+            }
+
             Daemon.runInDaemonThread(() -> handle(uuid, mapMessage), daemonToken);
         } catch(Exception e){
             handleException(e);
         }
     }
+    
+    /**
+     * Check if HIE is enabled. This method should be implemented by subclasses
+     * to avoid creating unnecessary daemon threads when HIE is disabled.
+     */
+    protected abstract boolean isHieEnabled();
 
     public abstract void handle(String encounterUuid, MapMessage mapMessage);
     public abstract void handleException(Exception e);
