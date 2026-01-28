@@ -11,15 +11,9 @@ package org.openmrs.module.rwandaemr.integration.insurance;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
-public class CbhiMember {
-    String memberId;
-    String firstName;
-    String lastName;
-    String dateOfBirth;
-    String gender;
-    String type;
-    String documentNumber;
-    Boolean isEligible;
-    String eligibilityStartDate;
+public class InsuranceOwner extends InsuranceMember {
+    List<InsuranceMember> dependants;
 }
