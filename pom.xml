@@ -3,7 +3,7 @@
 
     <groupId>org.openmrs.module</groupId>
     <artifactId>rwandaemr</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>3.2.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Rwanda EMR Module</name>
 
@@ -68,7 +68,7 @@
         <orderextensionVersion>3.2.0</orderextensionVersion>
         <owaVersion>1.15.0</owaVersion>
         <pharmacymanagementVersion>2.0.0-SNAPSHOT</pharmacymanagementVersion>
-        <pihappsVersion>1.1.0-SNAPSHOT</pihappsVersion>
+        <pihappsVersion>1.2.0-SNAPSHOT</pihappsVersion>
         <providermanagementVersion>2.15.0</providermanagementVersion>
         <!-- rbcmessaging-1.0-SNAPSHOT -->
         <registrationappVersion>1.28.1</registrationappVersion>
