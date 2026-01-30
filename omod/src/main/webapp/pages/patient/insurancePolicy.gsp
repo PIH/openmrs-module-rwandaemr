@@ -91,6 +91,8 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     <% insurancesToVerify.each { e -> %>
         insurancesToVerify.set('${e.getKey().getInsuranceId()}', '${e.getValue()}');
     <% } %>
+    const isEditMode = ${editMode ? "true" : "false"};
+    const hasErrorsFlag = ${hasErrors ? "true" : "false"};
 
     function enableVerification() {
         jq("#owner-name-field").val("").attr("disabled", "disabled");
@@ -176,6 +178,17 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             jq("#owner-code-field").on("change paste keyup", function () {
                 toggleVerificationButton();
             });
+
+            if (isEditMode && !hasErrorsFlag) {
+                const insuranceTypeId = jq("#insurance-type-field").val();
+                const ownerCode = jq("#owner-code-field").val();
+                const rhipPatientId = jq("#rhip-patient-id-field").val();
+                if (insuranceTypeId && ownerCode && !rhipPatientId && insurancesToVerify.has(insuranceTypeId)) {
+                    toggleVerificationButton();
+                    jq("#verify-button").removeAttr("disabled");
+                    jq("#verify-button").click();
+                }
+            }
 
             jq("#verify-button").click(function () {
                 jq("#verify-button").attr("disabled", "disabled");
@@ -330,7 +343,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 <% } else { %>
                     <p>
                         <% if (editMode) { %>
-                            <input type="hidden" name="insuranceId" value="${policyModel.insuranceId}" />
+                            <input type="hidden" id="insurance-type-field" name="insuranceId" value="${policyModel.insuranceId}" />
                         <% } %>
                         <label for="view-insurance-name">${ui.message("rwandaemr.insurance.name")}</label>
                         <span id="view-insurance-name" class="field-value">${ui.format(policy.insurance?.name)}</span>
