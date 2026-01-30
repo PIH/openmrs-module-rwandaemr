@@ -92,6 +92,12 @@
         <usagestatisticsVersion>2.1.0</usagestatisticsVersion>
         <webservicesRestVersion>2.50.0</webservicesRestVersion>
         <lombokVersion>1.18.36</lombokVersion>
+
+        <pihMavenPluginVersion>1.6.0</pihMavenPluginVersion>
+        <dependencyReportClassifier>dependencies</dependencyReportClassifier>
+        <dependencyReportExtension>txt</dependencyReportExtension>
+        <dependenciesFile>${project.build.directory}/${project.artifactId}-${project.version}-${dependencyReportClassifier}.${dependencyReportExtension}</dependenciesFile>
+
         <MODULE_ID>${project.parent.artifactId}</MODULE_ID>
         <MODULE_NAME>Rwanda EMR</MODULE_NAME>
         <MODULE_VERSION>${project.parent.version}</MODULE_VERSION>
@@ -253,7 +259,7 @@
             <url>https://openmrs.jfrog.io/artifactory/modules-pih/</url>
         </repository>
         <snapshotRepository>
-            <id>openmrs-repo-modules-pih-snapshots</id>
+            <id>openmrs-repo-modules-pih</id>
             <name>OpenMRS PIH Module Snapshots</name>
             <url>https://openmrs.jfrog.io/artifactory/modules-pih-snapshots/</url>
         </snapshotRepository>
@@ -303,10 +309,11 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.1</version>
+                    <version>3.14.1</version>
                     <configuration>
                         <target>8</target>
                         <source>8</source>
+                        <encoding>UTF-8</encoding>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -329,7 +336,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>2.4</version>
+                    <version>3.5.0</version>
                     <executions>
                         <execution>
                             <goals>
@@ -361,6 +368,23 @@
                             <phase>package</phase>
                             <goals>
                                 <goal>package-module</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.pih.maven.plugin</groupId>
+                    <artifactId>pih-maven-plugin</artifactId>
+                    <version>${pihMavenPluginVersion}</version>
+                    <configuration>
+                        <outputFile>${dependenciesFile}</outputFile>
+                        <excludes>org.openmrs.module:pihapps-api</excludes>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <phase>generate-resources</phase>
+                            <goals>
+                                <goal>dependency-report</goal>
                             </goals>
                         </execution>
                     </executions>
