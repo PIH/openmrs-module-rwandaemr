@@ -91,12 +91,15 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     <% insurancesToVerify.each { e -> %>
         insurancesToVerify.set('${e.getKey().getInsuranceId()}', '${e.getValue()}');
     <% } %>
+    const isEditMode = ${editMode ? "true" : "false"};
+    const hasErrorsFlag = ${hasErrors ? "true" : "false"};
 
     function enableVerification() {
         jq("#owner-name-field").val("").attr("disabled", "disabled");
         jq("#company-field").val("").attr("disabled", "disabled");
         jq("#level-field").val("").attr("disabled", "disabled");
         jq("#policy-number-field").val("").attr("disabled", "disabled");
+        jq("#rhip-patient-id-field").val("");
         jq("#start-date-picker-field").val("");
         jq("#start-date-picker-display").val("").attr("disabled", "disabled");
         jq("#start-date-picker-wrapper >> .icon-calendar").hide();
@@ -176,6 +179,17 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 toggleVerificationButton();
             });
 
+            if (isEditMode && !hasErrorsFlag) {
+                const insuranceTypeId = jq("#insurance-type-field").val();
+                const ownerCode = jq("#owner-code-field").val();
+                const rhipPatientId = jq("#rhip-patient-id-field").val();
+                if (insuranceTypeId && ownerCode && !rhipPatientId && insurancesToVerify.has(insuranceTypeId)) {
+                    toggleVerificationButton();
+                    jq("#verify-button").removeAttr("disabled");
+                    jq("#verify-button").click();
+                }
+            }
+
             jq("#verify-button").click(function () {
                 jq("#verify-button").attr("disabled", "disabled");
                 const insuranceTypeId = jq("#insurance-type-field").val();
@@ -221,12 +235,14 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                 jq(row).find(".member-birthdate").html(getDateDisplay(member.dateOfBirth));
                                 jq(row).find(".member-start-date").html(getDateDisplay(member.eligibilityStartDate));
                                 jq(row).find(".member-id").html(member.documentNumber);
+                                jq(row).find(".member-rhip-id").html(member.patientId || "");
                                 jq(row).find(".member-government-sponsored").html(member.isGovernmentSponsored)
                                 if (member.isEligible) {
                                     jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
                                     jq(row).find(".member-select").click(function () {
                                         jq("#owner-name-field").val(member.ownerName);
                                         jq("#policy-number-field").val(member.documentNumber);
+                                        jq("#rhip-patient-id-field").val(member.patientId || "");
                                         if (member.eligibilityStartDate) {
                                             jq("#start-date-picker-field").val(member.eligibilityStartDate);
                                             jq("#start-date-picker-display").val(getDateDisplay(member.eligibilityStartDate));
@@ -289,6 +305,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 <form method="post" id="insurance-policy-form">
     <input type="hidden" value="${ui.format(policyModel.policyId)}" name="policyId" />
     <input type="hidden" value="${patient.patient.id}" name="patientId" />
+    <input type="hidden" id="rhip-patient-id-field" value="${ui.format(policyModel.rhipPatientId)}" name="rhipPatientId" />
 
     <div class="row">
         <div class="col-6">
@@ -326,7 +343,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 <% } else { %>
                     <p>
                         <% if (editMode) { %>
-                            <input type="hidden" name="insuranceId" value="${policyModel.insuranceId}" />
+                            <input type="hidden" id="insurance-type-field" name="insuranceId" value="${policyModel.insuranceId}" />
                         <% } %>
                         <label for="view-insurance-name">${ui.message("rwandaemr.insurance.name")}</label>
                         <span id="view-insurance-name" class="field-value">${ui.format(policy.insurance?.name)}</span>
@@ -416,10 +433,22 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         size: 30,
                         otherAttributes: ["autocomplete": "off"]
                 ])}
+                ${ ui.includeFragment("uicommons", "field/text", [
+                        id: "rhip-patient-id",
+                        label: "RHIP Patient ID",
+                        formFieldName: "rhipPatientIdDisplay",
+                        initialValue: (policyModel.rhipPatientId ?: ''),
+                        size: 30,
+                        otherAttributes: ["disabled": "disabled"]
+                ])}
             <% } else { %>
                 <p>
                     <label for="view-insurance-card-number">${ui.message("rwandaemr.insurance.insuranceCardNo")}</label>
                     <span id="view-insurance-card-number" class="field-value">${ui.format(policyModel.insuranceCardNo)}</span>
+                </p>
+                <p>
+                    <label for="view-rhip-patient-id">RHIP Patient ID</label>
+                    <span id="view-rhip-patient-id" class="field-value">${ui.format(policyModel.rhipPatientId)}</span>
                 </p>
             <% } %>
 
@@ -506,6 +535,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     <th>Name</th>
                     <th>Gender</th>
                     <th>Member ID</th>
+                    <th>RHIP Patient ID</th>
                     <th>Birthdate</th>
                     <th>Eligibility Date</th>
                     <th>Eligibility</th>
@@ -518,6 +548,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     <td class="member-name"></td>
                     <td class="member-gender"></td>
                     <td class="member-id"></td>
+                    <td class="member-rhip-id"></td>
                     <td class="member-birthdate"></td>
                     <td class="member-start-date"></td>
                     <td class="member-eligibility"></td>
