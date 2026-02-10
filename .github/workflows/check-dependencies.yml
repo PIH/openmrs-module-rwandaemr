@@ -1,0 +1,39 @@
+name: Check dependencies
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+jobs:
+  check-dependencies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out latest
+        uses: actions/checkout@v4
+        with:
+          path: repository
+      - name: Check out PIH tools
+        uses: actions/checkout@v4
+        with:
+          repository: PIH/tools
+          path: tools
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 8
+          cache: 'maven'
+      - name: Check dependencies
+        id: checkDependencies
+        shell: bash
+        run: |
+          #!/usr/bin/env bash
+          set +e
+          ./tools/ci/dependency-status-with-repolling.sh -r 300 -d ./repository
+          if [ $? -eq 1 ]; then
+            cd repository && gh workflow run deploy.yml
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}

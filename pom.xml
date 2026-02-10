@@ -3,7 +3,7 @@
 
     <groupId>org.openmrs.module</groupId>
     <artifactId>rwandaemr</artifactId>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>3.2.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Rwanda EMR Module</name>
 
@@ -52,7 +52,7 @@
         <htmlwidgetsVersion>1.12.0-SNAPSHOT</htmlwidgetsVersion>
         <idgenVersion>4.14.0</idgenVersion>
         <imbpathologyrequestVersion>1.0.0-SNAPSHOT</imbpathologyrequestVersion>
-        <initializerVersion>2.10.0-SNAPSHOT</initializerVersion>
+        <initializerVersion>2.10.0</initializerVersion>
         <laboratorymanagementVersion>2.0.0-SNAPSHOT</laboratorymanagementVersion>
         <legacyuiVersion>1.23.0</legacyuiVersion>
         <metadatamappingVersion>1.7.0</metadatamappingVersion>
@@ -68,7 +68,7 @@
         <orderextensionVersion>3.2.0</orderextensionVersion>
         <owaVersion>1.15.0</owaVersion>
         <pharmacymanagementVersion>2.0.0-SNAPSHOT</pharmacymanagementVersion>
-        <pihappsVersion>1.1.0-SNAPSHOT</pihappsVersion>
+        <pihappsVersion>1.2.0-SNAPSHOT</pihappsVersion>
         <providermanagementVersion>2.15.0</providermanagementVersion>
         <!-- rbcmessaging-1.0-SNAPSHOT -->
         <registrationappVersion>1.28.1</registrationappVersion>
@@ -92,6 +92,12 @@
         <usagestatisticsVersion>2.1.0</usagestatisticsVersion>
         <webservicesRestVersion>2.50.0</webservicesRestVersion>
         <lombokVersion>1.18.36</lombokVersion>
+
+        <pihMavenPluginVersion>1.6.0</pihMavenPluginVersion>
+        <dependencyReportClassifier>dependencies</dependencyReportClassifier>
+        <dependencyReportExtension>txt</dependencyReportExtension>
+        <dependenciesFile>${project.build.directory}/${project.artifactId}-${project.version}-${dependencyReportClassifier}.${dependencyReportExtension}</dependenciesFile>
+
         <MODULE_ID>${project.parent.artifactId}</MODULE_ID>
         <MODULE_NAME>Rwanda EMR</MODULE_NAME>
         <MODULE_VERSION>${project.parent.version}</MODULE_VERSION>
@@ -253,7 +259,7 @@
             <url>https://openmrs.jfrog.io/artifactory/modules-pih/</url>
         </repository>
         <snapshotRepository>
-            <id>openmrs-repo-modules-pih-snapshots</id>
+            <id>openmrs-repo-modules-pih</id>
             <name>OpenMRS PIH Module Snapshots</name>
             <url>https://openmrs.jfrog.io/artifactory/modules-pih-snapshots/</url>
         </snapshotRepository>
@@ -303,10 +309,11 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.1</version>
+                    <version>3.14.1</version>
                     <configuration>
                         <target>8</target>
                         <source>8</source>
+                        <encoding>UTF-8</encoding>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -329,7 +336,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>2.4</version>
+                    <version>3.5.0</version>
                     <executions>
                         <execution>
                             <goals>
@@ -361,6 +368,23 @@
                             <phase>package</phase>
                             <goals>
                                 <goal>package-module</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.pih.maven.plugin</groupId>
+                    <artifactId>pih-maven-plugin</artifactId>
+                    <version>${pihMavenPluginVersion}</version>
+                    <configuration>
+                        <outputFile>${dependenciesFile}</outputFile>
+                        <excludes>org.openmrs.module:pihapps-api</excludes>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <phase>generate-resources</phase>
+                            <goals>
+                                <goal>dependency-report</goal>
                             </goals>
                         </execution>
                     </executions>

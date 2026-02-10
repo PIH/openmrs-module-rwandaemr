@@ -25,12 +25,12 @@
 
 <form method="post">
     <% labSet.setMembers.each { category -> %>
-        <div class="test-category">${ labOrderConfig.formatConcept(category) }</div>
+        <div class="test-category">${ pihAppsUtils.formatLabTest(category) }</div>
         <% category.setMembers.each { labTest -> %>
             <% def testSelected = labTestsByCategory.isEmpty() || (labTestsByCategory.get(category) && labTestsByCategory.get(category).contains(labTest)) %>
             <div class="test-in-category">
                 <input type="checkbox" name="labTests" value="${labTest.id}" ${testSelected ? " checked=\"checked\"" : ""} />
-                ${ labOrderConfig.formatConcept(labTest) }
+                ${ pihAppsUtils.formatLabTest(labTest) }
             </div>
         <% } %>
     <% } %>
