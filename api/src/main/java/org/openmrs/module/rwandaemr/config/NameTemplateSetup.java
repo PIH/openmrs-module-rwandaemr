@@ -3,18 +3,21 @@ package org.openmrs.module.rwandaemr.config;
 import org.openmrs.api.context.Context;
 import org.openmrs.layout.name.NameSupport;
 import org.openmrs.layout.name.NameTemplate;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class NameTemplateSetup {
+@Component
+public class NameTemplateSetup implements Setup {
 
     /**
      * There may be multiple name support beans registered incorrectly.  This ensures all are configured the same way if so
      */
-    public static void setup() {
+    @Override
+    public void initialize() {
         configureNameTemplate(NameSupport.getInstance());
         for (NameSupport nameSupport : Context.getRegisteredComponents(NameSupport.class)) {
             configureNameTemplate(nameSupport);

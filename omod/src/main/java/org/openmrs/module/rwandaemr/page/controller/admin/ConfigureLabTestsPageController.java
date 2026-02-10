@@ -17,6 +17,8 @@ import org.openmrs.Concept;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.module.appui.UiSessionContext;
 import org.openmrs.module.pihapps.PihAppsConfig;
+import org.openmrs.module.pihapps.PihAppsUtils;
+import org.openmrs.module.pihapps.orders.LabTestCategory;
 import org.openmrs.module.uicommons.UiCommonsConstants;
 import org.openmrs.ui.framework.UiUtils;
 import org.openmrs.ui.framework.annotation.SpringBean;
@@ -25,7 +27,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controls page which is used to configure the lab tests that should be available for ordering on the current systems
@@ -34,12 +38,19 @@ import java.util.List;
 public class ConfigureLabTestsPageController {
 
     public void get(PageModel model,
+                    @SpringBean("pihAppsUtils") PihAppsUtils pihAppsUtils,
                     @SpringBean("pihAppsConfig") PihAppsConfig pihAppsConfig) {
 
         model.addAttribute("pihAppsConfig", pihAppsConfig);
         model.addAttribute("labOrderConfig", pihAppsConfig.getLabOrderConfig());
+        model.addAttribute("pihAppsUtils", pihAppsUtils);
         model.addAttribute("labSet", pihAppsConfig.getLabOrderConfig().getLabOrderablesConceptSet());
-        model.addAttribute("labTestsByCategory", pihAppsConfig.getLabOrderConfig().getAvailableLabTestsByCategory());
+
+        Map<Concept, List<Concept>> enabledTestsByCategory = new HashMap<>();
+        for (LabTestCategory labTestCategory : pihAppsConfig.getLabOrderConfig().getAvailableLabTestsByCategory()) {
+            enabledTestsByCategory.put(labTestCategory.getCategory(), labTestCategory.getLabTests());
+        }
+        model.addAttribute("labTestsByCategory", enabledTestsByCategory);
     }
 
     public String post(PageModel model, UiUtils ui, UiSessionContext sessionContext,

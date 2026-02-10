@@ -4,6 +4,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.module.authentication.AuthenticationConfig;
+import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
 import java.util.Properties;
@@ -16,7 +17,8 @@ import static org.openmrs.module.authentication.AuthenticationConfig.SCHEME_ID;
 import static org.openmrs.module.authentication.AuthenticationConfig.SCHEME_TYPE_TEMPLATE;
 import static org.openmrs.module.authentication.AuthenticationConfig.WHITE_LIST;
 
-public class AuthenticationSetup {
+@Component
+public class AuthenticationSetup implements Setup {
 
     protected static Log log = LogFactory.getLog(AuthenticationSetup.class);
 
@@ -25,7 +27,8 @@ public class AuthenticationSetup {
     public static final String TOTP = "totp";
     public static final String TWO_FACTOR = "2fa";
 
-    public static void configureAuthenticationSchemes() {
+    @Override
+    public void initialize() {
 
         // Add this classloader
         AuthenticationConfig.registerClassLoader(AuthenticationSetup.class.getClassLoader());

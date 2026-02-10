@@ -1,0 +1,27 @@
+name: Release
+on:
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: 8
+        cache: 'maven'
+        server-id: openmrs-repo-modules-pih
+        server-username: OPENMRS_MAVEN_USERNAME
+        server-password: OPENMRS_MAVEN_PASSWORD
+    - name: Setup Git Config
+      run: |
+        git config user.name "Github Action"
+        git config user.email "github-action@users.noreply.github.com"
+    - name: Maven Release Prepare
+      run: mvn -B -DpreparationGoals=clean -Darguments="-Dmaven.test.skip=true" release:prepare release:perform --file pom.xml
+      env:
+        OPENMRS_MAVEN_USERNAME: ${{ secrets.OPENMRS_MAVEN_USERNAME }}
+        OPENMRS_MAVEN_PASSWORD: ${{ secrets.OPENMRS_MAVEN_PASSWORD }}
+        GITHUB_TOKEN: ${{ secrets.GHA_WRITE_TOKEN }}

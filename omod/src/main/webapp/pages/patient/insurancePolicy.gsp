@@ -197,62 +197,17 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?type=" + insuranceType + "&identifier=" + ownerCode, function(data) {
                     console.log(data);
                     if (data.responseCode === 200) {
-                        const details = data.responseEntity;
                         let verifyRows = [];
-                        if (insuranceType === 'rama') {
-                            verifyRows.push({
-                                name: details.firstName + " " + details.lastName,
-                                gender: details.gender,
-                                birthdate: details.dateOfBirth,
-                                type: 'HEAD',
-                                headHouseholdName: details.firstName + " " + details.lastName,
-                                company: details.employerName,
-                                insuranceCardNumber: details.mainAffiliateId,
-                                startDate: '${ui.dateToString(todayDate).substring(0, 10)}',
-                                endDate: '${ui.dateToString(todayPlus3Months).substring(0, 10)}',
-                                memberId: details.cardId,
-                                eligible: details.isEligible,
-                                governmentSponsored: ''
-                            });
-                        } else if (insuranceType === 'cbhi') {
-                            let headOfHouseholdName = '';
-                            details.members.forEach((member) => {
-                                if (member.type === 'HEAD') {
-                                    headOfHouseholdName = member.firstName + ' ' + member.lastName;
-                                }
-                            });
-                            details.members.forEach(member => {
-                                verifyRows.push({
-                                    name: member.firstName + " " + member.lastName,
-                                    gender: member.gender,
-                                    birthdate: member.dateOfBirth,
-                                    type: member.type,
-                                    headHouseholdName: headOfHouseholdName,
-                                    company: '',
-                                    insuranceCardNumber: member.documentNumber,
-                                    startDate: member.eligibilityStartDate ? member.eligibilityStartDate.substring(0, 10) : null,
-                                    endDate: member.eligibilityStartDate ? (parseInt(member.eligibilityStartDate.substring(0, 4)) + 1) + '-06-30' : null,
-                                    memberId: member.documentNumber,
-                                    eligible: member.isEligible,
-                                    governmentSponsored: details.isGovermentSponsored ? 'True' : 'False',
+                        if (data.responseEntity.success) {
+                            const owner = data.responseEntity.data;
+                            owner['ownerName'] = owner.fullName;
+                            verifyRows.push(owner);
+                            if (owner.dependants) {
+                                owner.dependants.forEach((dependant) => {
+                                    dependant['ownerName'] = owner.fullName;
+                                    verifyRows.push(dependant);
                                 });
-                            })
-                        }
-                        else if (insuranceType === 'cbhi-special-case') {
-                            verifyRows.push({
-                                name: details.fullNames,
-                                gender: null,
-                                birthdate: details.dateOfBirth,
-                                type: 'HEAD',
-                                headHouseholdName: details.fullNames,
-                                company: details.institutionName,
-                                insuranceCardNumber: details.documentNumber,
-                                startDate: details.eligibilityStartDate ? details.eligibilityStartDate.substring(0, 10) : null,
-                                endDate: details.eligibilityStartDate ? (parseInt(details.eligibilityStartDate.substring(0, 4)) + 1) + '-06-30' : null,
-                                memberId: details.documentNumber,
-                                eligible: details.isEligible,
-                                governmentSponsored: details.isGovermentSponsored ? 'True' : 'False',
-                            });
+                            }
                         }
                         if (verifyRows.length === 0) {
                             setNoMatchingInsurancesFound(insuranceType);
@@ -261,21 +216,30 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             setVerifyResultsMessage('Please choose an eligible member or cancel');
                             verifyRows.forEach((member) => {
                                 const row = jq("#verify-member-row-template").clone();
-                                jq(row).find(".member-name").html(member.name);
+                                jq(row).find(".member-name").html(member.fullName);
                                 jq(row).find(".member-gender").html(member.gender);
-                                jq(row).find(".member-birthdate").html(getDateDisplay(member.birthdate));
-                                jq(row).find(".member-start-date").html(getDateDisplay(member.startDate));
-                                jq(row).find(".member-id").html(member.memberId);
-                                jq(row).find(".member-government-sponsored").html(member.governmentSponsored)
-                                if (member.eligible) {
+                                jq(row).find(".member-birthdate").html(getDateDisplay(member.dateOfBirth));
+                                jq(row).find(".member-start-date").html(getDateDisplay(member.eligibilityStartDate));
+                                jq(row).find(".member-id").html(member.documentNumber);
+                                jq(row).find(".member-government-sponsored").html(member.isGovernmentSponsored)
+                                if (member.isEligible) {
                                     jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
                                     jq(row).find(".member-select").click(function () {
-                                        jq("#owner-name-field").val(member.headHouseholdName);
-                                        jq("#company-field").val(member.company);
-                                        jq("#policy-number-field").val(member.insuranceCardNumber);
-                                        if (member.startDate) {
-                                            jq("#start-date-picker-field").val(member.startDate);
-                                            jq("#start-date-picker-display").val(getDateDisplay(member.startDate));
+                                        jq("#owner-name-field").val(member.ownerName);
+                                        jq("#policy-number-field").val(member.documentNumber);
+                                        if (member.eligibilityStartDate) {
+                                            jq("#start-date-picker-field").val(member.eligibilityStartDate);
+                                            jq("#start-date-picker-display").val(getDateDisplay(member.eligibilityStartDate));
+                                            if (!member.endDate) {
+                                                const startDate = moment(member.eligibilityStartDate);
+                                                const startDateYear = startDate.year();
+                                                const startDateMonth = startDate.month() + 1;
+                                                const startDateDay = startDate.day();
+                                                const startDateMonthAndDay = startDateMonth + "-" + startDateDay;
+                                                const endDateMonthAndDay = "06-30";
+                                                const endDateYear = (startDateMonthAndDay >= endDateMonthAndDay ? startDateYear + 1 : startDateYear);
+                                                member.endDate = endDateYear + "-" + endDateMonthAndDay;
+                                            }
                                         }
                                         if (member.endDate) {
                                             jq("#expiration-date-picker-field").val(member.endDate);
@@ -303,8 +267,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
                             disableVerification();
                         }
-                        else if (data.errorMessage) {
-                            setVerifyResultsMessage('An error occurred while checking insurance eligibility: ' + data.errorMessage);
+                        else if (data.errorMessage || data.responseEntity?.error) {
+                            const errorMessage = data.errorMessage && data.errorMessage !== 'null' ? data.errorMessage : data.responseEntity?.error;
+                            setVerifyResultsMessage('Error: ' + errorMessage ?? "Unknown");
                             console.error(data);
                             disableVerification();
                         }

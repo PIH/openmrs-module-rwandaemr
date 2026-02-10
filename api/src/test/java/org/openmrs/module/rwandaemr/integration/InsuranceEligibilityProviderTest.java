@@ -4,20 +4,15 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.openmrs.module.rwandaemr.integration.insurance.CbhiDetails;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceEligibilityProvider;
+import org.openmrs.module.rwandaemr.integration.insurance.InsuranceEligibilityResponse;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceIntegrationConfig;
-import org.openmrs.module.rwandaemr.integration.insurance.InsuranceNotFoundResponse;
-import org.openmrs.module.rwandaemr.integration.insurance.RamaDetails;
 import org.openmrs.util.OpenmrsUtil;
 
 import java.io.File;
-import java.util.HashSet;
 import java.util.Properties;
-import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.nullValue;
@@ -29,6 +24,7 @@ public class InsuranceEligibilityProviderTest {
 	InsuranceEligibilityProvider provider;
 	InsuranceIntegrationConfig config;
 	Properties p;
+	String fosaid = "448";
 
 	@BeforeEach
 	public void setUp() {
@@ -69,7 +65,7 @@ public class InsuranceEligibilityProviderTest {
 		}
 		String type = p.getProperty("connectionTest.type");
 		String identifier = p.getProperty("connectionTest.identifier");
-		IntegrationResponse response = provider.checkEligibility(type, identifier);
+		IntegrationResponse response = provider.checkEligibility(type, identifier, fosaid);
 		System.out.println(response);
 	}
 	
@@ -82,26 +78,24 @@ public class InsuranceEligibilityProviderTest {
 		}
 		String type = "cbhi";
 		String identifier = "1195080033589077";
-		IntegrationResponse response = provider.checkEligibility(type, identifier);
+		IntegrationResponse response = provider.checkEligibility(type, identifier, fosaid);
 		assertThat(response.isEndpointAccessible(), equalTo(true));
 		assertThat(response.getResponseCode(), equalTo(200));
-		assertThat(response.getResponseEntity(), isA(CbhiDetails.class));
+		assertThat(response.getResponseEntity(), isA(InsuranceEligibilityResponse.class));
 		assertThat(response.getErrorMessage(), nullValue());
-		CbhiDetails details = (CbhiDetails) response.getResponseEntity();
-		assertThat(details.getTotalMembers(), equalTo(1));
+		InsuranceEligibilityResponse details = (InsuranceEligibilityResponse) response.getResponseEntity();
+		assertThat(details.getIdentifier(), equalTo(identifier));
+		assertThat(details.getData().getDependants(), nullValue());
 
 		identifier = "1194170010945086";
-		response = provider.checkEligibility(type, identifier);
+		response = provider.checkEligibility(type, identifier, fosaid);
 		assertThat(response.isEndpointAccessible(), equalTo(true));
 		assertThat(response.getResponseCode(), equalTo(200));
-		assertThat(response.getResponseEntity(), isA(CbhiDetails.class));
+		assertThat(response.getResponseEntity(), isA(InsuranceEligibilityResponse.class));
 		assertThat(response.getErrorMessage(), nullValue());
-		details = (CbhiDetails) response.getResponseEntity();
-		assertThat(details.getTotalMembers(), equalTo(2));
-		Set<String> types = new HashSet<String>();
-		types.add(details.getMembers().get(0).getType());
-		types.add(details.getMembers().get(1).getType());
-		assertThat(types, containsInAnyOrder("HEAD", "BENEFICIARY"));
+		details = (InsuranceEligibilityResponse) response.getResponseEntity();
+		assertThat(details.getIdentifier(), equalTo(identifier));
+		assertThat(details.getData().getDependants().size(), equalTo(1));
 	}
 
 	@Test
@@ -113,13 +107,12 @@ public class InsuranceEligibilityProviderTest {
 		}
 		String type = "rama";
 		String identifier = "20746004W";
-		IntegrationResponse response = provider.checkEligibility(type, identifier);
+		IntegrationResponse response = provider.checkEligibility(type, identifier, fosaid);
 		assertThat(response.isEndpointAccessible(), equalTo(true));
 		assertThat(response.getResponseCode(), equalTo(200));
-		assertThat(response.getResponseEntity(), isA(RamaDetails.class));
 		assertThat(response.getErrorMessage(), nullValue());
-		RamaDetails details = (RamaDetails) response.getResponseEntity();
-		assertThat(details.getMainAffiliateId(), equalTo(identifier));
+		InsuranceEligibilityResponse r = (InsuranceEligibilityResponse) response.getResponseEntity();
+		assertThat(r.getIdentifier(), equalTo(identifier));
 	}
 
 	@Test
@@ -131,12 +124,11 @@ public class InsuranceEligibilityProviderTest {
 		}
 		String type = "cbhi";
 		String identifier = "RCA2411104607";
-		IntegrationResponse response = provider.checkEligibility(type, identifier);
+		IntegrationResponse response = provider.checkEligibility(type, identifier, fosaid);
 		assertThat(response.isEndpointAccessible(), equalTo(true));
-		assertThat(response.getResponseCode(), equalTo(404));
-		assertThat(response.getResponseEntity(), isA(InsuranceNotFoundResponse.class));
+		assertThat(response.getResponseEntity(), isA(InsuranceEligibilityResponse.class));
 		assertThat(response.getErrorMessage(), nullValue());
-		InsuranceNotFoundResponse r = (InsuranceNotFoundResponse) response.getResponseEntity();
+		InsuranceEligibilityResponse r = (InsuranceEligibilityResponse) response.getResponseEntity();
 		assertThat(r.isSuccess(), equalTo(false));
 		assertThat(r.getMessage(), equalTo("Household is not found"));
 	}
@@ -150,12 +142,12 @@ public class InsuranceEligibilityProviderTest {
 		}
 		String type = "rama";
 		String identifier = "ABCDE";
-		IntegrationResponse response = provider.checkEligibility(type, identifier);
+		IntegrationResponse response = provider.checkEligibility(type, identifier, fosaid);
 		assertThat(response.isEndpointAccessible(), equalTo(true));
-		assertThat(response.getResponseCode(), equalTo(400));
-		assertThat(response.getResponseEntity(), isA(InsuranceNotFoundResponse.class));
-		InsuranceNotFoundResponse r = (InsuranceNotFoundResponse) response.getResponseEntity();
+		assertThat(response.getResponseEntity(), isA(InsuranceEligibilityResponse.class));
+		InsuranceEligibilityResponse r = (InsuranceEligibilityResponse) response.getResponseEntity();
 		assertThat(r.isSuccess(), equalTo(false));
+
 	}
 
 	@Test
@@ -169,7 +161,7 @@ public class InsuranceEligibilityProviderTest {
 		provider = new InsuranceEligibilityProvider(config);
 		String type = "rama";
 		String identifier = "ABCDE";
-		IntegrationResponse response = provider.checkEligibility(type, identifier);
+		IntegrationResponse response = provider.checkEligibility(type, identifier, fosaid);
 		assertThat(response.isEndpointAccessible(), equalTo(false));
 	}
 

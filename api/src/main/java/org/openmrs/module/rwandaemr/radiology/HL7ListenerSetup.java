@@ -5,18 +5,22 @@ import ca.uhn.hl7v2.app.SimpleServer;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.rwandaemr.config.Setup;
 import org.openmrs.module.rwandaemr.radiology.mock.MockPacsSystem;
+import org.springframework.stereotype.Component;
 
 /**
  * Starts up the HL7 listener, if enabled
  */
-public class HL7ListenerSetup {
+@Component
+public class HL7ListenerSetup implements Setup {
 
     private static final Log log = LogFactory.getLog(HL7ListenerSetup.class);
 
     private static HL7Service hl7Service;
 
-    public static void startup() {
+    @Override
+    public void initialize() {
         Integer port = RadiologyConfig.getIncomingHl7Port();
         if (port != null) {
             try {
@@ -42,7 +46,8 @@ public class HL7ListenerSetup {
         }
     }
 
-    public static void shutdown() {
+    @Override
+    public void teardown() {
         if (hl7Service != null && hl7Service.isRunning()) {
             log.info("Shutting down HL7 listener");
             hl7Service.stop();
