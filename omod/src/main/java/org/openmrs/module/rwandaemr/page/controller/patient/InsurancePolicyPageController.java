@@ -8,6 +8,7 @@ import org.openmrs.User;
 import org.openmrs.api.APIException;
 import org.openmrs.api.context.Context;
 import org.openmrs.messagesource.MessageSourceService;
+import org.openmrs.PersonAttribute;
 import org.openmrs.module.emrapi.patient.PatientDomainWrapper;
 import org.openmrs.module.mohbilling.businesslogic.InsurancePolicyUtil;
 import org.openmrs.module.mohbilling.businesslogic.InsuranceUtil;
@@ -15,6 +16,7 @@ import org.openmrs.module.mohbilling.model.Beneficiary;
 import org.openmrs.module.mohbilling.model.Insurance;
 import org.openmrs.module.mohbilling.model.InsurancePolicy;
 import org.openmrs.module.mohbilling.service.BillingService;
+import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceIntegrationConfig;
 import org.openmrs.ui.framework.annotation.BindParams;
 import org.openmrs.ui.framework.annotation.InjectBeans;
@@ -53,6 +55,7 @@ public class InsurancePolicyPageController {
                       @MethodParam("getPolicy") @BindParams InsurancePolicy policy,
                       @InjectBeans PatientDomainWrapper patientDomainWrapper,
                       @SpringBean("insuranceIntegrationConfig") InsuranceIntegrationConfig insuranceIntegrationConfig,
+                      @SpringBean("rwandaEmrConfig") RwandaEmrConfig rwandaEmrConfig,
                       @RequestParam(value = "patientId") Patient patient,
                       @RequestParam(value = "edit", defaultValue = "false", required = false) Boolean edit,
                       @RequestParam(value = "returnUrl", required = false) String returnUrl) throws IOException {
@@ -73,6 +76,7 @@ public class InsurancePolicyPageController {
         model.addAttribute("insurancesToVerify", insuranceIntegrationConfig.getInsurancesToVerify());
         model.addAttribute("thirdParties", InsurancePolicyUtil.getAllThirdParties());
         model.addAttribute("owners", getEligiblePolicyOwnersForPatient(patient));
+        model.addAttribute("patientPhoneNumber", getPatientPhoneNumber(patient, rwandaEmrConfig));
         model.addAttribute("returnUrl", getReturnUrl(returnUrl, patient, policy));
         model.addAttribute("hasErrors", false);
 
@@ -188,6 +192,8 @@ public class InsurancePolicyPageController {
             model.addAttribute("insurancesToVerify", insuranceIntegrationConfig.getInsurancesToVerify());
             model.addAttribute("thirdParties", InsurancePolicyUtil.getAllThirdParties());
             model.addAttribute("owners", getEligiblePolicyOwnersForPatient(patient));
+            model.addAttribute("patientPhoneNumber",
+                    getPatientPhoneNumber(patient, Context.getRegisteredComponents(RwandaEmrConfig.class).get(0)));
             model.addAttribute("returnUrl", getReturnUrl(returnUrl, patient, policy));
             model.addAttribute("editMode", true);
             model.addAttribute("hasErrors", true);
@@ -221,6 +227,14 @@ public class InsurancePolicyPageController {
         ret.add(patient);
         // TODO: Should we support owners other than the patient?  Maybe from relationships?
         return ret;
+    }
+
+    private String getPatientPhoneNumber(Patient patient, RwandaEmrConfig rwandaEmrConfig) {
+        if (patient == null || rwandaEmrConfig == null || rwandaEmrConfig.getTelephoneNumber() == null) {
+            return null;
+        }
+        PersonAttribute attribute = patient.getAttribute(rwandaEmrConfig.getTelephoneNumber());
+        return attribute == null ? null : attribute.getValue();
     }
 
     @Data

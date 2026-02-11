@@ -32,6 +32,9 @@ public class InsuranceIntegrationConfig {
 
 	private static final String ELIGIBILITY_CHECK_PREFIX = "rwandaemr.insuranceEligibility.";
 	public static final String ELIGIBILITY_CHECK_URL = ELIGIBILITY_CHECK_PREFIX + "url";
+	public static final String ELIGIBILITY_OTP_VERIFY_URL = ELIGIBILITY_CHECK_PREFIX + "otpVerifyUrl";
+	public static final String ELIGIBILITY_MMI_PATIENT_TYPES_URL = ELIGIBILITY_CHECK_PREFIX + "mmiPatientTypesUrl";
+	public static final String ELIGIBILITY_MMI_RECEPTION_URL = ELIGIBILITY_CHECK_PREFIX + "mmiReceptionUrl";
 	public static final String ELIGIBILITY_CHECK_API_KEY = ELIGIBILITY_CHECK_PREFIX + "apiKey";
 	public static final String ELIGIBILITY_CHECK_API_ORIGIN = ELIGIBILITY_CHECK_PREFIX + "apiOrigin";
 
@@ -40,6 +43,18 @@ public class InsuranceIntegrationConfig {
 
 	public String getEligibilityCheckUrl() {
 		return ConfigUtil.getProperty(ELIGIBILITY_CHECK_URL);
+	}
+
+	public String getEligibilityOtpVerifyUrl() {
+		return ConfigUtil.getProperty(ELIGIBILITY_OTP_VERIFY_URL);
+	}
+
+	public String getMmiPatientTypesUrl() {
+		return ConfigUtil.getProperty(ELIGIBILITY_MMI_PATIENT_TYPES_URL);
+	}
+
+	public String getMmiReceptionUrl() {
+		return ConfigUtil.getProperty(ELIGIBILITY_MMI_RECEPTION_URL);
 	}
 
 	public String getEligibilityCheckApiKey() {

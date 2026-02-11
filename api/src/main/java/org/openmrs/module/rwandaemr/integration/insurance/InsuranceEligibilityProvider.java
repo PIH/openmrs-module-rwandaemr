@@ -44,54 +44,94 @@ public class InsuranceEligibilityProvider {
 	}
 
 	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid) {
-		IntegrationResponse ret = new IntegrationResponse();
-		ret.setEnabled(config.isEligibilityCheckEnabled());
-		if (ret.isEnabled()) {
-			try (CloseableHttpClient httpClient = HttpUtils.getHttpClient(null, null, false)) {
-				ObjectMapper mapper = new ObjectMapper();
-				String url = config.getEligibilityCheckUrl();
-				HttpPost httpPost = new HttpPost(url);
-				log.debug("GETTING " + config.getEligibilityCheckUrl());
-				httpPost.setHeader("Content-Type", "application/json");
-				String apiKey = config.getEligibilityCheckApiKey();
-				if (StringUtils.isNotBlank(apiKey)) {
-					httpPost.setHeader("x-api-key", apiKey);
-				}
-				String apiOrigin = config.getEligibilityCheckApiOrigin();
-				if (StringUtils.isNotBlank(apiOrigin)) {
-					httpPost.setHeader("Origin", apiOrigin);
-				}
-				Map<String, Object> parameters = new HashMap<>();
-				parameters.put("insuranceType", type);
-				parameters.put("identifier", identifier);
-				parameters.put("fosaid", fosaid);
-				parameters.put("sendOTP", false);
-				httpPost.setEntity(new StringEntity(mapper.writeValueAsString(parameters)));
-				ret.setEndpointAccessible(false);
-				try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
-					ret.setEndpointAccessible(true);
-					ret.setResponseCode(response.getStatusLine().getStatusCode());
-					HttpEntity entity = response.getEntity();
-					String data = "";
-					try {
-						data = EntityUtils.toString(entity);
-					} catch (Exception ignored) {
-					}
+		return checkEligibility(type, identifier, fosaid, false);
+	}
 
-					// Process into an appropriate entity
-					if (StringUtils.isNotBlank(data)) {
-						try {
-							ret.setResponseEntity(mapper.readValue(data, InsuranceEligibilityResponse.class));
-						}
-						catch (Exception e) {
-							ret.setErrorMessage(e.getMessage());
-						}
+	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid, boolean sendOtp) {
+		Map<String, Object> parameters = new HashMap<>();
+		parameters.put("insuranceType", type);
+		parameters.put("identifier", identifier);
+		parameters.put("fosaid", fosaid);
+		parameters.put("sendOTP", sendOtp);
+		Class<?> responseType = sendOtp ? Object.class : InsuranceEligibilityResponse.class;
+		return postRequest(config.getEligibilityCheckUrl(), parameters, responseType);
+	}
+
+	public IntegrationResponse verifyOtp(String type, String identifier, String otpCode, String fosaid) {
+		Map<String, Object> parameters = new HashMap<>();
+		parameters.put("insuranceType", type);
+		parameters.put("identifier", identifier);
+		parameters.put("otpCode", otpCode);
+		parameters.put("fosaid", fosaid);
+		return postRequest(config.getEligibilityOtpVerifyUrl(), parameters, MmiOtpVerificationResponse.class);
+	}
+
+	public IntegrationResponse getPatientTypes(String insuranceType, String facilityFosaId) {
+		Map<String, Object> parameters = new HashMap<>();
+		parameters.put("insuranceType", insuranceType);
+		parameters.put("facility_fosa_id", facilityFosaId);
+		return postRequest(config.getMmiPatientTypesUrl(), parameters, MmiPatientTypesResponse.class);
+	}
+
+	public IntegrationResponse createReception(String insuranceType, String patientIdentifier, String facilityFosaId,
+											   String patientType, String otpCode, boolean prescriptionRequired) {
+		Map<String, Object> parameters = new HashMap<>();
+		parameters.put("insuranceType", insuranceType);
+		parameters.put("patientIdentifier", patientIdentifier);
+		parameters.put("facilityFosaId", facilityFosaId);
+		parameters.put("patientType", patientType);
+		if (StringUtils.isNotBlank(otpCode)) {
+			parameters.put("otpCode", otpCode);
+		}
+		parameters.put("prescriptionRequired", prescriptionRequired);
+		return postRequest(config.getMmiReceptionUrl(), parameters, MmiReceptionResponse.class);
+	}
+
+	private IntegrationResponse postRequest(String url, Map<String, Object> parameters, Class<?> responseType) {
+		IntegrationResponse ret = new IntegrationResponse();
+		ret.setEnabled(StringUtils.isNotBlank(url));
+		if (!ret.isEnabled()) {
+			return ret;
+		}
+
+		try (CloseableHttpClient httpClient = HttpUtils.getHttpClient(null, null, false)) {
+			ObjectMapper mapper = new ObjectMapper();
+			HttpPost httpPost = new HttpPost(url);
+			log.debug("POSTING " + url);
+			httpPost.setHeader("Content-Type", "application/json");
+			String apiKey = config.getEligibilityCheckApiKey();
+			if (StringUtils.isNotBlank(apiKey)) {
+				httpPost.setHeader("x-api-key", apiKey);
+			}
+			String apiOrigin = config.getEligibilityCheckApiOrigin();
+			if (StringUtils.isNotBlank(apiOrigin)) {
+				httpPost.setHeader("Origin", apiOrigin);
+			}
+			httpPost.setEntity(new StringEntity(mapper.writeValueAsString(parameters)));
+			ret.setEndpointAccessible(false);
+			try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+				ret.setEndpointAccessible(true);
+				ret.setResponseCode(response.getStatusLine().getStatusCode());
+				HttpEntity entity = response.getEntity();
+				String data = "";
+				try {
+					data = EntityUtils.toString(entity);
+				} catch (Exception ignored) {
+				}
+
+				// Process into an appropriate entity
+				if (StringUtils.isNotBlank(data)) {
+					try {
+						ret.setResponseEntity(mapper.readValue(data, responseType));
+					}
+					catch (Exception e) {
+						ret.setErrorMessage(e.getMessage());
 					}
 				}
 			}
-			catch (Exception e) {
-				ret.setErrorMessage(e.getMessage());
-			}
+		}
+		catch (Exception e) {
+			ret.setErrorMessage(e.getMessage());
 		}
 
 		return ret;

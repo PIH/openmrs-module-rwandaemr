@@ -91,8 +91,20 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     <% insurancesToVerify.each { e -> %>
         insurancesToVerify.set('${e.getKey().getInsuranceId()}', '${e.getValue()}');
     <% } %>
+    const insuranceNamesById = new Map();
+    <% insurances.each { i -> %>
+        insuranceNamesById.set('${i.getInsuranceId()}', '${ui.encodeJavaScript(ui.format(i.getName()))}');
+    <% } %>
     const isEditMode = ${editMode ? "true" : "false"};
     const hasErrorsFlag = ${hasErrors ? "true" : "false"};
+    const patientPhoneNumber = '${ui.encodeJavaScript(patientPhoneNumber ?: "")}';
+    const patientId = ${patient.patient.id};
+    let verifyMemberDialog = null;
+    let mmiOtpCode = null;
+    let isMmiEligibilityFlow = false;
+    let mmiReceptionNumber = null;
+    let mmiPatientType = null;
+    let mmiMemberSelected = false;
 
     function enableVerification() {
         jq("#owner-name-field").val("").attr("disabled", "disabled");
@@ -114,6 +126,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         jq("#company-field").removeAttr("disabled");
         jq("#level-field").removeAttr("disabled");
         jq("#policy-number-field").removeAttr("disabled");
+        jq("#rhip-patient-id-field").attr("disabled", "disabled");
         jq("#start-date-picker-display").removeAttr("disabled");
         jq("#start-date-picker-wrapper >> .icon-calendar").show();
         jq("#expiration-date-picker-display").removeAttr("disabled");
@@ -122,7 +135,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     }
 
     function toggleVerificationButton() {
-        const insuranceTypeId = jq("#insurance-type-field").val();
+        const insuranceTypeId = getInsuranceTypeId();
         const ownerCode = jq("#owner-code-field").val();
         if (insuranceTypeId !== "" || ownerCode !== "") {
             jq("#verify-button").show();
@@ -142,9 +155,114 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         return ymdDate ? moment(ymdDate).format("DD MMM YYYY") : '';
     }
 
+    function getInsuranceTypeId() {
+        return jq("#insurance-type-field").val()
+            || jq("#insurance-type").val()
+            || jq("select[name='insuranceId']").val()
+            || jq("input[name='insuranceId']").val()
+            || "";
+    }
+
+    function isMmiInsuranceName(name) {
+        return name && name.toLowerCase().indexOf("mmi") !== -1;
+    }
+
+    function getSelectedInsuranceName() {
+        const insuranceTypeId = getInsuranceTypeId();
+        return insuranceNamesById.get(insuranceTypeId);
+    }
+
+    function isMmiInsuranceSelected() {
+        return isMmiInsuranceName(getSelectedInsuranceName());
+    }
+
+    function getInsuranceTypeForRequest(insuranceTypeId) {
+        const mappedType = insurancesToVerify.get(insuranceTypeId);
+        if (mappedType) {
+            return mappedType;
+        }
+        return isMmiInsuranceSelected() ? "mmi" : null;
+    }
+
+    function getMaskedPhoneNumber() {
+        if (!patientPhoneNumber) {
+            return null;
+        }
+        if (patientPhoneNumber.length <= 4) {
+            return patientPhoneNumber;
+        }
+        return patientPhoneNumber.substring(0, patientPhoneNumber.length - 4).replace(/./g, "*") + patientPhoneNumber.substring(patientPhoneNumber.length - 4);
+    }
+
     function setVerifyResultsMessage(message) {
         jq("#verify-member-section").find(".verify-member-row").remove();
         jq("#verify-results-message").html(message ?? "");
+        if (mmiReceptionNumber) {
+            jq("#mmi-reception-number-value").text(mmiReceptionNumber);
+            jq("#mmi-reception-number-row").show();
+            jq("#mmi-reception-number-field").val(mmiReceptionNumber);
+            jq("#mmi-reception-number-field-wrapper").show();
+        } else {
+            jq("#mmi-reception-number-row").hide();
+            jq("#mmi-reception-number-field-wrapper").hide();
+        }
+    }
+
+    function updateMmiReceptionControls() {
+        const isMmiSelected = isMmiInsuranceSelected();
+        if (!isMmiSelected) {
+            jq("#mmi-patient-type-page-row").hide();
+            jq("#mmi-reception-action-row").hide();
+            return;
+        }
+        jq("#mmi-patient-type-page-row").show();
+        jq("#mmi-reception-action-row").show();
+        const patientType = jq("#mmi-patient-type-page").val();
+        const canCreate = isMmiEligibilityFlow && mmiMemberSelected && patientType;
+        jq("#mmi-create-reception-button-page").prop("disabled", !canCreate);
+    }
+
+    function loadMmiPatientTypes() {
+        const selectPage = jq("#mmi-patient-type-page");
+        selectPage.empty();
+        selectPage.append(jq("<option>").val("").text("Loading..."));
+        selectPage.attr("disabled", "disabled");
+        jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility/mmi/patient-types", function (typesData) {
+            selectPage.empty();
+            selectPage.append(jq("<option>").val("").text(""));
+            console.log("MMI patient types response", typesData);
+            const entity = (typesData && typesData.responseEntity) ? typesData.responseEntity : typesData;
+            const types = (entity && entity.patientTypes) ? entity.patientTypes :
+                ((entity && entity.data && entity.data.patientTypes) ? entity.data.patientTypes : []);
+            let activeCount = 0;
+            types.forEach((type) => {
+                const isActive = (type.isActive === undefined || type.isActive === null)
+                    ? (type.active === undefined || type.active === null ? true : type.active)
+                    : type.isActive;
+                if (isActive) {
+                    selectPage.append(jq("<option>").val(type.typeId).text(type.typeName));
+                    activeCount += 1;
+                }
+            });
+            if (activeCount === 0 && types.length > 0) {
+                types.forEach((type) => {
+                    selectPage.append(jq("<option>").val(type.typeId).text(type.typeName));
+                });
+            }
+            if (selectPage.children("option").length > 1) {
+                selectPage.removeAttr("disabled");
+            } else {
+                selectPage.attr("disabled", "disabled");
+                setVerifyResultsMessage("No active patient types found.");
+            }
+            updateMmiReceptionControls();
+        }).fail(function () {
+            selectPage.empty();
+            selectPage.append(jq("<option>").val("").text(""));
+            selectPage.attr("disabled", "disabled");
+            setVerifyResultsMessage("Unable to load patient types.");
+            updateMmiReceptionControls();
+        });
     }
 
     function setNoMatchingInsurancesFound(insuranceType) {
@@ -160,27 +278,33 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     }
 
     jq(document).ready(function () {
-        if (insurancesToVerify.size > 0) {
-            jq("#insurance-type-field").change(function () {
-                const insuranceTypeId = jq(this).val();
-                if (insuranceTypeId === "" || insurancesToVerify.has(insuranceTypeId)) {
+        if (jq("#verify-button").length > 0) {
+            jq("#insurance-type-field, #insurance-type, select[name='insuranceId'], input[name='insuranceId']").change(function () {
+                const insuranceTypeId = getInsuranceTypeId();
+                if (insuranceTypeId === "" || insurancesToVerify.has(insuranceTypeId) || isMmiInsuranceSelected()) {
                     toggleVerificationButton();
                     enableVerification();
+                    if (isMmiInsuranceSelected()) {
+                        loadMmiPatientTypes();
+                    }
                 }
                 else {
                     disableVerification();
                 }
+                updateMmiReceptionControls();
             });
             <% if (!hasErrors) { // Do not trigger change if returning to page after validation error on submit %>
-                jq("#insurance-type-field").change();
+                jq("#insurance-type-field, #insurance-type, select[name='insuranceId'], input[name='insuranceId']").change();
             <% } %>
 
             jq("#owner-code-field").on("change paste keyup", function () {
                 toggleVerificationButton();
             });
+            toggleVerificationButton();
+            updateMmiReceptionControls();
 
             if (isEditMode && !hasErrorsFlag) {
-                const insuranceTypeId = jq("#insurance-type-field").val();
+                const insuranceTypeId = getInsuranceTypeId();
                 const ownerCode = jq("#owner-code-field").val();
                 const rhipPatientId = jq("#rhip-patient-id-field").val();
                 if (insuranceTypeId && ownerCode && !rhipPatientId && insurancesToVerify.has(insuranceTypeId)) {
@@ -192,112 +316,288 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 
             jq("#verify-button").click(function () {
                 jq("#verify-button").attr("disabled", "disabled");
-                const insuranceTypeId = jq("#insurance-type-field").val();
-                const insuranceType = insurancesToVerify.get(insuranceTypeId);
+                const insuranceTypeId = getInsuranceTypeId();
+                const insuranceType = getInsuranceTypeForRequest(insuranceTypeId);
                 const ownerCode = jq("#owner-code-field").val();
+                const isMmiInsurance = isMmiInsuranceSelected();
+                isMmiEligibilityFlow = false;
+                mmiMemberSelected = false;
+                updateMmiReceptionControls();
+
+                if (!insuranceTypeId || !ownerCode) {
+                    setVerifyResultsMessage("Insurance and owner code are required.");
+                    jq("#verify-button").removeAttr("disabled");
+                    return;
+                }
 
                 setVerifyResultsMessage('Checking eligibility...');
                 jq("#verify-member-table").hide();
 
-                const dialogModal = jq.modal(jq("#verify-member-dialog"), {
-                    overlayClose: true,
-                    overlayId: "modal-overlay",
-                    opacity: 80,
-                    persist: true,
-                    closeClass: "cancel",
-                    position: [20, 50],
+                if (!isMmiInsurance) {
+                    verifyMemberDialog = jq.modal(jq("#verify-member-dialog"), {
+                        overlayClose: true,
+                        overlayId: "modal-overlay",
+                        opacity: 80,
+                        persist: true,
+                        closeClass: "cancel",
+                        position: [20, 50],
+                    });
+                }
+
+                if (!insuranceType) {
+                    setVerifyResultsMessage('Insurance verification is not enabled');
+                    jq("#verify-button").removeAttr("disabled");
+                    return;
+                }
+
+                const eligibilityUrl = openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility";
+                const eligibilityParams = jq.param({
+                    type: insuranceType,
+                    identifier: ownerCode,
+                    sendOTP: isMmiInsurance
                 });
 
-                jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?type=" + insuranceType + "&identifier=" + ownerCode, function(data) {
-                    console.log(data);
-                    if (data.responseCode === 200) {
-                        let verifyRows = [];
-                        if (data.responseEntity.success) {
-                            const owner = data.responseEntity.data;
-                            owner['ownerName'] = owner.fullName;
-                            verifyRows.push(owner);
-                            if (owner.dependants) {
-                                owner.dependants.forEach((dependant) => {
-                                    dependant['ownerName'] = owner.fullName;
-                                    verifyRows.push(dependant);
-                                });
-                            }
-                        }
-                        if (verifyRows.length === 0) {
-                            setNoMatchingInsurancesFound(insuranceType);
-                        }
-                        else {
-                            setVerifyResultsMessage('Please choose an eligible member or cancel');
-                            verifyRows.forEach((member) => {
-                                const row = jq("#verify-member-row-template").clone();
-                                jq(row).find(".member-name").html(member.fullName);
-                                jq(row).find(".member-gender").html(member.gender);
-                                jq(row).find(".member-birthdate").html(getDateDisplay(member.dateOfBirth));
-                                jq(row).find(".member-start-date").html(getDateDisplay(member.eligibilityStartDate));
-                                jq(row).find(".member-id").html(member.documentNumber);
-                                jq(row).find(".member-rhip-id").html(member.patientId || "");
-                                jq(row).find(".member-government-sponsored").html(member.isGovernmentSponsored)
-                                if (member.isEligible) {
-                                    jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
-                                    jq(row).find(".member-select").click(function () {
-                                        jq("#owner-name-field").val(member.ownerName);
-                                        jq("#policy-number-field").val(member.documentNumber);
-                                        jq("#rhip-patient-id-field").val(member.patientId || "");
-                                        if (member.eligibilityStartDate) {
-                                            jq("#start-date-picker-field").val(member.eligibilityStartDate);
-                                            jq("#start-date-picker-display").val(getDateDisplay(member.eligibilityStartDate));
-                                            if (!member.endDate) {
-                                                const startDate = moment(member.eligibilityStartDate);
-                                                const startDateYear = startDate.year();
-                                                const startDateMonth = startDate.month() + 1;
-                                                const startDateDay = startDate.day();
-                                                const startDateMonthAndDay = startDateMonth + "-" + startDateDay;
-                                                const endDateMonthAndDay = "06-30";
-                                                const endDateYear = (startDateMonthAndDay >= endDateMonthAndDay ? startDateYear + 1 : startDateYear);
-                                                member.endDate = endDateYear + "-" + endDateMonthAndDay;
-                                            }
-                                        }
-                                        if (member.endDate) {
-                                            jq("#expiration-date-picker-field").val(member.endDate);
-                                            jq("#expiration-date-picker-display").val(getDateDisplay(member.endDate));
-                                        }
-                                        dialogModal.close();
-                                        disableVerification();
-                                    });
-                                }
-                                else {
-                                    jq(row).find(".member-eligibility").html('<span class="pill not-eligible-cell">Not Eligible</span>');
-                                    jq(row).find(".member-select").attr("disabled", "disabled");
-                                }
-                                jq(row).addClass("verify-member-row");
-                                jq(row).show();
-                                jq("#verify-member-section").append(row);
+                if (isMmiInsurance && !patientPhoneNumber) {
+                    setVerifyResultsMessage("Patient phone number is required to send the OTP.");
+                    jq("#verify-button").removeAttr("disabled");
+                    return;
+                }
+
+                jq.get(eligibilityUrl + "?" + eligibilityParams, function(data) {
+                    if (isMmiInsurance) {
+                        if (data.responseCode === 200) {
+                            const maskedPhone = getMaskedPhoneNumber();
+                            const message = maskedPhone ? ("OTP sent to " + maskedPhone + ". Enter the code to continue.") : "OTP sent. Enter the code to continue.";
+                            jq("#mmi-otp-message").text(message);
+                            jq("#mmi-otp-code").val("");
+                            jq("#mmi-otp-verify-button").data("insuranceType", insuranceType).data("ownerCode", ownerCode);
+                            jq.modal(jq("#mmi-otp-dialog"), {
+                                overlayClose: true,
+                                overlayId: "modal-overlay",
+                                opacity: 80,
+                                persist: true,
+                                closeClass: "cancel",
+                                position: [20, 50],
                             });
-                            jq("#verify-member-table").show();
+                            setVerifyResultsMessage("Waiting for OTP verification...");
+                        } else {
+                            setVerifyResultsMessage("Failed to send OTP.");
                         }
-                    } else {
-                        if (!data.enabled) {
-                            setVerifyResultsMessage('Insurance verification is not enabled');
-                            disableVerification();
-                        } else if (data.endpointAccessible === false) {
-                            setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
-                            disableVerification();
-                        }
-                        else if (data.errorMessage || data.responseEntity?.error) {
-                            const errorMessage = data.errorMessage && data.errorMessage !== 'null' ? data.errorMessage : data.responseEntity?.error;
-                            setVerifyResultsMessage('Error: ' + errorMessage ?? "Unknown");
-                            console.error(data);
-                            disableVerification();
-                        }
-                        else {
-                            setNoMatchingInsurancesFound(insuranceType);
-                        }
+                        jq("#verify-button").removeAttr("disabled");
+                        return;
                     }
+                    handleEligibilityResponse(data, insuranceType, verifyMemberDialog, false);
                     jq("#verify-button").removeAttr("disabled");
                 });
             });
         }
+
+        jq("#mmi-otp-verify-button").click(function () {
+            const otpCode = jq("#mmi-otp-code").val().trim();
+            const insuranceType = jq(this).data("insuranceType");
+            const ownerCode = jq(this).data("ownerCode");
+            if (!otpCode) {
+                jq("#mmi-otp-message").text("OTP code is required.");
+                return;
+            }
+            jq(this).attr("disabled", "disabled");
+            jq.ajax({
+                url: openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility/verify-otp",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    insuranceType: insuranceType,
+                    identifier: ownerCode,
+                    otpCode: otpCode,
+                    patientId: patientId
+                }),
+                success: function (data) {
+                    jq("#mmi-otp-verify-button").removeAttr("disabled");
+                    jq.modal.close();
+                    if (data && data.responseEntity && data.responseEntity.success) {
+                        mmiOtpCode = otpCode;
+                        mmiReceptionNumber = null;
+                        mmiPatientType = null;
+                        isMmiEligibilityFlow = true;
+                        mmiMemberSelected = false;
+                        updateMmiReceptionControls();
+                        const eligibilityUrl = openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility";
+                        const eligibilityParams = jq.param({
+                            type: insuranceType,
+                            identifier: ownerCode,
+                            sendOTP: false
+                        });
+                        verifyMemberDialog = jq.modal(jq("#verify-member-dialog"), {
+                            overlayClose: true,
+                            overlayId: "modal-overlay",
+                            opacity: 80,
+                            persist: true,
+                            closeClass: "cancel",
+                            position: [20, 50],
+                        });
+                        jq.get(eligibilityUrl + "?" + eligibilityParams, function (eligibilityData) {
+                            handleEligibilityResponse(eligibilityData, insuranceType, verifyMemberDialog, true);
+                        });
+                    } else {
+                        const errorMessage = data && data.responseEntity && data.responseEntity.message ? data.responseEntity.message : "Unable to verify OTP.";
+                        setVerifyResultsMessage(errorMessage);
+                    }
+                },
+                error: function () {
+                    jq("#mmi-otp-message").text("Unable to verify OTP. Please try again.");
+                    jq("#mmi-otp-verify-button").removeAttr("disabled");
+                }
+            });
+        });
+
+        jq("#mmi-create-reception-button-page").click(function () {
+            const ownerCode = jq("#owner-code-field").val();
+            if (!ownerCode) {
+                setVerifyResultsMessage("Owner code is required.");
+                return;
+            }
+            mmiPatientType = jq("#mmi-patient-type-page").val();
+            if (!mmiPatientType) {
+                setVerifyResultsMessage("Patient type is required.");
+                return;
+            }
+            jq(this).attr("disabled", "disabled");
+            jq.ajax({
+                url: openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility/mmi/reception",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    identifier: ownerCode,
+                    otpCode: mmiOtpCode,
+                    patientId: patientId,
+                    patientType: mmiPatientType
+                }),
+                success: function (data) {
+                    jq("#mmi-create-reception-button-page").removeAttr("disabled");
+                    if (data && data.success) {
+                        mmiReceptionNumber = data.receptionNumber || null;
+                        setVerifyResultsMessage("MMI reception created.");
+                        if (verifyMemberDialog) {
+                            verifyMemberDialog.close();
+                            verifyMemberDialog = null;
+                        }
+                        disableVerification();
+                    } else {
+                        const errorMessage = data && data.message ? data.message : "Unable to create reception.";
+                        setVerifyResultsMessage(errorMessage);
+                    }
+                },
+                error: function () {
+                    jq("#mmi-create-reception-button-page").removeAttr("disabled");
+                    setVerifyResultsMessage("Unable to create reception. Please try again.");
+                }
+            });
+        });
+
+        jq("#mmi-patient-type-page").change(function () {
+            updateMmiReceptionControls();
+        });
     });
+
+    function handleEligibilityResponse(data, insuranceType, dialogModal, isMmiFlow) {
+        console.log(data);
+        if (data.responseCode === 200) {
+            let verifyRows = [];
+            if (data.responseEntity.success) {
+                const owner = data.responseEntity.data;
+                owner['ownerName'] = owner.fullName;
+                verifyRows.push(owner);
+                if (owner.dependants) {
+                    owner.dependants.forEach((dependant) => {
+                        dependant['ownerName'] = owner.fullName;
+                        verifyRows.push(dependant);
+                    });
+                }
+            }
+            if (verifyRows.length === 0) {
+                setNoMatchingInsurancesFound(insuranceType);
+            }
+            else {
+                setVerifyResultsMessage('Please choose an eligible member or cancel');
+                verifyRows.forEach((member) => {
+                    const row = jq("#verify-member-row-template").clone();
+                    jq(row).find(".member-name").html(member.fullName);
+                    jq(row).find(".member-gender").html(member.gender);
+                    jq(row).find(".member-birthdate").html(getDateDisplay(member.dateOfBirth));
+                    jq(row).find(".member-start-date").html(getDateDisplay(member.eligibilityStartDate));
+                    jq(row).find(".member-id").html(member.documentNumber);
+                    jq(row).find(".member-rhip-id").html(member.patientId || "");
+                    jq(row).find(".member-government-sponsored").html(member.isGovernmentSponsored)
+                    if (member.isEligible) {
+                        jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
+                        jq(row).find(".member-select").click(function () {
+                            jq("#owner-name-field").val(member.ownerName);
+                            jq("#policy-number-field").val(member.documentNumber);
+                            jq("#rhip-patient-id-field").val(member.patientId || "");
+                            if (member.eligibilityStartDate) {
+                                jq("#start-date-picker-field").val(member.eligibilityStartDate);
+                                jq("#start-date-picker-display").val(getDateDisplay(member.eligibilityStartDate));
+                                if (!member.endDate) {
+                                    const startDate = moment(member.eligibilityStartDate);
+                                    const startDateYear = startDate.year();
+                                    const startDateMonth = startDate.month() + 1;
+                                    const startDateDay = startDate.day();
+                                    const startDateMonthAndDay = startDateMonth + "-" + startDateDay;
+                                    const endDateMonthAndDay = "06-30";
+                                    const endDateYear = (startDateMonthAndDay >= endDateMonthAndDay ? startDateYear + 1 : startDateYear);
+                                    member.endDate = endDateYear + "-" + endDateMonthAndDay;
+                                }
+                            }
+                            if (member.endDate) {
+                                jq("#expiration-date-picker-field").val(member.endDate);
+                                jq("#expiration-date-picker-display").val(getDateDisplay(member.endDate));
+                            }
+                            if (isMmiFlow) {
+                                mmiMemberSelected = true;
+                                updateMmiReceptionControls();
+                                disableVerification();
+                                if (dialogModal) {
+                                    dialogModal.close();
+                                    verifyMemberDialog = null;
+                                }
+                            } else {
+                                if (dialogModal) {
+                                    dialogModal.close();
+                                    verifyMemberDialog = null;
+                                }
+                                disableVerification();
+                            }
+                        });
+                    }
+                    else {
+                        jq(row).find(".member-eligibility").html('<span class="pill not-eligible-cell">Not Eligible</span>');
+                        jq(row).find(".member-select").attr("disabled", "disabled");
+                    }
+                    jq(row).addClass("verify-member-row");
+                    jq(row).show();
+                    jq("#verify-member-section").append(row);
+                });
+                jq("#verify-member-table").show();
+            }
+        } else {
+            if (!data.enabled) {
+                setVerifyResultsMessage('Insurance verification is not enabled');
+                disableVerification();
+            } else if (data.endpointAccessible === false) {
+                setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
+                disableVerification();
+            }
+            else if (data.errorMessage || data.responseEntity?.error) {
+                const errorMessage = data.errorMessage && data.errorMessage !== 'null' ? data.errorMessage : data.responseEntity?.error;
+                setVerifyResultsMessage('Error: ' + errorMessage ?? "Unknown");
+                console.error(data);
+                disableVerification();
+            }
+            else {
+                setNoMatchingInsurancesFound(insuranceType);
+            }
+        }
+    }
 </script>
 
 <h3>${pageTitle}</h3>
@@ -358,7 +658,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             initialValue: (policyModel.ownerCode ?: ''),
                             size: 30
                     ])}
-                    <% if (!insurancesToVerify.isEmpty()) { %>
+                    <% if (!insurancesToVerify.isEmpty() || hasMmiInsurance) { %>
                         <p id="verify-section">
                             <input type="button" id="verify-button" value="Check eligibility"/>
                         </p>
@@ -441,6 +741,10 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         size: 30,
                         otherAttributes: ["disabled": "disabled"]
                 ])}
+                <p id="mmi-reception-number-field-wrapper" style="display: none;">
+                    <label for="mmi-reception-number-field">MMI Reception Number</label>
+                    <input type="text" id="mmi-reception-number-field" disabled="disabled" />
+                </p>
             <% } else { %>
                 <p>
                     <label for="view-insurance-card-number">${ui.message("rwandaemr.insurance.insuranceCardNo")}</label>
@@ -494,6 +798,13 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         initialValue: (policyModel.thirdPartyId ?: ''),
                         options: thirdPartyOptions
                 ])}
+                <p id="mmi-patient-type-page-row" style="display: none;">
+                    <label for="mmi-patient-type-page">Patient Type (MMI only)</label>
+                    <select id="mmi-patient-type-page" disabled="disabled"></select>
+                </p>
+                <p id="mmi-reception-action-row" style="display: none;">
+                    <button type="button" id="mmi-create-reception-button-page" disabled="disabled">Create reception</button>
+                </p>
             <% } else { %>
                 <p>
                     <label for="view-insurance-third-party">${ui.message("rwandaemr.insurance.thirdParty")}</label>
@@ -529,6 +840,10 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     </div>
     <div class="dialog-content" id="verify-results-section">
         <p class="dialog-instructions" id="verify-results-message"></p>
+        <p id="mmi-reception-number-row" style="display: none;">
+            <label>MMI Reception Number</label>
+            <span id="mmi-reception-number-value" class="field-value"></span>
+        </p>
         <table id="verify-member-table" style="width: 100%">
             <thead>
                 <tr>
@@ -559,5 +874,22 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         </table>
         <br/>
         <button class="cancel">${ ui.message("coreapps.cancel") }</button>
+    </div>
+</div>
+<div id="mmi-otp-dialog" class="dialog" style="display: none; width: 400px;">
+    <div class="dialog-header">
+        <i class="icon-lock"></i>
+        <h3>
+            Verify MMI OTP
+        </h3>
+    </div>
+    <div class="dialog-content">
+        <p class="dialog-instructions" id="mmi-otp-message"></p>
+        <p>
+            <label for="mmi-otp-code">OTP Code</label>
+            <input type="text" id="mmi-otp-code" autocomplete="one-time-code" />
+        </p>
+        <button type="button" id="mmi-otp-verify-button">Verify</button>
+        <button type="button" class="cancel">${ ui.message("coreapps.cancel") }</button>
     </div>
 </div>
