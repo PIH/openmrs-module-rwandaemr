@@ -18,7 +18,6 @@ import org.openmrs.module.BaseModuleActivator;
 import org.openmrs.module.DaemonToken;
 import org.openmrs.module.DaemonTokenAware;
 import org.openmrs.module.ModuleActivator;
-import org.openmrs.module.reporting.config.ReportLoader;
 import org.openmrs.module.rwandaemr.config.AuthenticationSetup;
 import org.openmrs.module.rwandaemr.config.EventSetup;
 import org.openmrs.module.rwandaemr.config.GlobalResourceSetup;

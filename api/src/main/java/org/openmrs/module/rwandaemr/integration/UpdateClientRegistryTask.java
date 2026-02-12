@@ -1,14 +1,7 @@
 package org.openmrs.module.rwandaemr.integration;
 
 import org.apache.commons.lang.time.StopWatch;
-import org.openmrs.Location;
-import org.openmrs.LocationTag;
-import org.openmrs.Visit;
-import org.openmrs.api.LocationService;
-import org.openmrs.api.VisitService;
 import org.openmrs.api.context.Context;
-import org.openmrs.module.emrapi.EmrApiConstants;
-import org.openmrs.module.emrapi.adt.AdtService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

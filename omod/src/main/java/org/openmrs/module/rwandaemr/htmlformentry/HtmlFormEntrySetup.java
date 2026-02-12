@@ -1,6 +1,5 @@
 package org.openmrs.module.rwandaemr.htmlformentry;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.FormResource;
