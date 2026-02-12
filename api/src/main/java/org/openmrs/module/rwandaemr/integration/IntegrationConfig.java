@@ -102,6 +102,7 @@ public class IntegrationConfig {
 
 	public boolean isIremboPayEnabled(){
 		String status = ConfigUtil.getGlobalProperty(MOH_BILLING_IREMBO_PROPERTY);
+		log.error("IremboPAY status: " + status);
 		return status.equalsIgnoreCase("true");
 	}
 

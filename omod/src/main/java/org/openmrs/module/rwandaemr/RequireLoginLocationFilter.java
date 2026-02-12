@@ -43,7 +43,7 @@ public class RequireLoginLocationFilter implements Filter {
 
 	public static final List<String> EXCLUSION_EXTENSIONS = Arrays.asList(
 			"js", "css", "gif", "jpg", "jpeg", "png", ".ttf", ".woff", ".action", "/csrfguard",
-			"/rwandaemr/admin/configureLoginLocations.page", "/rest/irembopay/status", "/rest/irembopay/callback"
+			"/rwandaemr/admin/configureLoginLocations.page", "/ws/rest/v1/irembopay/status", "/ws/rest/v1/irembopay/callback"
 	);
 
 	public boolean disabled = false;

@@ -59,7 +59,7 @@
         <metadatamappingVersion>1.7.0</metadatamappingVersion>
         <metadatasharingVersion>1.10.0</metadatasharingVersion>
         <mohappointmentVersion>2.0.1-SNAPSHOT</mohappointmentVersion>
-        <mohbillingVersion>2.0.2-SNAPSHOT</mohbillingVersion>
+        <mohbillingVersion>2.2.1-SNAPSHOT</mohbillingVersion>
         <mohdataflowmoduleVersion>0.0.5-SNAPSHOT</mohdataflowmoduleVersion>
         <mohtracVersion>2.0.0-SNAPSHOT</mohtracVersion>
         <!-- muzimacore-2.5.3-SNAPSHOT.omod -->
@@ -195,7 +195,7 @@
             <version>${mohbillingVersion}</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
+        <dependency> 
             <groupId>org.openmrs.module</groupId>
             <artifactId>namephonetics-api</artifactId>
             <version>${namephoneticsVersion}</version>

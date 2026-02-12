@@ -31,20 +31,62 @@ hie.createQuickViewDialog = function(){
  */
 
 hie.createPaymentDialog = function(){
-    // console.log(hie.encounterUuid);
     hie.paymentViewDialog = emr.setupConfirmationDialog({
         selector: "#payment-view-dialog",
         actions: {
             confirm: function(){
-                console.log("Here Make sure to send the request to the server to proceed with the payment");
-                //hie.paymentViewDialog.close();
+                var form = jq("#payment-data").find("form#irembo-pay-form");
+                if (!form.length) {
+                    hie.paymentViewDialog.close();
+                    return;
+                }
+                var billId = form.find("input[name='billId']").val() || form.find("#irembo-pay-billId").val();
+                var ownerCode = form.find("input[name='ownerCode']").val();
+                if (!billId || !ownerCode || !ownerCode.trim()) {
+                    emr.errorMessage("Phone number is required");
+                    return;
+                }
+                var confirmBtn = jq("#payment-view-dialog .confirm");
+                var spinner = confirmBtn.find("i.icon-spinner");
+                confirmBtn.prop("disabled", true);
+                spinner.show();
+                var contextPath = jq("meta[name='openmrs-context-path']").attr("content") || "";
+                if (!contextPath && typeof window.location !== "undefined") {
+                    var path = window.location.pathname || "";
+                    var openmrsIdx = path.indexOf("/openmrs");
+                    contextPath = openmrsIdx >= 0 ? path.substring(0, openmrsIdx + 8) : "";
+                }
+                var initUrl = contextPath + "/ws/rest/v1/rwandaemr/irembopay/init";
+                jq.ajax({
+                    url: initUrl,
+                    type: "POST",
+                    data: { billId: billId, ownerCode: ownerCode.trim() },
+                    dataType: "json"
+                }).done(function(data) {
+                    if (data && data.status === "success") {
+                        emr.successMessage(data.message || "Payment request initiated");
+                        hie.paymentViewDialog.close();
+                        window.location.reload();
+                    } else {
+                        emr.errorMessage((data && data.message) ? data.message : "Request failed");
+                    }
+                }).fail(function(xhr) {
+                    var msg = "Failed to initiate payment";
+                    try {
+                        var r = xhr.responseJSON;
+                        if (r && r.message) msg = r.message;
+                    } catch (e) {}
+                    emr.errorMessage(msg);
+                }).always(function() {
+                    confirmBtn.prop("disabled", false);
+                    spinner.hide();
+                });
             },
             cancel: function(){
                 hie.paymentViewDialog.close();
             }
         }
     });
-    // console.log("we are done with the dialog!");
     hie.paymentViewDialog.close();
 };
 

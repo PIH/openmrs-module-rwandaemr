@@ -10,6 +10,8 @@ import org.openmrs.module.appframework.domain.AppDescriptor;
 import org.openmrs.module.appui.UiSessionContext;
 import org.openmrs.module.emrapi.patient.PatientDomainWrapper;
 import org.openmrs.module.mohbilling.model.PatientBill;
+import org.openmrs.module.mohbilling.model.PatientBillIrembo;
+import org.openmrs.module.mohbilling.service.BillingService;
 import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
 import org.openmrs.ui.framework.UiUtils;
 import org.openmrs.ui.framework.annotation.FragmentParam;
@@ -18,6 +20,7 @@ import org.openmrs.ui.framework.annotation.SpringBean;
 import org.openmrs.ui.framework.fragment.FragmentConfiguration;
 import org.openmrs.ui.framework.fragment.FragmentModel;
 import org.openmrs.ui.framework.page.PageModel;
+import org.openmrs.api.context.Context;
 
 public class IremboPaySectionFragmentController {
 
@@ -34,7 +37,7 @@ public class IremboPaySectionFragmentController {
         @InjectBeans PatientDomainWrapper patientWrapper
     ){
 
-        List<PatientBill> unpaidBills = new ArrayList<>();
+        List<PatientBillIrembo> unpaidBills = new ArrayList<>();
         if(!integrationConfig.isIremboPayEnabled()){
             model.addAttribute("error", "Irembo Pay Feature is disabled");
         } else {
@@ -48,8 +51,7 @@ public class IremboPaySectionFragmentController {
                 patientWrapper = (PatientDomainWrapper) patient;
             }
             try{
-                //unpaidBills = ConsommationUtil.getUnpaidBills(patientWrapper.getPatient());
-
+                unpaidBills = Context.getService(BillingService.class).getUnpaidBills(patientWrapper.getPatient());
                 model.addAttribute("error", "");
             } catch(Exception e){
                 System.out.println("An error occured: " + e.getMessage());
