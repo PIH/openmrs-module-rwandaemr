@@ -6,7 +6,6 @@
 ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ]) }
 
 <script type="text/javascript">
-
     jq(document).ready(function() {
        jq("#return-button").click(function(event) {
            document.location.href = '${ui.pageLink("coreapps", "clinicianfacing/patient", ["patientId": patient.id])}';
@@ -18,45 +17,6 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 "returnUrl": ui.pageLink("rwandaemr", "patient/drugAdministrations", ["patientId": patient.id])
             ])}';
         });
-
-        <% if (drugAdministrations.size() > 0) { %>
-
-            // Create a datatable
-            let drugAdministrationTable = jq("#drug-administration-list-table").dataTable(
-                {
-                    bFilter: true,
-                    bJQueryUI: true,
-                    bLengthChange: false,
-                    iDisplayLength: 10,
-                    sPaginationType: 'full_numbers',
-                    bSort: false,
-                    sDom: 'ft<\"fg-toolbar ui-toolbar ui-corner-bl ui-corner-br ui-helper-clearfix datatables-info-and-pg \"ip>',
-                    oLanguage:  {
-                        oPaginate: {
-                            sFirst: "${ ui.message("uicommons.dataTable.first") }",
-                            sLast: "${ ui.message("uicommons.dataTable.last") }",
-                            sNext:  "${ ui.message("uicommons.dataTable.next") }",
-                            sPrevious:  "${ ui.message("uicommons.dataTable.previous") }"
-                        },
-
-                        sInfo:  "${ ui.message("uicommons.dataTable.info") }",
-                        sSearch: "${ ui.message("uicommons.dataTable.search") }",
-                        sZeroRecords: "${ ui.message("uicommons.dataTable.zeroRecords") }",
-                        sEmptyTable: "${ ui.message("uicommons.dataTable.emptyTable") }",
-                        sInfoFiltered:  "${ ui.message("uicommons.dataTable.infoFiltered") }",
-                        sInfoEmpty:  "${ ui.message("uicommons.dataTable.infoEmpty") }",
-                        sLengthMenu:  "${ ui.message("uicommons.dataTable.lengthMenu") }",
-                        sLoadingRecords:  "${ ui.message("uicommons.dataTable.loadingRecords") }",
-                        sProcessing:  "${ ui.message("uicommons.dataTable.processing") }",
-
-                        oAria: {
-                            sSortAscending:  "${ ui.message("uicommons.dataTable.sortAscending") }",
-                            sSortDescending:  "${ ui.message("uicommons.dataTable.sortDescending") }"
-                        }
-                    }
-                }
-            );
-        <% } %>
     });
 </script>
 
@@ -72,17 +32,19 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     .date-column {
         width: 125px;
     }
+    .header-cell {
+        background-color: #00473f; color: white; font-weight: bold;
+    }
 </style>
 <h3>${ ui.message("rwandaemr.drugAdministrations") }</h3>
 
-<div style="width:100%; text-align: right;">
+<div style="width:100%; text-align: right; padding-bottom: 5px;">
     <button id="add-button">${ui.message("rwandaemr.drugAdministrations.add")}</button>
 </div>
 
 <table id="drug-administration-list-table">
     <thead>
         <tr>
-            <th>${ ui.message("rwandaemr.drugAdministrations.encounterDatetime") }</th>
             <th>${ ui.message("rwandaemr.drugAdministrations.drug") }</th>
             <th>${ ui.message("rwandaemr.drugAdministrations.frequency") }</th>
             <th>${ ui.message("rwandaemr.drugAdministrations.date") }</th>
@@ -97,8 +59,8 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             <td colspan="5">${ ui.message("emr.none") }</td>
         </tr>
     <% } %>
-    <% drugAdministrations.each { a ->
-
+    <%  def lastDate = null
+        drugAdministrations.each { a ->
         def e = a.group.encounter
         def pageLink = ui.pageLink("rwandaemr", "patient/simpleEncounterView", [ "encounter": e.uuid ])
         if (e.visit) {
@@ -107,12 +69,16 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 "visitId": e.visit.uuid,
             ])
         }
+        def formattedDate = ui.format(e.encounterDatetime)
+        if (lastDate == null || !lastDate.equals(formattedDate)) {
+            lastDate = formattedDate
         %>
+            <tr class="header-row">
+                <td colspan="6" class="header-cell">${ formattedDate }</td>
+            </tr>
+        <% } %>
         <tr id="drug-administration-${ a.group.id }" class="drug-administration-row${pageLink ? ' pointer' :''}" data-href="${pageLink}">
             <td class="date-column${pageLink ? ' drug-administration-link' :''}">
-                ${ ui.format(e.encounterDatetime) }
-            </td>
-            <td>
                 ${ ui.format(a.drug?.valueText) }
             </td>
             <td>
@@ -137,7 +103,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     <% } %>
     </tbody>
 </table>
-
+<br/>
 <div>
     <input id="return-button" type="button" class="cancel" value="${ ui.message("rwandaemr.encounterList.return") }"/>
 </div>

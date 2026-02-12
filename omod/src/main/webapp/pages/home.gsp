@@ -1,5 +1,5 @@
 <%
-    ui.decorateWith("appui", "standardEmrPage", [ title: "Welcome to Rwanda EMR" ])
+    ui.decorateWith("appui", "standardEmrPage", [ title: "Welcome to eBuzima" ])
     ui.includeCss("rwandaemr", "home.css")
 
     def htmlSafeId = { extension ->

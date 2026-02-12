@@ -7,7 +7,7 @@
 <header>
     <nav class="navbar navbar-expand-lg navbar-dark navigation">
         <div class="logo">
-            <a href="/">
+            <a href="/${contextPath}">
                 <img src="${ ui.resourceLink("file", "configuration/globalresources/images/rwandaLogo.png") }"/>
             </a>
         </div>

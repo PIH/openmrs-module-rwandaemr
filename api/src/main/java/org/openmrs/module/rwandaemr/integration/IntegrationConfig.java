@@ -38,6 +38,7 @@ public class IntegrationConfig {
 	public static final String HIE_URL_PROPERTY = "rwandaemr.hie.url";
 	public static final String HIE_USERNAME_PROPERTY = "rwandaemr.hie.username";
 	public static final String HIE_PASSWORD_PROPERTY = "rwandaemr.hie.password";
+	public static final String HIE_REGISTRATION_ENCOUNTER_TYPE_ID = "rwandaemr.hie.registration_encounter_type_id";
 
 	public static final String IDENTIFIER_SYSTEM_NID = "NID";
 	public static final String IDENTIFIER_SYSTEM_NID_APPLICATION_NUMBER = "NID_APPLICATION_NUMBER";
@@ -46,9 +47,14 @@ public class IntegrationConfig {
 	public static final String IDENTIFIER_SYSTEM_PASSPORT = "PASSPORT";
 	public static final String IDENTIFIER_SYSTEM_TEMPID = "TEMPID";
 
+	public static final String MOH_BILLING_IREMBO_PROPERTY = "mohbilling.irembopay_enabled";
+
 	private final RwandaEmrConfig rwandaEmrConfig;
 	private final LocationTagUtil locationTagUtil;
 	private Map<String, PatientIdentifierType> identifierSystems = null;
+	private volatile Boolean hieEnabledCache = null; // Cache HIE enabled status to avoid repeated property lookups
+	private volatile long hieEnabledCacheTime = 0; // Timestamp when cache was set
+	private static final long CACHE_TTL_MS = 60000; // Cache for 1 minute
 
 	public IntegrationConfig(@Autowired RwandaEmrConfig rwandaEmrConfig, @Autowired LocationTagUtil locationTagUtil) {
 		this.rwandaEmrConfig = rwandaEmrConfig;
@@ -77,10 +83,27 @@ public class IntegrationConfig {
 	}
 
 	public boolean isHieEnabled() {
+		// Use cached value if still valid (within TTL)
+		long now = System.currentTimeMillis();
+		if (hieEnabledCache != null && (now - hieEnabledCacheTime) < CACHE_TTL_MS) {
+			return hieEnabledCache;
+		}
+		
+		// Refresh cache
 		String url = ConfigUtil.getProperty(HIE_URL_PROPERTY);
 		String username = ConfigUtil.getProperty(HIE_USERNAME_PROPERTY);
 		String password = ConfigUtil.getProperty(HIE_PASSWORD_PROPERTY);
-		return StringUtils.isNotBlank(url) && StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
+		boolean enabled = StringUtils.isNotBlank(url) && StringUtils.isNotBlank(username) && StringUtils.isNotBlank(password);
+		
+		hieEnabledCache = enabled;
+		hieEnabledCacheTime = now;
+		return enabled;
+	}
+
+	public boolean isIremboPayEnabled(){
+		String status = ConfigUtil.getGlobalProperty(MOH_BILLING_IREMBO_PROPERTY);
+		log.error("IremboPAY status: " + status);
+		return status.equalsIgnoreCase("true");
 	}
 
 	/**
@@ -151,5 +174,14 @@ public class IntegrationConfig {
 			log.warn("No location is provided to determine FOSA ID");
 		}
 		return null;
+	}
+
+	public int getRegistrationEncounterType(){
+		try {
+			String encounterTypeId = ConfigUtil.getGlobalProperty(HIE_REGISTRATION_ENCOUNTER_TYPE_ID);
+			return Integer.parseInt(encounterTypeId);
+		} catch(Exception e){
+			return 0;
+		}
 	}
 }

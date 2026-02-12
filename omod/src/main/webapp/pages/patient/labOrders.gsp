@@ -15,6 +15,6 @@
 
 ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient ]) }
 
-<h3>Laboratory Order</h3>
+<h3>Laboratory Results</h3>
 
 <iframe class="frame-content" scrolling="yes" src="/${ contextPath }/module/rwandaemr/labOrders.htm?patientId=${ patient.patientId }"></iframe>

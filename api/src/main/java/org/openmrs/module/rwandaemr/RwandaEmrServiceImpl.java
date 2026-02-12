@@ -13,12 +13,13 @@
  */
 package org.openmrs.module.rwandaemr;
 
+import lombok.Setter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hibernate.Session;
+import org.hibernate.query.NativeQuery;
 import org.openmrs.Encounter;
 import org.openmrs.EncounterProvider;
-import org.openmrs.Location;
-import org.openmrs.LocationTag;
 import org.openmrs.Obs;
 import org.openmrs.Order;
 import org.openmrs.Patient;
@@ -31,15 +32,17 @@ import org.openmrs.PersonName;
 import org.openmrs.Relationship;
 import org.openmrs.Visit;
 import org.openmrs.annotation.Authorized;
-import org.openmrs.api.LocationService;
+import org.openmrs.api.EncounterService;
 import org.openmrs.api.context.Context;
+import org.openmrs.api.db.OrderDAO;
+import org.openmrs.api.db.hibernate.DbSessionFactory;
 import org.openmrs.api.db.hibernate.ImmutableOrderInterceptor;
 import org.openmrs.api.impl.BaseOpenmrsService;
-import org.openmrs.module.emrapi.EmrApiConstants;
+import org.openmrs.util.ConfigUtil;
 import org.openmrs.util.PrivilegeConstants;
 import org.openmrs.validator.ValidateUtil;
+import org.springframework.transaction.annotation.Transactional;
 
-import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -52,6 +55,110 @@ import java.util.List;
 public class RwandaEmrServiceImpl extends BaseOpenmrsService implements RwandaEmrService {
 
 	protected Log log = LogFactory.getLog(getClass());
+
+	@Setter
+	private DbSessionFactory sessionFactory;
+
+	@Setter
+	private EncounterService encounterService;
+
+	@Setter
+	private OrderDAO orderDAO;
+
+	@Transactional(readOnly = true)
+	@Authorized(PrivilegeConstants.GET_OBS)
+	@SuppressWarnings("unchecked")
+	public List<Obs> getObsByOrder(Order order) {
+		String query = "select o from Obs o where o.order = :order and o.voided = false";
+		return sessionFactory.getCurrentSession().createQuery(query).setParameter("order", order).list();
+	}
+
+	@Transactional
+	@Authorized(PrivilegeConstants.ADD_ENCOUNTERS)
+	public void saveEncounters(List<Encounter> encounters) {
+		for (Encounter encounter : encounters) {
+			encounterService.saveEncounter(encounter);
+		}
+	}
+
+	@Transactional
+	@Authorized(PrivilegeConstants.EDIT_ORDERS)
+	public int markLabOrdersAsCompleted() {
+		StringBuilder q = new StringBuilder();
+		q.append("select distinct orders.order_id ");
+		q.append("from orders ");
+		q.append("left join drug_order on orders.order_id = drug_order.order_id ");
+		q.append("inner join obs on orders.order_id = obs.order_id ");
+		q.append("where drug_order.order_id is null ");
+		q.append("and obs.voided = 0 ");
+		q.append("and orders.voided = 0 ");
+		q.append("and orders.order_action != 'DISCONTINUE' ");
+		q.append("and orders.fulfiller_status is null; ");
+
+		Session session = sessionFactory.getHibernateSessionFactory().getCurrentSession();
+		final int[] numUpdated = new int[] { 0 };
+		NativeQuery<?> query = session.createSQLQuery(q.toString());
+		query.stream().forEach(queryResult -> {
+			Integer orderId = (Integer) queryResult;
+			log.debug("Marking order as completed: " + orderId);
+			Order order = orderDAO.getOrder(orderId);
+			order.setFulfillerStatus(Order.FulfillerStatus.COMPLETED);
+			order.setFulfillerComment("Auto-updated to completed");
+			orderDAO.saveOrder(order);
+			numUpdated[0]++;
+			if (numUpdated[0] % 10 == 0) {
+				Context.flushSession();
+				Context.clearSession();
+			}
+		});
+		return numUpdated[0];
+	}
+
+	@Transactional
+	@Authorized(PrivilegeConstants.EDIT_ORDERS)
+	public int markLabOrdersAsExpired() {
+		String gpValue = ConfigUtil.getGlobalProperty("rwandaemr.autoExpireLabOrdersOlderThanDays");
+		int maxDays = 30;
+		try {
+			maxDays = Integer.parseInt(gpValue);
+		}
+		catch (NumberFormatException e) {
+			log.error("Invalid configuration for rwandaemr.autoExpireLabOrdersOlderThanDays, defaulting to 30");
+		}
+		StringBuilder q = new StringBuilder();
+		q.append("select orders.order_id ");
+		q.append("from orders ");
+		q.append("left join drug_order on orders.order_id = drug_order.order_id ");
+		q.append("where drug_order.order_id is null ");
+		q.append("and orders.fulfiller_status is null ");
+		q.append("and orders.auto_expire_date is null ");
+		q.append("and orders.date_stopped is null ");
+		q.append("and orders.voided = 0 ");
+		q.append("and orders.order_action != 'DISCONTINUE' ");
+		q.append("and orders.fulfiller_status is null ");
+		q.append("and timestampdiff(day, orders.date_activated, now()) >= ").append(maxDays).append(" ");
+		q.append("and (orders.scheduled_date is null or timestampdiff(day, orders.scheduled_date, now()) >= ").append(maxDays).append(") ");
+
+		Session session = sessionFactory.getHibernateSessionFactory().getCurrentSession();
+
+		final Date now = new Date();
+		final int[] numUpdated = new int[] { 0 };
+		NativeQuery<?> query = session.createSQLQuery(q.toString());
+		query.stream().forEach(queryResult -> {
+			Integer orderId = (Integer) queryResult;
+			log.debug("Marking order as expired: " + orderId);
+			Order order = orderDAO.getOrder(orderId);
+			order.setAutoExpireDate(now);
+			order.setFulfillerComment("Auto-updated to expired");
+			orderDAO.saveOrder(order);
+			numUpdated[0]++;
+			if (numUpdated[0] % 10 == 0) {
+				Context.flushSession();
+				Context.clearSession();
+			}
+		});
+		return numUpdated[0];
+	}
 
 	@Transactional
 	@Authorized(PrivilegeConstants.EDIT_PATIENTS)
@@ -166,41 +273,6 @@ public class RwandaEmrServiceImpl extends BaseOpenmrsService implements RwandaEm
 		addMessage(messages, "Trigger Sync Completed: " + patient.getId());
 
 		return messages;
-	}
-
-	@Override
-	@Transactional
-	@Authorized(PrivilegeConstants.MANAGE_LOCATIONS)
-	public void updateVisitAndLoginLocations(List<Location> visitLocations, List<Location> loginLocations) {
-		LocationService locationService = Context.getLocationService();
-		LocationTag visitLocationTag = locationService.getLocationTagByName(EmrApiConstants.LOCATION_TAG_SUPPORTS_VISITS);
-		LocationTag loginLocationTag = locationService.getLocationTagByName(EmrApiConstants.LOCATION_TAG_SUPPORTS_LOGIN);
-		for (Location l : locationService.getAllLocations(true)) {
-			boolean locationChanged = false;
-			boolean isVisitLocation = l.getTags() != null && l.getTags().contains(visitLocationTag);
-			boolean isLoginLocation = l.getTags() != null && l.getTags().contains(loginLocationTag);
-			boolean shouldBeVisitLocation = visitLocations.contains(l);
-			boolean shouldBeLoginLocation = loginLocations.contains(l);
-			if (isVisitLocation && !shouldBeVisitLocation) {
-				l.removeTag(visitLocationTag);
-				locationChanged = true;
-			}
-			if (isLoginLocation && !shouldBeLoginLocation) {
-				l.removeTag(loginLocationTag);
-				locationChanged = true;
-			}
-			if (!isVisitLocation && shouldBeVisitLocation) {
-				l.addTag(visitLocationTag);
-				locationChanged = true;
-			}
-			if (!isLoginLocation && shouldBeLoginLocation) {
-				l.addTag(loginLocationTag);
-				locationChanged = true;
-			}
-			if (locationChanged) {
-				locationService.saveLocation(l);
-			}
-		}
 	}
 
 	protected void addMessage(List<String> messages, String message) {

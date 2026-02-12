@@ -15,6 +15,7 @@ import org.openmrs.module.mohbilling.model.Beneficiary;
 import org.openmrs.module.mohbilling.model.Insurance;
 import org.openmrs.module.mohbilling.model.InsurancePolicy;
 import org.openmrs.module.mohbilling.service.BillingService;
+import org.openmrs.module.rwandaemr.integration.insurance.InsuranceIntegrationConfig;
 import org.openmrs.ui.framework.annotation.BindParams;
 import org.openmrs.ui.framework.annotation.InjectBeans;
 import org.openmrs.ui.framework.annotation.MethodParam;
@@ -51,6 +52,7 @@ public class InsurancePolicyPageController {
     public String get(PageModel model,
                       @MethodParam("getPolicy") @BindParams InsurancePolicy policy,
                       @InjectBeans PatientDomainWrapper patientDomainWrapper,
+                      @SpringBean("insuranceIntegrationConfig") InsuranceIntegrationConfig insuranceIntegrationConfig,
                       @RequestParam(value = "patientId") Patient patient,
                       @RequestParam(value = "edit", defaultValue = "false", required = false) Boolean edit,
                       @RequestParam(value = "returnUrl", required = false) String returnUrl) throws IOException {
@@ -68,14 +70,17 @@ public class InsurancePolicyPageController {
         model.addAttribute("policy", policy);
         model.addAttribute("policyModel", new InsurancePolicyModel(policy));
         model.addAttribute("insurances", InsuranceUtil.getInsurances(true));
+        model.addAttribute("insurancesToVerify", insuranceIntegrationConfig.getInsurancesToVerify());
         model.addAttribute("thirdParties", InsurancePolicyUtil.getAllThirdParties());
         model.addAttribute("owners", getEligiblePolicyOwnersForPatient(patient));
         model.addAttribute("returnUrl", getReturnUrl(returnUrl, patient, policy));
+        model.addAttribute("hasErrors", false);
 
         return "patient/insurancePolicy";
     }
 
     public String post(@InjectBeans PatientDomainWrapper patientDomainWrapper,
+                       @SpringBean("insuranceIntegrationConfig") InsuranceIntegrationConfig insuranceIntegrationConfig,
                        @MethodParam("getPolicy") InsurancePolicy policy,
                        @BindParams InsurancePolicyModel policyModel,
                        BindingResult errors,
@@ -179,10 +184,12 @@ public class InsurancePolicyPageController {
             model.addAttribute("policy", policy);
             model.addAttribute("policyModel", policyModel);
             model.addAttribute("insurances", InsuranceUtil.getInsurances(true));
+            model.addAttribute("insurancesToVerify", insuranceIntegrationConfig.getInsurancesToVerify());
             model.addAttribute("thirdParties", InsurancePolicyUtil.getAllThirdParties());
             model.addAttribute("owners", getEligiblePolicyOwnersForPatient(patient));
             model.addAttribute("returnUrl", getReturnUrl(returnUrl, patient, policy));
             model.addAttribute("editMode", true);
+            model.addAttribute("hasErrors", true);
             return "patient/insurancePolicy";
         }
 
