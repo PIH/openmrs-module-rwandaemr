@@ -36,7 +36,6 @@
 		<require_module version="${mohappointmentVersion}">org.openmrs.module.mohappointment</require_module>
 		<require_module version="${namephoneticsVersion}">org.openmrs.module.namephonetics</require_module>
 		<require_module version="${pihappsVersion}">org.openmrs.module.pihapps</require_module>
-		<require_module version="${providermanagementVersion}">org.openmrs.module.providermanagement</require_module>
 		<require_module version="${registrationappVersion}">org.openmrs.module.registrationapp</require_module>
 		<require_module version="${registrationcoreVersion}">org.openmrs.module.registrationcore</require_module>
 		<require_module version="${reportingVersion}">org.openmrs.module.reporting</require_module>

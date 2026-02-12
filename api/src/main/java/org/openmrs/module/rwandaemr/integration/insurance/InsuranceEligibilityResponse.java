@@ -9,20 +9,15 @@
  */
 package org.openmrs.module.rwandaemr.integration.insurance;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
-/**
- * Represents a response from the rssb_integration eligibility-check endpoint
- */
 @Data
 public class InsuranceEligibilityResponse {
-    @JsonProperty("eligibility_check_type")
-    String eligibilityCheckType;
-
-    @JsonProperty("identifier_used")
-    String identifierUsed;
-
-    @JsonProperty("is_eligible")
-    boolean isEligible;
+    private boolean success;
+    private String message;
+    private String insuranceType;
+    private String identifier;
+    private InsuranceOwner data;
+    private String status;
+    private String error;
 }

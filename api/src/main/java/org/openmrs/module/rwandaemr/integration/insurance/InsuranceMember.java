@@ -11,13 +11,17 @@ package org.openmrs.module.rwandaemr.integration.insurance;
 
 import lombok.Data;
 
-import java.util.List;
-
 @Data
-public class CbhiDetails {
-    String headOfHouseholdId;
-    Boolean isGovermentSponsored;
+public class InsuranceMember {
+    String patientId;
+    String fullName;
+    Boolean isEligible;
+    String documentNumber;
+    String telephone;
+    String gender;
+    String dateOfBirth;
+    String nid;
+    String eligibilityStartDate;
+    Boolean isGovernmentSponsored;
     String status;
-    Integer totalMembers;
-    List<CbhiMember> members;
 }
