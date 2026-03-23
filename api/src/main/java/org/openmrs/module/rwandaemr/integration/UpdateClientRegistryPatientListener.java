@@ -50,23 +50,7 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 			log.debug("Integration with client registry is not enabled, returning");
 			return;
 		}
-		log.warn("Updating client registry with: " + patientUuid);
-		Patient patient = patientService.getPatientByUuid(patientUuid);
-		try {
-			clientRegistryPatientProvider.updatePatientInClientRegistry(patient);
-		}
-		catch (Exception e) {
-			log.warn("Error updating client registry, adding to queue: " + patientUuid + "; " + e.getMessage());
-			addPatientToQueue(patientUuid, mapMessage);
-		}
-	}
-
-	@Override
-	public void handleException(Exception e) {
-		log.error("Unexpected exception in " + getClass(), e);
-	}
-
-	public void addPatientToQueue(String patientUuid, MapMessage mapMessage) {
+		log.warn("Adding patient to client registry queue: " + patientUuid);
 		try {
 			String action = mapMessage.getString("action");
 			if (StringUtils.isEmpty(action)) {
@@ -84,6 +68,11 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 		}
 	}
 
+	@Override
+	public void handleException(Exception e) {
+		log.error("Unexpected exception in " + getClass(), e);
+	}
+
 	public void processQueuedMessages() {
 		if (!integrationConfig.isHieEnabled()) {
 			log.debug("Integration with client registry is not enabled, returning");
@@ -97,24 +86,30 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 				log.warn("Processing " + files.length + " messages from " + messagesDir.getAbsolutePath());
 				int numSuccess = 0;
 				int numFailure = 0;
-				initializeMessageDir();
 				for (File file : files) {
 					ClientRegistryPatientQueueItem item = null;
 					try {
 						log.warn("Processing message file: " + file.getName());
 						item = mapper.readValue(file, ClientRegistryPatientQueueItem.class);
-						if (item.getNumAttempts() != null && item.getNumAttempts() > 5) {
+						Integer numAttempts = item.getNumAttempts();
+						numAttempts = (numAttempts == null) ? 0 : numAttempts;
+						if (numAttempts > 5) {
 							log.warn("Skipping file, as number of attempts = " + item.getNumAttempts());
 							continue;
 						}
-						processItem(item);
+						item.setNumAttempts(numAttempts + 1);
+						item.setLatestAttemptDatetime(new Date());
+
+						log.warn("Updating client registry with: " + item);
+						Patient patient = patientService.getPatientByUuid(item.getPatientUuid());
+						clientRegistryPatientProvider.updatePatientInClientRegistry(patient);
+
 						log.warn("Deleting message file: " + file.getName());
-						FileUtils.delete(file);
+						FileUtils.deleteQuietly(file);
 						numSuccess++;
 					}
 					catch (Exception e) {
 						if (item != null) {
-							item.setLatestAttemptDatetime(new Date());
 							item.setLatestAttemptResponse(e.getMessage());
 							writeMessageToFile(item);
 						}
@@ -128,12 +123,6 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 				processing = false;
 			}
 		}
-	}
-
-	public void processItem(ClientRegistryPatientQueueItem item) throws Exception {
-		log.warn("Updating client registry with: " + item);
-		Patient patient = patientService.getPatientByUuid(item.getPatientUuid());
-		clientRegistryPatientProvider.updatePatientInClientRegistry(patient);
 	}
 
 	public void initializeMessageDir() {
