@@ -146,6 +146,7 @@ public class InsurancePolicyPageController {
             policy.setInsurance(insurance);
             policy.setOwner(policyModel.getOwner());
             policy.setInsuranceCardNo(policyModel.getInsuranceCardNo());
+            policy.setRhipPatientId(policyModel.getRhipPatientId());
             policy.setCoverageStartDate(policyModel.getCoverageStartDate());
             policy.setExpirationDate(policyModel.getExpirationDate());
             policy.setThirdParty(policyModel.getThirdPartyId() == null ? null : InsurancePolicyUtil.getThirdParty(policyModel.getThirdPartyId()));
@@ -236,6 +237,7 @@ public class InsurancePolicyPageController {
         private String ownerCode;
         private Integer level;
         private String company;
+        private String rhipPatientId;
 
         public InsurancePolicyModel() {}
 
@@ -244,6 +246,7 @@ public class InsurancePolicyPageController {
             this.owner = policy.getOwner();
             this.insuranceId = policy.getInsurance() == null ? null : policy.getInsurance().getInsuranceId();
             this.insuranceCardNo = policy.getInsuranceCardNo();
+            this.rhipPatientId = policy.getRhipPatientId();
             this.coverageStartDate = policy.getCoverageStartDate();
             this.expirationDate = policy.getExpirationDate();
             this.thirdPartyId = policy.getThirdParty() == null ? null : policy.getThirdParty().getThirdPartyId();
