@@ -7,6 +7,8 @@ import org.openmrs.PatientIdentifier;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.context.Context;
+import org.openmrs.api.context.Daemon;
+import org.openmrs.module.DaemonToken;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.module.mohbilling.businesslogic.AdmissionUtil;
 import org.openmrs.module.mohbilling.businesslogic.GlobalBillUtil;
@@ -24,6 +26,7 @@ import javax.jms.MapMessage;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import lombok.Setter;
 
 /**
  * Listener that can be registered with Patient creation (or update) events and which will create a
@@ -31,6 +34,9 @@ import java.util.List;
  */
 @Component
 public class CreateInsurancePatientListener extends PatientEventListener {
+
+	@Setter
+	private static DaemonToken daemonToken;
 
 	private final PatientService patientService;
 	private final RwandaEmrConfig rwandaEmrConfig;
@@ -43,6 +49,24 @@ public class CreateInsurancePatientListener extends PatientEventListener {
 
 	@Override
 	public void handlePatient(String patientUuid, MapMessage mapMessage) {
+		if (daemonToken == null) {
+			throw new IllegalStateException("Daemon token is not set for CreateInsurancePatientListener");
+		}
+		Daemon.runInDaemonThread(() -> {
+			try {
+				Context.openSession();
+				try {
+					doHandlePatient(patientUuid);
+				} finally {
+					Context.closeSession();
+				}
+			} catch (Exception e) {
+				handleException(e);
+			}
+		}, daemonToken);
+	}
+
+	private void doHandlePatient(String patientUuid) {
 		// This functionality is enabled or disabled by setting or unsetting this global property value
 		String insuranceName = ConfigUtil.getProperty("rwandaemr.autoCreateInsuranceType");
 		if (StringUtils.isNotBlank(insuranceName)) {

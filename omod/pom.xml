@@ -4,13 +4,17 @@
 	<parent>
 		<groupId>org.openmrs.module</groupId>
 		<artifactId>rwandaemr</artifactId>
-		<version>3.2.0-SNAPSHOT</version>
+		<version>3.2.1-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>rwandaemr-omod</artifactId>
 	<packaging>jar</packaging>
 	<name>Rwanda EMR Module OMOD</name>
 	<description>OMOD project for Rwanda EMR</description>
+
+	<properties>
+		<dependenciesFile>${project.build.directory}/${project.artifactId}-${project.version}-dependencies.txt</dependenciesFile>
+	</properties>
 
 	<dependencies>
 		<dependency>
@@ -217,10 +221,6 @@
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>org.pih.maven.plugin</groupId>
-				<artifactId>pih-maven-plugin</artifactId>
-			</plugin>
-			<plugin>
 				<groupId>org.openmrs.maven.plugins</groupId>
 				<artifactId>maven-openmrs-plugin</artifactId>
 				<extensions>true</extensions>
@@ -250,7 +250,7 @@
 						<goals>
 							<goal>unpack-dependencies</goal>
 						</goals>
-						<phase>generate-resources</phase>
+						<phase>package</phase>
 						<configuration>
 							<includeGroupIds>${project.parent.groupId}</includeGroupIds>
 							<includeArtifactIds>${project.parent.artifactId}-api</includeArtifactIds>
