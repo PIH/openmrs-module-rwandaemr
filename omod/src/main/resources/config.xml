@@ -77,5 +77,113 @@
 		</description>
 	</globalProperty>
 
+	<globalProperty>
+		<property>rwandaemr.hie.registration_encounter_type_id</property>
+		<defaultValue>5</defaultValue>
+		<description>Encounter type id used to identify registration encounters for HIE consent flow</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.closeVisits.delaySeconds</property>
+		<defaultValue>150</defaultValue>
+		<description>Initial delay (seconds) before close visits task starts</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.closeVisits.periodSeconds</property>
+		<defaultValue>9000</defaultValue>
+		<description>Execution period (seconds) for close visits task</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateClientRegistry.delaySeconds</property>
+		<defaultValue>150</defaultValue>
+		<description>Initial delay (seconds) before client registry sync task starts</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateClientRegistry.periodSeconds</property>
+		<defaultValue>9000</defaultValue>
+		<description>Execution period (seconds) for client registry sync task</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateShrEncounter.delaySeconds</property>
+		<defaultValue>150</defaultValue>
+		<description>Initial delay (seconds) before SHR encounter sync task starts</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateShrEncounter.periodSeconds</property>
+		<defaultValue>9000</defaultValue>
+		<description>Execution period (seconds) for SHR encounter sync task</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateShrObs.delaySeconds</property>
+		<defaultValue>150</defaultValue>
+		<description>Initial delay (seconds) before SHR observation sync task starts</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateShrObs.periodSeconds</property>
+		<defaultValue>9000</defaultValue>
+		<description>Execution period (seconds) for SHR observation sync task</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.markOrders.delaySeconds</property>
+		<defaultValue>150</defaultValue>
+		<description>Initial delay (seconds) before mark orders task starts</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.markOrders.periodSeconds</property>
+		<defaultValue>9000</defaultValue>
+		<description>Execution period (seconds) for mark orders task</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.shrEncounterFetchTimeoutMs</property>
+		<defaultValue>30000</defaultValue>
+		<description>Socket timeout (ms) override for SHR encounter fetch operation</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.citizenFetchTimeoutMs</property>
+		<defaultValue>30000</defaultValue>
+		<description>Socket timeout (ms) override for citizen registry fetch operation</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.connectTimeoutMs</property>
+		<defaultValue>10000</defaultValue>
+		<description>Default HIE HTTP connect timeout (ms)</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.socketTimeoutMs</property>
+		<defaultValue>30000</defaultValue>
+		<description>Default HIE HTTP socket/read timeout (ms)</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.connectionRequestTimeoutMs</property>
+		<defaultValue>10000</defaultValue>
+		<description>Default HIE HTTP connection request timeout (ms)</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.queueWarnThreshold</property>
+		<defaultValue>1000</defaultValue>
+		<description>Queue depth warning threshold (number of queued files) for HIE sync queues</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.queueErrorThreshold</property>
+		<defaultValue>5000</defaultValue>
+		<description>Queue depth error threshold (number of queued files) for HIE sync queues</description>
+	</globalProperty>
+
 </module>
 
