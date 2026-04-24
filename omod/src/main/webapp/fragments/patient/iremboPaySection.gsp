@@ -1,0 +1,198 @@
+<%
+ui.includeJavascript("rwandaemr", "custom/hie.js")
+ui.includeCss("rwandaemr", "hie/hie.css")
+%>
+
+<div id="payment-view-dialog" class="dialog" style="display: none">
+    <div class="dialog-header">
+        <i class="icon-check-in"></i>
+        <h3 id="payment_request_title">
+            ${ ui.message("Pay using Irembo Pay") }
+        </h3>
+    </div>
+    <div class="dialog-content">
+        <div id="payment-data"></div>
+        <button type="button" id="irembo-pay-confirm-btn" class="confirm right">${ ui.message("rwandaemr.hie.done") }<i class="icon-spinner icon-spin icon-2x" style="display: none; margin-left: 10px;"></i></button>
+        <button type="button" class="cancel">${ ui.message("coreapps.cancel") }</button>
+    </div>
+</div>
+<div class="info-section">
+    <div class="info-header">
+        <i class="icon-calendar"></i>
+        <h3>${ ui.message(config.label ? config.label : "Billing Information").toUpperCase() }</h3>
+
+    </div>
+    <div class="info-body">
+        <g:if test="${error}">
+            <span style="color: red;">${error}</span>
+        </g:if>
+        <%
+        if(bills.size() > 0) {
+            %>
+            <div class="irembo-bills-table-wrapper">
+                <table id="bills-list-table" class="irembo-bills-datatable">
+                    <thead>
+                        <tr>
+                            <th>${ ui.message("Date") }</th>
+                            <th>${ ui.message("Service") }</th>
+                            <th>${ ui.message("Amount") }</th>
+                            <th>${ ui.message("Invoice Number") }</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% bills.each { bill ->
+                            def pageLink
+                            %>
+                            <tr id="bill-${ bill.getPatientBillId() }" class="bill-row irembo-bill-row${pageLink ? ' pointer' :''}" data-href="#">
+                                <td>
+                                    ${ ui.format(bill.getBillDate()) }
+                                </td>
+                                <td>
+                                    ${ ui.format(bill.getDepartment()) }
+                                </td>
+                                <td>
+                                    ${ ui.format(bill.getAmount()) }
+                                </td>
+                                <td>
+                                    ${ ui.format(bill.getInvoiceNumber()) }
+                                    <% if (!bill.getInvoiceNumber() || bill.getInvoiceNumber().trim().isEmpty()) { %>
+                                    <a class="open_payment_request_pop" data-bill_amount="${ ui.format(bill.getAmount()) }" data-bill_id="${ ui.format(bill.getPatientBillId()) }" data-invoice_number="${ ui.format(bill.getInvoiceNumber()) }" data-url='${ui.pageLink("rwandaemr", "patient/iremboPayStatusSection")}?billId=${bill.getPatientBillId()}&phoneNumber=${bill.getPhoneNumber()}' title="Create Payment Request" href="javascript:void(0);"><i class="icon-share-alt right"></i></a>
+                                    <% } else { %>
+                                    <span class="irembo-waiting-payment" data-bill_amount="${ ui.format(bill.getAmount()) }" data-bill_id="${ bill.getPatientBillId() }" data-invoice_number="${ ui.format(bill.getInvoiceNumber()) }" data-url='${ui.pageLink("rwandaemr", "patient/iremboPayStatusSection")}?billId=${bill.getPatientBillId()}&phoneNumber=${bill.getPhoneNumber()}' data-invoice-number="${ ui.format(bill.getInvoiceNumber()) }" data-bill-id="${ bill.getPatientBillId() }" data-phone-number="${ bill.getPhoneNumber() ?: '' }" data-check-count="0" title="${ ui.message('rwandaemr.billing.waitingPayment') }"><i class="icon-spinner icon-spin"></i> ${ ui.message('rwandaemr.billing.waitingPayment') }</span>
+                                    <% } %>
+                                </td>
+                            </tr>
+                            <%
+                        }
+                        %>
+                    </tbody>
+                </table>
+                <div id="irembo-bills-pagination" class="irembo-bills-pagination" style="margin-top: 8px; display: none;">
+                    <span class="irembo-bills-page-info"></span>
+                    <button type="button" class="irembo-bills-prev" style="margin-left: 10px;">${ ui.message("uicommons.dataTable.previous") }</button>
+                    <button type="button" class="irembo-bills-next">${ ui.message("uicommons.dataTable.next") }</button>
+                </div>
+            </div>
+            <%
+        }
+        %>
+    </div>
+</div>
+
+<script type="text/javascript">
+    jq(document).ready(function() {
+        var ROWS_PER_PAGE = 5;
+        var rows = jq("#bills-list-table tbody tr.irembo-bill-row");
+        var total = rows.length;
+        if (total === 0) return;
+
+        var totalPages = Math.ceil(total / ROWS_PER_PAGE);
+        var pagination = jq("#irembo-bills-pagination");
+        var pageInfo = pagination.find(".irembo-bills-page-info");
+        var prevBtn = pagination.find(".irembo-bills-prev");
+        var nextBtn = pagination.find(".irembo-bills-next");
+        var currentPage = 1;
+
+        function showPage(page) {
+            currentPage = Math.max(1, Math.min(page, totalPages));
+            rows.hide();
+            var visibleRows = rows.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
+            visibleRows.show();
+            var visibleCount = visibleRows.length;
+            pageInfo.text(visibleCount + " of " + total + " · Page " + currentPage + " of " + totalPages);
+            prevBtn.toggle(totalPages > 1 && currentPage > 1);
+            nextBtn.toggle(totalPages > 1 && currentPage < totalPages);
+        }
+
+        if (totalPages > 1) {
+            pagination.show();
+            showPage(1);
+            prevBtn.on("click", function() {
+                if (currentPage > 1) showPage(currentPage - 1);
+            });
+            nextBtn.on("click", function() {
+                if (currentPage < totalPages) showPage(currentPage + 1);
+            });
+        } else {
+            pagination.hide();
+        }
+    });
+
+    jq(document).on("click", ".open_payment_request_pop", function (e) {
+        e.preventDefault();
+        var clicked = jq(this);
+        var url = clicked.attr("data-url");
+        if (url) {
+            var fullUrl = window.location.origin + url;
+            var title = clicked.data("encounter_type");
+            if (!title) {
+                title = "${ ui.message('Pay using Irembo Pay') }";
+            }
+            jq("#payment_request_title").html(title);
+            jq("#payment-data").load(fullUrl, function (response, status, xhr) {
+                if (status == "error") {
+                    jq("#payment-data").html("<p>Error Irembo Pay Parameters.</p>");
+                }
+            });
+        }
+        var billId = clicked.attr("data-bill_id");
+        if (billId && typeof hie !== "undefined" && typeof hie.showPaymentViewDialog === "function") {
+            hie.showPaymentViewDialog(billId);
+        }
+    });
+
+    (function() {
+        var waitingEls = jq(".irembo-waiting-payment");
+        if (waitingEls.length === 0) return;
+        var contextPath = jq("meta[name='openmrs-context-path']").attr("content") || "";
+        if (!contextPath && typeof window.location !== "undefined") {
+            var path = window.location.pathname || "";
+            var openmrsIdx = path.indexOf("/openmrs");
+            contextPath = openmrsIdx >= 0 ? path.substring(0, openmrsIdx + 8) : "";
+        }
+        var statusUrlBase = contextPath + "/ws/rest/v1/rwandaemr/irembopay/status";
+
+        var checkCount = 0;
+        function checkStatus() {
+            checkCount++;
+            var stillWaiting = jq(".irembo-waiting-payment");
+            if (stillWaiting.length === 0) return;
+            stillWaiting.each(function() {
+                var el = jq(this);
+                var invoiceNumber = el.attr("data-invoice-number");
+                if (!invoiceNumber) return;
+
+                var currentCheckCount = parseInt(el.attr("data-check-count") || "0");
+                el.attr("data-check-count", currentCheckCount + 1);
+
+                jq.ajax({
+                    url: statusUrlBase + "?forceUpdate=true&invoiceNumber=" + encodeURIComponent(invoiceNumber),
+                    type: "GET",
+                    dataType: "json"
+                }).done(function(data) {
+                    if (data && data.found === true && data.paid === true) {
+                        var spinnerIcon = el.find("i.icon-spinner");
+                        if (spinnerIcon.length > 0) {
+                            spinnerIcon.removeClass("icon-spinner icon-spin").addClass("icon-ok").css("color", "green");
+                            var currentText = el.text().trim();
+                            if (currentText.indexOf("Waiting") >= 0) {
+                                el.text(el.text().replace(/Waiting.*/, "Paid"));
+                            } else {
+                                el.append(" Paid");
+                            }
+                            el.removeClass("irembo-waiting-payment");
+                        }
+                    }
+                });
+            });
+            var stillWaitingAfter = jq(".irembo-waiting-payment");
+            if (stillWaitingAfter.length > 0) {
+                setTimeout(checkStatus, 8000);
+            }
+        }
+
+        jq(document).ready(function() {
+            setTimeout(checkStatus, 15000);
+        });
+    })();
+</script>

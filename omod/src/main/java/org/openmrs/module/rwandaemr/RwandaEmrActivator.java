@@ -28,7 +28,7 @@ import org.openmrs.module.rwandaemr.config.ProviderCleanup;
 import org.openmrs.module.rwandaemr.config.ReportSetup;
 import org.openmrs.module.rwandaemr.config.ServerSetup;
 import org.openmrs.module.rwandaemr.config.Setup;
-import org.openmrs.module.rwandaemr.event.PatientEventListener;
+import org.openmrs.module.rwandaemr.event.CreateInsurancePatientListener;
 import org.openmrs.module.rwandaemr.htmlformentry.HtmlFormEntrySetup;
 import org.openmrs.module.rwandaemr.radiology.HL7ListenerSetup;
 import org.openmrs.module.rwandaemr.radiology.ORUR01MessageListener;
@@ -103,7 +103,7 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 	@Override
 	public void setDaemonToken(DaemonToken daemonToken) {
 		RwandaEmrTimerTask.setDaemonToken(daemonToken);
-		PatientEventListener.setDaemonToken(daemonToken);
+		CreateInsurancePatientListener.setDaemonToken(daemonToken);
 		RadiologyOrderEventListener.setDaemonToken(daemonToken);
 		ORUR01MessageListener.setDaemonToken(daemonToken);
 	}
