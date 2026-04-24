@@ -165,27 +165,6 @@ ui.includeCss("rwandaemr", "hie/hie.css")
                 var currentCheckCount = parseInt(el.attr("data-check-count") || "0");
                 el.attr("data-check-count", currentCheckCount + 1);
 
-                if (currentCheckCount + 1 >= 3 && el.find(".irembo-retry-btn").length === 0) {
-                    var billId = el.attr("data-bill-id") || el.attr("data-bill_id");
-                    var billAmount = el.attr("data-bill_amount");
-                    var invoiceNumber = el.attr("data-invoice_number") || el.attr("data-invoice-number");
-                    var url = el.attr("data-url");
-                    el.find("i.icon-spinner").remove();
-                    el.text(el.text().replace(/Waiting.*/, "").trim());
-                    var retryBtn = jq('<a class="irembo-retry-btn open_payment_request_pop" href="javascript:hie.showPaymentViewDialog(\\\'' + billId + '\\\')" title="Retry Payment Request" style="margin-left: 10px; cursor: pointer;"><i class="icon-refresh"></i> Retry</a>');
-                    retryBtn.attr("data-bill_amount", billAmount);
-                    retryBtn.attr("data-bill_id", billId);
-                    retryBtn.attr("data-invoice_number", invoiceNumber);
-                    retryBtn.attr("data-url", url);
-                    el.append(retryBtn);
-                    el.removeClass("irembo-waiting-payment");
-                    return;
-                }
-
-                if (el.find(".irembo-retry-btn").length > 0) {
-                    return;
-                }
-
                 jq.ajax({
                     url: statusUrlBase + "?forceUpdate=true&invoiceNumber=" + encodeURIComponent(invoiceNumber),
                     type: "GET",
@@ -201,7 +180,6 @@ ui.includeCss("rwandaemr", "hie/hie.css")
                             } else {
                                 el.append(" Paid");
                             }
-                            el.find(".irembo-retry-btn").remove();
                             el.removeClass("irembo-waiting-payment");
                         }
                     }
