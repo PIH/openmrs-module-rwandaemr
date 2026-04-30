@@ -35,6 +35,8 @@ import java.util.Objects;
 
 public class InsurancePolicyPageController {
 
+    private static final String DUPLICATE_RHIP_PATIENT_ID_ERROR = "rwandaemr.insurance.error.duplicateRhipPatientId";
+
     public InsurancePolicy getPolicy(@RequestParam(value = "patientId") Patient patient,
                                      @RequestParam(value = "policyId", required = false) Integer policyId) {
         BillingService billingService = Context.getService(BillingService.class);
@@ -126,19 +128,22 @@ public class InsurancePolicyPageController {
                     errors.rejectValue("insuranceCardNo", "rwandaemr.insurance.error.duplicateCardNumber");
                 }
             }
+            if (StringUtils.isNotBlank(policyModel.getRhipPatientId())) {
+                InsurancePolicy existingPolicy = getInsurancePolicyByRhipPatientId(policyModel.getRhipPatientId());
+                if (existingPolicy != null && !existingPolicy.getInsurancePolicyId().equals(policy.getInsurancePolicyId())) {
+                    errors.rejectValue(
+                            "rhipPatientId",
+                            DUPLICATE_RHIP_PATIENT_ID_ERROR,
+                            new Object[] { policyModel.getRhipPatientId() },
+                            "RHIP Patient ID " + policyModel.getRhipPatientId() + " is already linked to another insurance policy"
+                    );
+                }
+            }
 
             if (errors.hasErrors()) {
                 String message = "";
                 for (ObjectError error : errors.getAllErrors()) {
-                    Object[] arguments = error.getArguments();
-                    String errorMessage = mss.getMessage(Objects.requireNonNull(error.getCode()));
-                    if (arguments != null) {
-                        for (int i = 0; i < arguments.length; i++) {
-                            String argument = (String) arguments[i];
-                            errorMessage = errorMessage.replaceAll("\\{" + i + "}", mss.getMessage(argument));
-                        }
-                    }
-                    message = message.concat(errorMessage).concat("<br>");
+                    message = message.concat(getErrorMessage(error, mss)).concat("<br>");
                 }
                 throw new APIException(message);
             }
@@ -204,6 +209,44 @@ public class InsurancePolicyPageController {
         if (value == null || (value instanceof String && StringUtils.isBlank((String) value))) {
             errors.rejectValue(field, "error.required", new Object[] { fieldName }, "Error");
         }
+    }
+
+    private InsurancePolicy getInsurancePolicyByRhipPatientId(String rhipPatientId) {
+        if (StringUtils.isBlank(rhipPatientId)) {
+            return null;
+        }
+        for (InsurancePolicy policy : Context.getService(BillingService.class).getAllInsurancePolicies()) {
+            if (policy != null && StringUtils.equals(rhipPatientId.trim(), StringUtils.trimToNull(policy.getRhipPatientId()))) {
+                return policy;
+            }
+        }
+        return null;
+    }
+
+    private String getErrorMessage(ObjectError error, MessageSourceService mss) {
+        String errorMessage = error.getDefaultMessage();
+        try {
+            if (StringUtils.isNotBlank(error.getCode()) && !DUPLICATE_RHIP_PATIENT_ID_ERROR.equals(error.getCode())) {
+                errorMessage = mss.getMessage(Objects.requireNonNull(error.getCode()));
+            }
+        }
+        catch (Exception ignored) {}
+        if (StringUtils.isBlank(errorMessage)) {
+            errorMessage = "Error";
+        }
+        Object[] arguments = error.getArguments();
+        if (arguments != null) {
+            for (int i = 0; i < arguments.length; i++) {
+                Object argument = arguments[i];
+                String argumentMessage = argument == null ? "" : argument.toString();
+                try {
+                    argumentMessage = mss.getMessage(argumentMessage);
+                }
+                catch (Exception ignored) {}
+                errorMessage = errorMessage.replace("{" + i + "}", argumentMessage);
+            }
+        }
+        return errorMessage;
     }
 
     public String getReturnUrl(String returnUrl, Patient patient, InsurancePolicy policy) {

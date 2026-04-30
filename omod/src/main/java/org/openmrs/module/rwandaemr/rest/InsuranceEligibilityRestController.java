@@ -28,7 +28,8 @@ public class InsuranceEligibilityRestController {
         String type = request.getParameter("type");
         String identifier = request.getParameter("identifier");
         String fosaid = request.getParameter("fosaid");
-        IntegrationResponse ret = insuranceEligibilityProvider.checkEligibility(type, identifier, fosaid);
+        boolean sendOtp = Boolean.parseBoolean(request.getParameter("sendOTP"));
+        IntegrationResponse ret = insuranceEligibilityProvider.checkEligibility(type, identifier, fosaid, sendOtp);
         return ret;
     }
 }

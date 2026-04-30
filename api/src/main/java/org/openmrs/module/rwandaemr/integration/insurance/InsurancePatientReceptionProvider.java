@@ -28,48 +28,51 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Supports connections to and operations with the insurance-eligibility endpoint in the HIE
+ * Supports connections to and operations with the patient-reception endpoint for MMI flows.
  */
-@Component("insuranceEligibilityProvider")
-public class InsuranceEligibilityProvider {
+@Component("insurancePatientReceptionProvider")
+public class InsurancePatientReceptionProvider {
 
 	protected Log log = LogFactory.getLog(getClass());
 
 	private final InsuranceIntegrationConfig config;
 
-	public InsuranceEligibilityProvider(
-			@Autowired InsuranceIntegrationConfig config
-	) {
+	public InsurancePatientReceptionProvider(@Autowired InsuranceIntegrationConfig config) {
 		this.config = config;
 	}
 
-	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid) {
-		return checkEligibility(type, identifier, fosaid, false);
-	}
-
-	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid, boolean sendOtp) {
+	public IntegrationResponse createPatientReception(String insuranceType, String patientIdentifier, String facilityFosaId,
+	                                                  String patientType, String otpCode, Boolean prescriptionRequired) {
 		IntegrationResponse ret = new IntegrationResponse();
-		ret.setEnabled(config.isEligibilityCheckEnabled());
+		ret.setEnabled(config.isPatientReceptionEnabled());
+		if (!ret.isEnabled()) {
+			ret.setErrorMessage("Patient reception integration is not enabled. Configure " +
+					InsuranceIntegrationConfig.PATIENT_RECEPTION_URL + " global property.");
+		}
 		if (ret.isEnabled()) {
 			try (CloseableHttpClient httpClient = HttpUtils.getHttpClient(null, null, false)) {
 				ObjectMapper mapper = new ObjectMapper();
-				String url = config.getEligibilityCheckUrl();
+				String url = config.getPatientReceptionUrl();
 				HttpPost httpPost = new HttpPost(url);
-				log.debug("POSTING " + config.getEligibilityCheckUrl());
+				log.debug("POSTING " + url);
 				httpPost.setHeader("Content-Type", "application/json");
-				String apiKey = config.getEligibilityCheckApiKey();
+				String apiKey = config.getPatientReceptionApiKey();
 				if (StringUtils.isNotBlank(apiKey)) {
 					httpPost.setHeader("x-api-key", apiKey);
 				}
-				String apiOrigin = config.getEligibilityCheckApiOrigin();
+				String apiOrigin = config.getPatientReceptionApiOrigin();
 				if (StringUtils.isNotBlank(apiOrigin)) {
 					httpPost.setHeader("Origin", apiOrigin);
 				}
 				Map<String, Object> parameters = new HashMap<>();
-				parameters.put("insuranceType", type);
-				parameters.put("identifier", identifier);
-				parameters.put("fosaid", fosaid);
-				parameters.put("sendOTP", sendOtp);
+				parameters.put("insuranceType", StringUtils.isBlank(insuranceType) ? "MMI" : insuranceType.trim());
+				parameters.put("patientIdentifier", patientIdentifier);
+				parameters.put("facilityFosaId", facilityFosaId);
+				parameters.put("patientType", patientType);
+				parameters.put("prescriptionRequired", prescriptionRequired == null ? Boolean.TRUE : prescriptionRequired);
+				if (StringUtils.isNotBlank(otpCode)) {
+					parameters.put("otpCode", otpCode.trim());
+				}
 				httpPost.setEntity(new StringEntity(mapper.writeValueAsString(parameters)));
 				ret.setEndpointAccessible(false);
 				try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
@@ -79,13 +82,12 @@ public class InsuranceEligibilityProvider {
 					String data = "";
 					try {
 						data = EntityUtils.toString(entity);
-					} catch (Exception ignored) {
 					}
-
-					// Process into an appropriate entity
+					catch (Exception ignored) {
+					}
 					if (StringUtils.isNotBlank(data)) {
 						try {
-							ret.setResponseEntity(mapper.readValue(data, InsuranceEligibilityResponse.class));
+							ret.setResponseEntity(mapper.readValue(data, InsurancePatientReceptionResponse.class));
 						}
 						catch (Exception e) {
 							ret.setErrorMessage(e.getMessage());
@@ -97,7 +99,6 @@ public class InsuranceEligibilityProvider {
 				ret.setErrorMessage(e.getMessage());
 			}
 		}
-
 		return ret;
 	}
 }
