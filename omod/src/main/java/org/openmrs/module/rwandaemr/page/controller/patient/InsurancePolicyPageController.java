@@ -35,8 +35,6 @@ import java.util.Objects;
 
 public class InsurancePolicyPageController {
 
-    private static final String DUPLICATE_RHIP_PATIENT_ID_ERROR = "rwandaemr.insurance.error.duplicateRhipPatientId";
-
     public InsurancePolicy getPolicy(@RequestParam(value = "patientId") Patient patient,
                                      @RequestParam(value = "policyId", required = false) Integer policyId) {
         BillingService billingService = Context.getService(BillingService.class);
@@ -128,17 +126,6 @@ public class InsurancePolicyPageController {
                     errors.rejectValue("insuranceCardNo", "rwandaemr.insurance.error.duplicateCardNumber");
                 }
             }
-            if (StringUtils.isNotBlank(policyModel.getRhipPatientId())) {
-                InsurancePolicy existingPolicy = getInsurancePolicyByRhipPatientId(policyModel.getRhipPatientId());
-                if (existingPolicy != null && !existingPolicy.getInsurancePolicyId().equals(policy.getInsurancePolicyId())) {
-                    errors.rejectValue(
-                            "rhipPatientId",
-                            DUPLICATE_RHIP_PATIENT_ID_ERROR,
-                            new Object[] { policyModel.getRhipPatientId() },
-                            "RHIP Patient ID " + policyModel.getRhipPatientId() + " is already linked to another insurance policy"
-                    );
-                }
-            }
 
             if (errors.hasErrors()) {
                 String message = "";
@@ -211,22 +198,10 @@ public class InsurancePolicyPageController {
         }
     }
 
-    private InsurancePolicy getInsurancePolicyByRhipPatientId(String rhipPatientId) {
-        if (StringUtils.isBlank(rhipPatientId)) {
-            return null;
-        }
-        for (InsurancePolicy policy : Context.getService(BillingService.class).getAllInsurancePolicies()) {
-            if (policy != null && StringUtils.equals(rhipPatientId.trim(), StringUtils.trimToNull(policy.getRhipPatientId()))) {
-                return policy;
-            }
-        }
-        return null;
-    }
-
     private String getErrorMessage(ObjectError error, MessageSourceService mss) {
         String errorMessage = error.getDefaultMessage();
         try {
-            if (StringUtils.isNotBlank(error.getCode()) && !DUPLICATE_RHIP_PATIENT_ID_ERROR.equals(error.getCode())) {
+            if (StringUtils.isNotBlank(error.getCode())) {
                 errorMessage = mss.getMessage(Objects.requireNonNull(error.getCode()));
             }
         }

@@ -250,18 +250,6 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             toggleVerificationButton();
         });
 
-        if (isEditMode && !hasErrorsFlag) {
-            const insuranceTypeId = jq("#insurance-type-field").val();
-            const insuranceType = resolveInsuranceTypeForVerification();
-            const ownerCode = jq("#owner-code-field").val();
-            const rhipPatientId = jq("#rhip-patient-id-field").val();
-            if (insuranceTypeId && ownerCode && !rhipPatientId && insuranceType) {
-                toggleVerificationButton();
-                jq("#verify-button").removeAttr("disabled");
-                jq("#verify-button").click();
-            }
-        }
-
         jq("#verify-button").click(function () {
             jq("#verify-button").attr("disabled", "disabled");
             const insuranceType = resolveInsuranceTypeForVerification();
