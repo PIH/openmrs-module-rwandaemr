@@ -20,6 +20,9 @@ ui.includeCss("rwandaemr", "hie/hie.css")
     <div class="info-header">
         <i class="icon-calendar"></i>
         <h3>${ ui.message(config.label ? config.label : "Billing Information").toUpperCase() }</h3>
+        <div style="margin-top: 6px; font-size: 13px; color: #00473f;">
+            Dial *182*3*7*Invoice Number# and follow the prompts
+        </div>
 
     </div>
     <div class="info-body">
@@ -42,6 +45,7 @@ ui.includeCss("rwandaemr", "hie/hie.css")
                     <tbody>
                         <% bills.each { bill ->
                             def pageLink
+                            def retryCount = bill.getRetryCount() != null ? bill.getRetryCount() : 0
                             %>
                             <tr id="bill-${ bill.getPatientBillId() }" class="bill-row irembo-bill-row${pageLink ? ' pointer' :''}" data-href="#">
                                 <td>
@@ -58,7 +62,7 @@ ui.includeCss("rwandaemr", "hie/hie.css")
                                     <% if (!bill.getInvoiceNumber() || bill.getInvoiceNumber().trim().isEmpty()) { %>
                                     <a class="open_payment_request_pop" data-bill_amount="${ ui.format(bill.getAmount()) }" data-bill_id="${ ui.format(bill.getPatientBillId()) }" data-invoice_number="${ ui.format(bill.getInvoiceNumber()) }" data-url='${ui.pageLink("rwandaemr", "patient/iremboPayStatusSection")}?billId=${bill.getPatientBillId()}&phoneNumber=${bill.getPhoneNumber()}' title="Create Payment Request" href="javascript:void(0);"><i class="icon-share-alt right"></i></a>
                                     <% } else { %>
-                                    <span class="irembo-waiting-payment" data-bill_amount="${ ui.format(bill.getAmount()) }" data-bill_id="${ bill.getPatientBillId() }" data-invoice_number="${ ui.format(bill.getInvoiceNumber()) }" data-url='${ui.pageLink("rwandaemr", "patient/iremboPayStatusSection")}?billId=${bill.getPatientBillId()}&phoneNumber=${bill.getPhoneNumber()}' data-invoice-number="${ ui.format(bill.getInvoiceNumber()) }" data-bill-id="${ bill.getPatientBillId() }" data-phone-number="${ bill.getPhoneNumber() ?: '' }" data-check-count="0" title="${ ui.message('rwandaemr.billing.waitingPayment') }"><i class="icon-spinner icon-spin"></i> ${ ui.message('rwandaemr.billing.waitingPayment') }</span>
+                                    <span class="irembo-waiting-payment" data-bill_amount="${ ui.format(bill.getAmount()) }" data-bill_id="${ bill.getPatientBillId() }" data-invoice_number="${ ui.format(bill.getInvoiceNumber()) }" data-url='${ui.pageLink("rwandaemr", "patient/iremboPayStatusSection")}?billId=${bill.getPatientBillId()}&phoneNumber=${bill.getPhoneNumber()}' data-invoice-number="${ ui.format(bill.getInvoiceNumber()) }" data-bill-id="${ bill.getPatientBillId() }" data-phone-number="${ bill.getPhoneNumber() ?: '' }" data-check-count="0" data-retry-count="${ retryCount }" title="${ ui.message('rwandaemr.billing.waitingPayment') }"><i class="icon-spinner icon-spin"></i> ${ ui.message('rwandaemr.billing.waitingPayment') }</span>
                                     <% } %>
                                 </td>
                             </tr>
@@ -158,12 +162,49 @@ ui.includeCss("rwandaemr", "hie/hie.css")
             var stillWaiting = jq(".irembo-waiting-payment");
             if (stillWaiting.length === 0) return;
             stillWaiting.each(function() {
+                var MAX_CHECKS_PER_BILL = 5;
+                var MAX_RETRY_COUNT = 20;
                 var el = jq(this);
                 var invoiceNumber = el.attr("data-invoice-number");
                 if (!invoiceNumber) return;
+                var currentRetryCount = parseInt(el.attr("data-retry-count") || "0");
+
+                // If DB retryCount already reached threshold, do not call status endpoint anymore.
+                if (currentRetryCount >= MAX_RETRY_COUNT) {
+                    var thresholdIcon = el.find("i.icon-spinner");
+                    if (thresholdIcon.length > 0) {
+                        thresholdIcon.removeClass("icon-spinner icon-spin").addClass("icon-remove").css("color", "red");
+                    }
+                    el.contents().filter(function() { return this.nodeType === 3; }).remove();
+                    el.append(" Not paid ");
+                    if (el.find(".irembo-retry-btn").length === 0) {
+                        var thresholdRetryBtn = jq('<a class="irembo-retry-btn open_payment_request_pop" href="javascript:void(0);" title="Retry Payment Request" style="margin-left: 10px; cursor: pointer;"><i class="icon-refresh"></i> Retry</a>');
+                        thresholdRetryBtn.attr("data-bill_amount", el.attr("data-bill_amount"));
+                        thresholdRetryBtn.attr("data-bill_id", el.attr("data-bill-id") || el.attr("data-bill_id"));
+                        thresholdRetryBtn.attr("data-invoice_number", el.attr("data-invoice_number") || el.attr("data-invoice-number"));
+                        thresholdRetryBtn.attr("data-url", el.attr("data-url"));
+                        el.append(thresholdRetryBtn);
+                    }
+                    el.removeClass("irembo-waiting-payment");
+                    return;
+                }
 
                 var currentCheckCount = parseInt(el.attr("data-check-count") || "0");
-                el.attr("data-check-count", currentCheckCount + 1);
+                var nextCheckCount = currentCheckCount + 1;
+                el.attr("data-check-count", nextCheckCount);
+
+                // Stop polling this bill after the configured number of checks.
+                if (nextCheckCount > MAX_CHECKS_PER_BILL) {
+                    el.attr("data-check-count", MAX_CHECKS_PER_BILL);
+                    var timeoutIcon = el.find("i.icon-spinner");
+                    if (timeoutIcon.length > 0) {
+                        timeoutIcon.removeClass("icon-spinner icon-spin").addClass("icon-remove").css("color", "red");
+                    }
+                    el.contents().filter(function() { return this.nodeType === 3; }).remove();
+                    el.append(" Not paid ");
+                    el.removeClass("irembo-waiting-payment");
+                    return;
+                }
 
                 jq.ajax({
                     url: statusUrlBase + "?forceUpdate=true&invoiceNumber=" + encodeURIComponent(invoiceNumber),

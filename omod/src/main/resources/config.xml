@@ -185,5 +185,23 @@
 		<description>Queue depth error threshold (number of queued files) for HIE sync queues</description>
 	</globalProperty>
 
+	<globalProperty>
+		<property>rwandaemr.hie.transfer_id</property>
+		<defaultValue>076b04e5-d62d-47da-83e2-0da6e7a119b4</defaultValue>
+		<description>Concept UUID for Transfer ID to be recognized by transfer processing</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.enable_cr_push</property>
+		<defaultValue>false</defaultValue>
+		<description>When true, patient create/update events are written to the client-registry-queue folder and the scheduled task may push those records to the client registry. Requires HIE credentials. Any other value disables queueing and pushing.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.enable_shr_push</property>
+		<defaultValue>false</defaultValue>
+		<description>When true, encounter and observation events are queued for SHR and the scheduled tasks may push them. Requires HIE credentials. Any other value disables SHR queueing and pushing for both encounters and observations.</description>
+	</globalProperty>
+
 </module>
 

@@ -55,6 +55,10 @@ public class UpdateShrEncounterListener extends HieEventListener {
     }
 
     public void addEncounterToQueue(String encounterUuid, MapMessage mapMessage){
+        if (!integrationConfig.isHieEnabled() || !integrationConfig.isShrPushEnabled()) {
+            log.debug("Skipping SHR encounter queue: HIE disabled or " + IntegrationConfig.HIE_ENABLE_SHR_PUSH_PROPERTY + " is not true");
+            return;
+        }
         //handle the enccounter adding process into queue
         try{
             String action = mapMessage.getString("action");
@@ -79,6 +83,10 @@ public class UpdateShrEncounterListener extends HieEventListener {
         if(!integrationConfig.isHieEnabled()){
             log.debug("Integration with HIE is not enabled, returning");
 			return;
+        }
+        if (!integrationConfig.isShrPushEnabled()) {
+            log.debug("SHR push is disabled (" + IntegrationConfig.HIE_ENABLE_SHR_PUSH_PROPERTY + "), skipping encounter queue processing");
+            return;
         }
 
         if(processing.compareAndSet(false, true)){

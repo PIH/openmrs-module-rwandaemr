@@ -56,6 +56,10 @@ public class UpdateShrObsListener extends HieEventListener {
     }
 
     public void addObsToQueue(String obsUuid, MapMessage mapMessage){
+        if (!integrationConfig.isHieEnabled() || !integrationConfig.isShrPushEnabled()) {
+            log.debug("Skipping SHR obs queue: HIE disabled or " + IntegrationConfig.HIE_ENABLE_SHR_PUSH_PROPERTY + " is not true");
+            return;
+        }
         try {
             String action = mapMessage.getString("action");
             if(StringUtils.isEmpty(action)){
@@ -79,6 +83,10 @@ public class UpdateShrObsListener extends HieEventListener {
         if(!integrationConfig.isHieEnabled()){
             log.debug("Integration with HIE is not enabled, returning");
 			return;
+        }
+        if (!integrationConfig.isShrPushEnabled()) {
+            log.debug("SHR push is disabled (" + IntegrationConfig.HIE_ENABLE_SHR_PUSH_PROPERTY + "), skipping obs queue processing");
+            return;
         }
 
         if(processing.compareAndSet(false, true)){

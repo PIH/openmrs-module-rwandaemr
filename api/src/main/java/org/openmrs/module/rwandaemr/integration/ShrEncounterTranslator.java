@@ -61,7 +61,11 @@ public class ShrEncounterTranslator {
             }
         }
 
-        if(shrEncounter.getEncounterSubject().hasType() && shrEncounter.getEncounterTypeString().equalsIgnoreCase("patient")){
+        String encounterTypeString = shrEncounter.getEncounterTypeString();
+        if (shrEncounter.getEncounterSubject() != null
+                && shrEncounter.getEncounterSubject().hasType()
+                && encounterTypeString != null
+                && encounterTypeString.equalsIgnoreCase("patient")) {
             Patient p = new Patient();
             
             p.setIdentifiers(null);

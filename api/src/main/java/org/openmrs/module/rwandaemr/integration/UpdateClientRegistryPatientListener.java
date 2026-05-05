@@ -54,6 +54,10 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 	}
 
 	public void addPatientToQueue(String patientUuid, MapMessage mapMessage) {
+		if (!integrationConfig.isHieEnabled() || !integrationConfig.isClientRegistryPushEnabled()) {
+			log.debug("Skipping client registry queue: HIE disabled or " + IntegrationConfig.HIE_ENABLE_CR_PUSH_PROPERTY + " is not true");
+			return;
+		}
 		try {
 			String action = mapMessage.getString("action");
 			if (StringUtils.isEmpty(action)) {
@@ -74,6 +78,10 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 	public void processQueuedMessages() {
 		if (!integrationConfig.isHieEnabled()) {
 			log.debug("Integration with client registry is not enabled, returning");
+			return;
+		}
+		if (!integrationConfig.isClientRegistryPushEnabled()) {
+			log.debug("Client registry push is disabled (" + IntegrationConfig.HIE_ENABLE_CR_PUSH_PROPERTY + "), skipping queue processing");
 			return;
 		}
 		if (processing.compareAndSet(false, true)) {

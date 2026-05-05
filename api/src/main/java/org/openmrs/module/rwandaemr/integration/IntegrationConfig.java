@@ -44,6 +44,11 @@ public class IntegrationConfig {
 	public static final int HIE_QUEUE_WARN_THRESHOLD_DEFAULT = 1000;
 	public static final int HIE_QUEUE_ERROR_THRESHOLD_DEFAULT = 5000;
 
+	/** When true, patient updates are queued and the scheduled task may push to the client registry. */
+	public static final String HIE_ENABLE_CR_PUSH_PROPERTY = "rwandaemr.hie.enable_cr_push";
+	/** When true, encounter/obs events are queued and scheduled tasks may push to SHR. */
+	public static final String HIE_ENABLE_SHR_PUSH_PROPERTY = "rwandaemr.hie.enable_shr_push";
+
 	public static final String IDENTIFIER_SYSTEM_NID = "NID";
 	public static final String IDENTIFIER_SYSTEM_NID_APPLICATION_NUMBER = "NID_APPLICATION_NUMBER";
 	public static final String IDENTIFIER_SYSTEM_NIN = "NIN";
@@ -203,6 +208,31 @@ public class IntegrationConfig {
 			return warnThreshold;
 		}
 		return configuredError;
+	}
+
+	/**
+	 * @return true only if global property {@link #HIE_ENABLE_CR_PUSH_PROPERTY} is set to "true" (case-insensitive).
+	 * Controls both writing to the client-registry queue and processing/pushing those records.
+	 */
+	public boolean isClientRegistryPushEnabled() {
+		return isGlobalPropertyTrue(HIE_ENABLE_CR_PUSH_PROPERTY);
+	}
+
+	/**
+	 * @return true only if global property {@link #HIE_ENABLE_SHR_PUSH_PROPERTY} is set to "true" (case-insensitive).
+	 * Controls both SHR encounter/obs queue writes and processing/pushes.
+	 */
+	public boolean isShrPushEnabled() {
+		return isGlobalPropertyTrue(HIE_ENABLE_SHR_PUSH_PROPERTY);
+	}
+
+	private boolean isGlobalPropertyTrue(String propertyName) {
+		try {
+			String v = ConfigUtil.getGlobalProperty(propertyName);
+			return StringUtils.isNotBlank(v) && "true".equalsIgnoreCase(v.trim());
+		} catch (Exception e) {
+			return false;
+		}
 	}
 
 	private int getPositiveIntProperty(String propertyName, int defaultValue) {

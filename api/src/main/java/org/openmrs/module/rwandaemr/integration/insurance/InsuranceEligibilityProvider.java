@@ -24,6 +24,8 @@ import org.openmrs.module.rwandaemr.integration.IntegrationResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -50,8 +52,10 @@ public class InsuranceEligibilityProvider {
 			try (CloseableHttpClient httpClient = HttpUtils.getHttpClient(null, null, false)) {
 				ObjectMapper mapper = new ObjectMapper();
 				String url = config.getEligibilityCheckUrl();
+				url = url.replace("{identifier}", URLEncoder.encode(identifier == null ? "" : identifier, StandardCharsets.UTF_8.name()));
+				url = url.replace("{type}", URLEncoder.encode(type == null ? "" : type, StandardCharsets.UTF_8.name()));
 				HttpPost httpPost = new HttpPost(url);
-				log.debug("GETTING " + config.getEligibilityCheckUrl());
+				log.debug("GETTING " + url);
 				httpPost.setHeader("Content-Type", "application/json");
 				String apiKey = config.getEligibilityCheckApiKey();
 				if (StringUtils.isNotBlank(apiKey)) {
