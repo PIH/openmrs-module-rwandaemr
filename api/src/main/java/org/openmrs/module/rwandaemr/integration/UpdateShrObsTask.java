@@ -1,28 +1,31 @@
 package org.openmrs.module.rwandaemr.integration;
 
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.commons.lang.time.StopWatch;
 import org.openmrs.api.context.Context;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-/**
- * Scheduled task that will attempt to update the client registry if these attempts had previously failed
- */
-public class UpdateClientRegistryTask implements Runnable {
-
+public class UpdateShrObsTask implements Runnable {
+    
     private final Logger log = LoggerFactory.getLogger(getClass());
     private static final AtomicBoolean isExecuting = new AtomicBoolean(false);
 
     @Override
     public void run() {
-        if (!isExecuting.compareAndSet(false, true)) {
-            log.warn(getClass().getSimpleName() + " is still executing, skipping this run to prevent overlap");
+        if(!isExecuting.compareAndSet(false, true)) {
+            log.warn(getClass().getSimpleName() + " is still working on the task, skipping this run to prevent overlap");
             return;
         }
-        try {
+
+        //make sure to update the SHR registry
+        try{
+            // Enforce ordering required by downstream server:
+            // always attempt encounter synchronization before obs synchronization.
+            new UpdateShrEncounterTask().run();
+
             // Check if HIE is enabled before doing any work
             List<IntegrationConfig> configs = Context.getRegisteredComponents(IntegrationConfig.class);
             if(configs == null || configs.isEmpty()){
@@ -35,21 +38,20 @@ public class UpdateClientRegistryTask implements Runnable {
                 return;
             }
             
-            log.info("Executing " + getClass());
-            StopWatch sw = new StopWatch();
-            sw.start();
+            StopWatch stopWatch = new StopWatch();
+            stopWatch.start();
 
-            List<UpdateClientRegistryPatientListener> l = Context.getRegisteredComponents(UpdateClientRegistryPatientListener.class);
-            if (l != null && !l.isEmpty()) {
-                UpdateClientRegistryPatientListener listener = l.get(0);
+            //Get the list all component to handle shr encounter synhronization
+            List<UpdateShrObsListener> updateShrObsListeners = Context.getRegisteredComponents(UpdateShrObsListener.class);
+            if(updateShrObsListeners != null && !updateShrObsListeners.isEmpty()){
+                UpdateShrObsListener listener = updateShrObsListeners.get(0);
                 listener.processQueuedMessages();
             }
-
-            sw.stop();
+            //stop the counter
+            stopWatch.stop();
         } catch(Exception e){
             log.error("Error in " + getClass().getSimpleName(), e);
-        }
-        finally {
+        } finally {
             isExecuting.set(false);
         }
     }
