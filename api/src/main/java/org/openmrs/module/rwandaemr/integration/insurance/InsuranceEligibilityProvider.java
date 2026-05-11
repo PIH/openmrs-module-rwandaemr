@@ -44,10 +44,6 @@ public class InsuranceEligibilityProvider {
 	}
 
 	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid) {
-		return checkEligibility(type, identifier, fosaid, false);
-	}
-
-	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid, boolean sendOtp) {
 		IntegrationResponse ret = new IntegrationResponse();
 		ret.setEnabled(config.isEligibilityCheckEnabled());
 		if (ret.isEnabled()) {
@@ -66,12 +62,11 @@ public class InsuranceEligibilityProvider {
 					httpPost.setHeader("Origin", apiOrigin);
 				}
 				Map<String, Object> parameters = new HashMap<>();
-				parameters.put("insuranceType", type);
-				parameters.put("identifier", identifier);
-				parameters.put("fosaid", fosaid);
-				parameters.put("sendOTP", sendOtp);
-				httpPost.setEntity(new StringEntity(mapper.writeValueAsString(parameters)));
-				ret.setEndpointAccessible(false);
+					parameters.put("insuranceType", type);
+					parameters.put("identifier", identifier);
+					parameters.put("fosaid", fosaid);
+					httpPost.setEntity(new StringEntity(mapper.writeValueAsString(parameters)));
+					ret.setEndpointAccessible(false);
 				try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
 					ret.setEndpointAccessible(true);
 					ret.setResponseCode(response.getStatusLine().getStatusCode());
