@@ -29,4 +29,50 @@
         <sqlFile path="sql/migrations/update-non-active-lab-orders.sql" relativeToChangelogFile="true" stripComments="true" />
     </changeSet>
 
+    <changeSet id="rwandaemr-create-mmi-patient-reception-log" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="mmi_patient_reception_log"/></not>
+        </preConditions>
+        <createTable tableName="mmi_patient_reception_log">
+            <column name="mmi_patient_reception_log_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="patient_id" type="int"/>
+            <column name="visit_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="encounter_id" type="int"/>
+            <column name="insurance_policy_id" type="int"/>
+            <column name="insurance_name" type="varchar(255)"/>
+            <column name="insurance_card_no" type="varchar(100)"/>
+            <column name="patient_identifier" type="varchar(100)"/>
+            <column name="facility_fosa_id" type="varchar(50)"/>
+            <column name="patient_type" type="varchar(50)"/>
+            <column name="prescription_required" type="boolean">
+                <constraints nullable="false"/>
+            </column>
+            <column name="request_payload" type="text"/>
+            <column name="response_payload" type="text"/>
+            <column name="response_code" type="int"/>
+            <column name="status" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reception_number" type="varchar(100)"/>
+            <column name="bp_code" type="varchar(100)"/>
+            <column name="reception_status" type="varchar(100)"/>
+            <column name="error_message" type="text"/>
+            <column name="creator" type="int"/>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="mmi_patient_reception_log" indexName="idx_mmi_reception_visit_status">
+            <column name="visit_id"/>
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="mmi_patient_reception_log" indexName="idx_mmi_reception_created">
+            <column name="date_created"/>
+        </createIndex>
+    </changeSet>
+
 </databaseChangeLog>

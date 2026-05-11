@@ -37,6 +37,10 @@ public class InsuranceIntegrationConfig {
 	public static final String ELIGIBILITY_MMI_RECEPTION_URL = ELIGIBILITY_CHECK_PREFIX + "mmiReceptionUrl";
 	public static final String ELIGIBILITY_CHECK_API_KEY = ELIGIBILITY_CHECK_PREFIX + "apiKey";
 	public static final String ELIGIBILITY_CHECK_API_ORIGIN = ELIGIBILITY_CHECK_PREFIX + "apiOrigin";
+	public static final String PATIENT_RECEPTION_URL = ELIGIBILITY_CHECK_PREFIX + "patientReceptionUrl";
+	public static final String PATIENT_RECEPTION_API_KEY = ELIGIBILITY_CHECK_PREFIX + "patientReceptionApiKey";
+	public static final String PATIENT_RECEPTION_API_ORIGIN = ELIGIBILITY_CHECK_PREFIX + "patientReceptionApiOrigin";
+	public static final String PATIENT_RECEPTION_FACILITY_FOSA_ID_OVERRIDE = ELIGIBILITY_CHECK_PREFIX + "patientReceptionFacilityFosaIdOverride";
 
 	public InsuranceIntegrationConfig() {
 	}
@@ -67,6 +71,34 @@ public class InsuranceIntegrationConfig {
 
 	public boolean isEligibilityCheckEnabled() {
 		return StringUtils.isNotBlank(getEligibilityCheckUrl());
+	}
+
+	public String getPatientReceptionUrl() {
+		return ConfigUtil.getProperty(PATIENT_RECEPTION_URL);
+	}
+
+	public String getPatientReceptionApiKey() {
+		String apiKey = ConfigUtil.getProperty(PATIENT_RECEPTION_API_KEY);
+		if (StringUtils.isNotBlank(apiKey)) {
+			return apiKey;
+		}
+		return getEligibilityCheckApiKey();
+	}
+
+	public String getPatientReceptionApiOrigin() {
+		String apiOrigin = ConfigUtil.getProperty(PATIENT_RECEPTION_API_ORIGIN);
+		if (StringUtils.isNotBlank(apiOrigin)) {
+			return apiOrigin;
+		}
+		return getEligibilityCheckApiOrigin();
+	}
+
+	public boolean isPatientReceptionEnabled() {
+		return StringUtils.isNotBlank(getPatientReceptionUrl());
+	}
+
+	public String getPatientReceptionFacilityFosaIdOverride() {
+		return StringUtils.trimToNull(ConfigUtil.getProperty(PATIENT_RECEPTION_FACILITY_FOSA_ID_OVERRIDE));
 	}
 
 	public List<String> getInsuranceTypesToVerify() {
