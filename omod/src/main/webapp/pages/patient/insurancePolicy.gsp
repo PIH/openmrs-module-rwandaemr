@@ -206,9 +206,13 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 position: [20, 50],
             });
 
-            jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?type=" + insuranceType + "&identifier=" + ownerCode, function(data) {
+            const eligibilityParams = jq.param({
+                type: insuranceType,
+                identifier: ownerCode
+            });
+            jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?" + eligibilityParams, function(data) {
                     console.log(data);
-                    if (data.responseCode === 200) {
+                    if (data && data.responseCode === 200 && data.responseEntity) {
                         let verifyRows = [];
                         if (data.responseEntity.success) {
                             const owner = data.responseEntity.data;
@@ -277,13 +281,14 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         if (!data.enabled) {
                             setVerifyResultsMessage('Insurance verification is not enabled');
                             disableVerification();
-                        } else if (data.endpointAccessible === false) {
-                            setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
+                        } else if (data.errorMessage || data.responseEntity?.error) {
+                            const errorMessage = data.errorMessage && data.errorMessage !== 'null' ? data.errorMessage : data.responseEntity?.error;
+                            setVerifyResultsMessage('Error: ' + (errorMessage || "Unknown"));
+                            console.error(data);
                             disableVerification();
                         }
-                        else if (data.errorMessage || data.responseEntity?.error) {
-                            const errorMessage = data.errorMessage && data.errorMessage !== 'null' ? data.errorMessage : data.responseEntity?.error;
-                            setVerifyResultsMessage('Error: ' + errorMessage ?? "Unknown");
+                        else if (data.endpointAccessible === false) {
+                            setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
                             console.error(data);
                             disableVerification();
                         }
@@ -291,6 +296,11 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             setNoMatchingInsurancesFound(insuranceType);
                         }
                     }
+            }).fail(function(xhr) {
+                const message = xhr && xhr.responseText ? xhr.responseText : "Insurance verification request failed.";
+                setVerifyResultsMessage("Error: " + message);
+                disableVerification();
+            }).always(function() {
                 jq("#verify-button").removeAttr("disabled");
             });
         });
