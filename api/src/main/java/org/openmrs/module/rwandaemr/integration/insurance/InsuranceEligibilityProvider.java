@@ -51,7 +51,7 @@ public class InsuranceEligibilityProvider {
 				ObjectMapper mapper = new ObjectMapper();
 				String url = config.getEligibilityCheckUrl();
 				HttpPost httpPost = new HttpPost(url);
-				log.debug("GETTING " + config.getEligibilityCheckUrl());
+				log.debug("POSTING " + config.getEligibilityCheckUrl());
 				httpPost.setHeader("Content-Type", "application/json");
 				String apiKey = config.getEligibilityCheckApiKey();
 				if (StringUtils.isNotBlank(apiKey)) {
@@ -62,12 +62,11 @@ public class InsuranceEligibilityProvider {
 					httpPost.setHeader("Origin", apiOrigin);
 				}
 				Map<String, Object> parameters = new HashMap<>();
-				parameters.put("insuranceType", type);
-				parameters.put("identifier", identifier);
-				parameters.put("fosaid", fosaid);
-				parameters.put("sendOTP", false);
-				httpPost.setEntity(new StringEntity(mapper.writeValueAsString(parameters)));
-				ret.setEndpointAccessible(false);
+					parameters.put("insuranceType", type);
+					parameters.put("identifier", identifier);
+					parameters.put("fosaid", fosaid);
+					httpPost.setEntity(new StringEntity(mapper.writeValueAsString(parameters)));
+					ret.setEndpointAccessible(false);
 				try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
 					ret.setEndpointAccessible(true);
 					ret.setResponseCode(response.getStatusLine().getStatusCode());

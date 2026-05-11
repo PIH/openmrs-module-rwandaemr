@@ -91,12 +91,15 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     <% insurancesToVerify.each { e -> %>
         insurancesToVerify.set('${e.getKey().getInsuranceId()}', '${e.getValue()}');
     <% } %>
+    const isEditMode = ${editMode ? "true" : "false"};
+    const hasErrorsFlag = ${hasErrors ? "true" : "false"};
 
     function enableVerification() {
         jq("#owner-name-field").val("").attr("disabled", "disabled");
         jq("#company-field").val("").attr("disabled", "disabled");
         jq("#level-field").val("").attr("disabled", "disabled");
         jq("#policy-number-field").val("").attr("disabled", "disabled");
+        jq("#rhip-patient-id-field").val("");
         jq("#start-date-picker-field").val("");
         jq("#start-date-picker-display").val("").attr("disabled", "disabled");
         jq("#start-date-picker-wrapper >> .icon-calendar").hide();
@@ -156,47 +159,60 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         }
     }
 
+    function resolveInsuranceTypeForVerification() {
+        const insuranceTypeId = jq("#insurance-type-field").val();
+        return insurancesToVerify.get(insuranceTypeId);
+    }
+
     jq(document).ready(function () {
-        if (insurancesToVerify.size > 0) {
-            jq("#insurance-type-field").change(function () {
-                const insuranceTypeId = jq(this).val();
-                if (insuranceTypeId === "" || insurancesToVerify.has(insuranceTypeId)) {
-                    toggleVerificationButton();
-                    enableVerification();
-                }
-                else {
-                    disableVerification();
-                }
-            });
-            <% if (!hasErrors) { // Do not trigger change if returning to page after validation error on submit %>
-                jq("#insurance-type-field").change();
-            <% } %>
-
-            jq("#owner-code-field").on("change paste keyup", function () {
+        jq("#insurance-type-field").change(function () {
+            const insuranceTypeId = jq(this).val();
+            const insuranceType = resolveInsuranceTypeForVerification();
+            if (insuranceTypeId === "" || insuranceType) {
                 toggleVerificationButton();
+                enableVerification();
+            }
+            else {
+                disableVerification();
+            }
+        });
+        <% if (!hasErrors) { // Do not trigger change if returning to page after validation error on submit %>
+            jq("#insurance-type-field").change();
+        <% } %>
+
+        jq("#owner-code-field").on("change paste keyup", function () {
+            toggleVerificationButton();
+        });
+
+        jq("#verify-button").click(function () {
+            jq("#verify-button").attr("disabled", "disabled");
+            const insuranceType = resolveInsuranceTypeForVerification();
+            const ownerCode = jq("#owner-code-field").val();
+            if (!insuranceType) {
+                setVerifyResultsMessage("Insurance verification is not configured for this insurance.");
+                jq("#verify-button").removeAttr("disabled");
+                return;
+            }
+
+            setVerifyResultsMessage('Checking eligibility...');
+            jq("#verify-member-table").hide();
+
+            const dialogModal = jq.modal(jq("#verify-member-dialog"), {
+                overlayClose: true,
+                overlayId: "modal-overlay",
+                opacity: 80,
+                persist: true,
+                closeClass: "cancel",
+                position: [20, 50],
             });
 
-            jq("#verify-button").click(function () {
-                jq("#verify-button").attr("disabled", "disabled");
-                const insuranceTypeId = jq("#insurance-type-field").val();
-                const insuranceType = insurancesToVerify.get(insuranceTypeId);
-                const ownerCode = jq("#owner-code-field").val();
-
-                setVerifyResultsMessage('Checking eligibility...');
-                jq("#verify-member-table").hide();
-
-                const dialogModal = jq.modal(jq("#verify-member-dialog"), {
-                    overlayClose: true,
-                    overlayId: "modal-overlay",
-                    opacity: 80,
-                    persist: true,
-                    closeClass: "cancel",
-                    position: [20, 50],
-                });
-
-                jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?type=" + insuranceType + "&identifier=" + ownerCode, function(data) {
+            const eligibilityParams = jq.param({
+                type: insuranceType,
+                identifier: ownerCode
+            });
+            jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility?" + eligibilityParams, function(data) {
                     console.log(data);
-                    if (data.responseCode === 200) {
+                    if (data && data.responseCode === 200 && data.responseEntity) {
                         let verifyRows = [];
                         if (data.responseEntity.success) {
                             const owner = data.responseEntity.data;
@@ -221,12 +237,14 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                 jq(row).find(".member-birthdate").html(getDateDisplay(member.dateOfBirth));
                                 jq(row).find(".member-start-date").html(getDateDisplay(member.eligibilityStartDate));
                                 jq(row).find(".member-id").html(member.documentNumber);
+                                jq(row).find(".member-rhip-id").html(member.patientId || "");
                                 jq(row).find(".member-government-sponsored").html(member.isGovernmentSponsored)
                                 if (member.isEligible) {
                                     jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
                                     jq(row).find(".member-select").click(function () {
                                         jq("#owner-name-field").val(member.ownerName);
                                         jq("#policy-number-field").val(member.documentNumber);
+                                        jq("#rhip-patient-id-field").val(member.patientId || "");
                                         if (member.eligibilityStartDate) {
                                             jq("#start-date-picker-field").val(member.eligibilityStartDate);
                                             jq("#start-date-picker-display").val(getDateDisplay(member.eligibilityStartDate));
@@ -263,13 +281,14 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         if (!data.enabled) {
                             setVerifyResultsMessage('Insurance verification is not enabled');
                             disableVerification();
-                        } else if (data.endpointAccessible === false) {
-                            setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
+                        } else if (data.errorMessage || data.responseEntity?.error) {
+                            const errorMessage = data.errorMessage && data.errorMessage !== 'null' ? data.errorMessage : data.responseEntity?.error;
+                            setVerifyResultsMessage('Error: ' + (errorMessage || "Unknown"));
+                            console.error(data);
                             disableVerification();
                         }
-                        else if (data.errorMessage || data.responseEntity?.error) {
-                            const errorMessage = data.errorMessage && data.errorMessage !== 'null' ? data.errorMessage : data.responseEntity?.error;
-                            setVerifyResultsMessage('Error: ' + errorMessage ?? "Unknown");
+                        else if (data.endpointAccessible === false) {
+                            setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
                             console.error(data);
                             disableVerification();
                         }
@@ -277,10 +296,14 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             setNoMatchingInsurancesFound(insuranceType);
                         }
                     }
-                    jq("#verify-button").removeAttr("disabled");
-                });
+            }).fail(function(xhr) {
+                const message = xhr && xhr.responseText ? xhr.responseText : "Insurance verification request failed.";
+                setVerifyResultsMessage("Error: " + message);
+                disableVerification();
+            }).always(function() {
+                jq("#verify-button").removeAttr("disabled");
             });
-        }
+        });
     });
 </script>
 
@@ -289,6 +312,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 <form method="post" id="insurance-policy-form">
     <input type="hidden" value="${ui.format(policyModel.policyId)}" name="policyId" />
     <input type="hidden" value="${patient.patient.id}" name="patientId" />
+    <input type="hidden" id="rhip-patient-id-field" value="${ui.format(policyModel.rhipPatientId)}" name="rhipPatientId" />
 
     <div class="row">
         <div class="col-6">
@@ -326,7 +350,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 <% } else { %>
                     <p>
                         <% if (editMode) { %>
-                            <input type="hidden" name="insuranceId" value="${policyModel.insuranceId}" />
+                            <input type="hidden" id="insurance-type-field" name="insuranceId" value="${policyModel.insuranceId}" />
                         <% } %>
                         <label for="view-insurance-name">${ui.message("rwandaemr.insurance.name")}</label>
                         <span id="view-insurance-name" class="field-value">${ui.format(policy.insurance?.name)}</span>
@@ -341,11 +365,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             initialValue: (policyModel.ownerCode ?: ''),
                             size: 30
                     ])}
-                    <% if (!insurancesToVerify.isEmpty()) { %>
-                        <p id="verify-section">
-                            <input type="button" id="verify-button" value="Check eligibility"/>
-                        </p>
-                    <% } %>
+                    <p id="verify-section">
+                        <input type="button" id="verify-button" value="Check eligibility"/>
+                    </p>
                 <% } else { %>
                     <p>
                         <label for="view-insurance-beneficiary-ownerCode">${ui.message("rwandaemr.insurance.beneficiary.ownerCode")}</label>
@@ -416,10 +438,22 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         size: 30,
                         otherAttributes: ["autocomplete": "off"]
                 ])}
+                ${ ui.includeFragment("uicommons", "field/text", [
+                        id: "rhip-patient-id",
+                        label: "RHIP Patient ID",
+                        formFieldName: "rhipPatientIdDisplay",
+                        initialValue: (policyModel.rhipPatientId ?: ''),
+                        size: 30,
+                        otherAttributes: ["disabled": "disabled"]
+                ])}
             <% } else { %>
                 <p>
                     <label for="view-insurance-card-number">${ui.message("rwandaemr.insurance.insuranceCardNo")}</label>
                     <span id="view-insurance-card-number" class="field-value">${ui.format(policyModel.insuranceCardNo)}</span>
+                </p>
+                <p>
+                    <label for="view-rhip-patient-id">RHIP Patient ID</label>
+                    <span id="view-rhip-patient-id" class="field-value">${ui.format(policyModel.rhipPatientId)}</span>
                 </p>
             <% } %>
 
@@ -506,6 +540,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     <th>Name</th>
                     <th>Gender</th>
                     <th>Member ID</th>
+                    <th>RHIP Patient ID</th>
                     <th>Birthdate</th>
                     <th>Eligibility Date</th>
                     <th>Eligibility</th>
@@ -518,6 +553,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     <td class="member-name"></td>
                     <td class="member-gender"></td>
                     <td class="member-id"></td>
+                    <td class="member-rhip-id"></td>
                     <td class="member-birthdate"></td>
                     <td class="member-start-date"></td>
                     <td class="member-eligibility"></td>
