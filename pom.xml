@@ -31,8 +31,8 @@
         <appframeworkVersion>2.19.0-SNAPSHOT</appframeworkVersion>
         <appuiVersion>1.18.0</appuiVersion>
         <attachmentsVersion>4.0.0</attachmentsVersion>
-        <authenticationVersion>2.2.0-SNAPSHOT</authenticationVersion>
-        <authenticationuiVersion>1.3.0-SNAPSHOT</authenticationuiVersion>
+        <authenticationVersion>2.3.0</authenticationVersion>
+        <authenticationuiVersion>1.3.0</authenticationuiVersion>
         <bedmanagementVersion>7.1.0</bedmanagementVersion>
         <calculationVersion>2.0.0</calculationVersion>
         <coreappsVersion>3.3.0-SNAPSHOT</coreappsVersion>
