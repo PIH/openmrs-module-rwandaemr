@@ -142,6 +142,10 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         return ymdDate ? moment(ymdDate).format("DD MMM YYYY") : '';
     }
 
+    function formatGovernmentSponsored(isGovernmentSponsored) {
+        return isGovernmentSponsored === true ? "Yes" : "No";
+    }
+
     function setVerifyResultsMessage(message) {
         jq("#verify-member-section").find(".verify-member-row").remove();
         jq("#verify-results-message").html(message ?? "");
@@ -238,7 +242,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                 jq(row).find(".member-start-date").html(getDateDisplay(member.eligibilityStartDate));
                                 jq(row).find(".member-id").html(member.documentNumber);
                                 jq(row).find(".member-rhip-id").html(member.patientId || "");
-                                jq(row).find(".member-government-sponsored").html(member.isGovernmentSponsored)
+                                jq(row).find(".member-government-sponsored").text(formatGovernmentSponsored(member.isGovernmentSponsored));
                                 if (member.isEligible) {
                                     jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
                                     jq(row).find(".member-select").click(function () {

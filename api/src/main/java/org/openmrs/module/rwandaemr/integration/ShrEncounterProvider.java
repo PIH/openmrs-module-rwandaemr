@@ -186,7 +186,48 @@ public class ShrEncounterProvider {
     }
 
     public ShrEncounter fetchEncounterFromShrByUuid(String uuid){
-        log.info("Please make sure to implement fetch by UUID: " + uuid);
+        if(!integrationConfig.isHieEnabled()){
+            throw new IllegalStateException("The HIE connection is not enabled on this server");
+        }
+        if (uuid == null || uuid.trim().isEmpty()) {
+            return null;
+        }
+        try(CloseableHttpClient httpClient = HttpUtils.getHieClient()){
+            if(httpClient == null){
+                throw new IllegalStateException("HIE client could not be created. Check HIE credentials configuration.");
+            }
+            String cleanUuid = uuid.trim();
+            String url = integrationConfig.getHieEndpointUrl("/shr/Encounter/" + cleanUuid);
+            HttpGet httpGet = new HttpGet(url);
+            try(CloseableHttpResponse response = httpClient.execute(httpGet)){
+                int statusCode = response.getStatusLine().getStatusCode();
+                if(statusCode == 404){
+                    return null;
+                }
+                if(statusCode != 200){
+                    log.debug("SHR encounter UUID lookup failed with status " + statusCode + " for uuid=" + cleanUuid);
+                    return null;
+                }
+
+                HttpEntity httpEntity = response.getEntity();
+                String data = "";
+                try{
+                    data = EntityUtils.toString(httpEntity);
+                } catch(Exception e){
+                    log.debug("Unable to capture SHR encounter UUID lookup response body", e);
+                }
+                if (data == null || data.trim().isEmpty()) {
+                    return null;
+                }
+
+                Encounter fhirEncounter = fhirContext.newJsonParser().parseResource(Encounter.class, data);
+                if (fhirEncounter != null) {
+                    return new ShrEncounter(fhirEncounter);
+                }
+            }
+        } catch(Exception e){
+            log.debug("Unable to get encounter " + uuid + " from SHR registry", e);
+        }
         return null;
     }
 
