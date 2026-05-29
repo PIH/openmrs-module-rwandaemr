@@ -41,7 +41,7 @@ public class ShrConsent {
 
     public String getScope(){
         if(consent.hasScope()){
-            return consent.getScope().getCoding().getFirst().getDisplay();
+            return consent.getScope().getCoding().get(0).getDisplay();
         }
         return null;
     }

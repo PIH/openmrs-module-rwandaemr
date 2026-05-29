@@ -75,11 +75,6 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 		}
 	}
 
-	@Override
-	public void handleException(Exception e) {
-		log.error("Unexpected exception in " + getClass(), e);
-	}
-
 	public void processQueuedMessages() {
 		if (!integrationConfig.isHieEnabled()) {
 			log.debug("Integration with client registry is not enabled, returning");
