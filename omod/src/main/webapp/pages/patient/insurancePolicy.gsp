@@ -95,21 +95,11 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     const hasErrorsFlag = ${hasErrors ? "true" : "false"};
 
     function enableVerification() {
-        jq("#owner-name-field").val("").attr("disabled", "disabled");
-        jq("#company-field").val("").attr("disabled", "disabled");
-        jq("#level-field").val("").attr("disabled", "disabled");
-        jq("#policy-number-field").val("").attr("disabled", "disabled");
         jq("#rhip-patient-id-field").val("");
-        jq("#start-date-picker-field").val("");
-        jq("#start-date-picker-display").val("").attr("disabled", "disabled");
-        jq("#start-date-picker-wrapper >> .icon-calendar").hide();
-        jq("#expiration-date-picker-field").val("");
-        jq("#expiration-date-picker-display").val("").attr("disabled", "disabled");
-        jq("#expiration-date-picker-wrapper >> .icon-calendar").hide();
-        jq("#save-button").attr("disabled", "disabled");
+        enableManualEntry();
     }
 
-    function disableVerification() {
+    function enableManualEntry() {
         jq("#owner-name-field").removeAttr("disabled");
         jq("#company-field").removeAttr("disabled");
         jq("#level-field").removeAttr("disabled");
@@ -177,7 +167,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 enableVerification();
             }
             else {
-                disableVerification();
+                enableManualEntry();
             }
         });
         <% if (!hasErrors) { // Do not trigger change if returning to page after validation error on submit %>
@@ -268,7 +258,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                                             jq("#expiration-date-picker-display").val(getDateDisplay(member.endDate));
                                         }
                                         dialogModal.close();
-                                        disableVerification();
+                                        enableManualEntry();
                                     });
                                 }
                                 else {
@@ -284,17 +274,17 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     } else {
                         if (!data.enabled) {
                             setVerifyResultsMessage('Insurance verification is not enabled');
-                            disableVerification();
+                            enableManualEntry();
                         } else if (data.errorMessage || data.responseEntity?.error) {
                             const errorMessage = data.errorMessage && data.errorMessage !== 'null' ? data.errorMessage : data.responseEntity?.error;
                             setVerifyResultsMessage('Error: ' + (errorMessage || "Unknown"));
                             console.error(data);
-                            disableVerification();
+                            enableManualEntry();
                         }
                         else if (data.endpointAccessible === false) {
                             setVerifyResultsMessage('Insurance verification is currently unavailable. Please check your Internet.');
                             console.error(data);
-                            disableVerification();
+                            enableManualEntry();
                         }
                         else {
                             setNoMatchingInsurancesFound(insuranceType);
@@ -303,7 +293,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             }).fail(function(xhr) {
                 const message = xhr && xhr.responseText ? xhr.responseText : "Insurance verification request failed.";
                 setVerifyResultsMessage("Error: " + message);
-                disableVerification();
+                enableManualEntry();
             }).always(function() {
                 jq("#verify-button").removeAttr("disabled");
             });
@@ -448,7 +438,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         formFieldName: "rhipPatientIdDisplay",
                         initialValue: (policyModel.rhipPatientId ?: ''),
                         size: 30,
-                        otherAttributes: ["disabled": "disabled"]
+                        otherAttributes: ["readonly": "readonly"]
                 ])}
             <% } else { %>
                 <p>
