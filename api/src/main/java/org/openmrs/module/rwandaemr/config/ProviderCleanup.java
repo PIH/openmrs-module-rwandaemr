@@ -71,6 +71,9 @@ public class ProviderCleanup implements Setup {
 
                     log.warn("Created person {}", person);
                     provider.setPerson(person);
+                    if (provider.isRetired() && StringUtils.isBlank(provider.getRetireReason())) {
+                        provider.setRetireReason("Auto-populated during provider cleanup");
+                    }
                     providerService.saveProvider(provider);
                     log.warn("Associated provider {} with person {}", provider, person);
                 }

@@ -42,11 +42,11 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 		this.clientRegistryPatientProvider = clientRegistryPatientProvider;
 	}
 
-    @Override
-    public void handlePatient(String patientUuid, MapMessage mapMessage) {
-        // Queue-only: do not call HIE or OpenMRS read API in event path.
-        addPatientToQueue(patientUuid, mapMessage);
-    }
+	@Override
+	public void handlePatient(String patientUuid, MapMessage mapMessage) {
+		// Queue-only: do not call HIE or OpenMRS read API in event path.
+		addPatientToQueue(patientUuid, mapMessage);
+	}
 
 	@Override
 	public void handleException(Exception e) {
@@ -73,6 +73,11 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 		catch (Exception e) {
 			throw new IllegalStateException("Error handling patient message", e);
 		}
+	}
+
+	@Override
+	public void handleException(Exception e) {
+		log.error("Unexpected exception in " + getClass(), e);
 	}
 
 	public void processQueuedMessages() {
@@ -130,7 +135,7 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 						log.warn("Successfully synced patient to client registry - patientUuid: " + item.getPatientUuid() +
 								", file: " + file.getName());
 						log.warn("Deleting message file: " + file.getName());
-						FileUtils.delete(file);
+						FileUtils.deleteQuietly(file);
 						numSuccess++;
 					}
 					catch (Exception e) {
@@ -138,7 +143,6 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 						log.error("Failed processing client registry queue item - file: " + file.getName() +
 								", patientUuid: " + patientUuidForLog + ", reason: " + e.getMessage(), e);
 						if (item != null) {
-							item.setLatestAttemptDatetime(new Date());
 							item.setLatestAttemptResponse(e.getMessage());
 							// Increment attempt count
 							if(item.getNumAttempts() == null){

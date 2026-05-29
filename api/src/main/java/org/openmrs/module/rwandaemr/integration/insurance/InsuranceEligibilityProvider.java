@@ -66,12 +66,11 @@ public class InsuranceEligibilityProvider {
 					httpPost.setHeader("Origin", apiOrigin);
 				}
 				Map<String, Object> parameters = new HashMap<>();
-				parameters.put("insuranceType", type);
-				parameters.put("identifier", identifier);
-				parameters.put("fosaid", fosaid);
-				parameters.put("sendOTP", false);
-				httpPost.setEntity(new StringEntity(mapper.writeValueAsString(parameters)));
-				ret.setEndpointAccessible(false);
+					parameters.put("insuranceType", type);
+					parameters.put("identifier", identifier);
+					parameters.put("fosaid", fosaid);
+					httpPost.setEntity(new StringEntity(mapper.writeValueAsString(parameters)));
+					ret.setEndpointAccessible(false);
 				try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
 					ret.setEndpointAccessible(true);
 					ret.setResponseCode(response.getStatusLine().getStatusCode());
