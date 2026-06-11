@@ -32,4 +32,38 @@
 		</property>
 	</bean>
 
+	<bean id="icd11Dao" class="org.openmrs.module.rwandaemr.icd11.dao.HibernateIcd11Dao">
+		<property name="sessionFactory"><ref bean="dbSessionFactory"/></property>
+	</bean>
+
+	<bean id="icd11ApiClient" class="org.openmrs.module.rwandaemr.icd11.Icd11ApiClient">
+		<property name="config"><ref bean="icd11Config"/></property>
+	</bean>
+
+	<bean id="icd11Service" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+		<property name="transactionManager"><ref bean="transactionManager"/></property>
+		<property name="target">
+			<bean class="org.openmrs.module.rwandaemr.icd11.Icd11ServiceImpl">
+				<property name="config"><ref bean="icd11Config"/></property>
+				<property name="apiClient"><ref bean="icd11ApiClient"/></property>
+				<property name="dao"><ref bean="icd11Dao"/></property>
+			</bean>
+		</property>
+		<property name="preInterceptors">
+			<ref bean="serviceInterceptors"/>
+		</property>
+		<property name="transactionAttributeSource">
+			<bean class="org.springframework.transaction.annotation.AnnotationTransactionAttributeSource"/>
+		</property>
+	</bean>
+
+	<bean parent="serviceContext">
+		<property name="moduleService">
+			<list merge="true">
+				<value>org.openmrs.module.rwandaemr.icd11.Icd11Service</value>
+				<ref bean="icd11Service"/>
+			</list>
+		</property>
+	</bean>
+
 </beans>

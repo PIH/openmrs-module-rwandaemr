@@ -29,4 +29,218 @@
         <sqlFile path="sql/migrations/update-non-active-lab-orders.sql" relativeToChangelogFile="true" stripComments="true" />
     </changeSet>
 
+    <changeSet id="20260531-add-icd11-patient-diagnosis" author="rwandaemr">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_icd11_patient_diagnosis"/></not>
+        </preConditions>
+        <createTable tableName="rwandaemr_icd11_patient_diagnosis">
+            <column name="icd11_patient_diagnosis_id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="patient_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="encounter_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="icd11_code" type="varchar(50)"/>
+            <column name="entity_uri" type="varchar(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="foundation_uri" type="varchar(512)"/>
+            <column name="title" type="varchar(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="linearization" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="diagnosis_type" type="varchar(50)"/>
+            <column name="creator" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int"/>
+            <column name="date_changed" type="datetime"/>
+            <column name="voided" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="voided_by" type="int"/>
+            <column name="date_voided" type="datetime"/>
+            <column name="void_reason" type="varchar(255)"/>
+            <column name="uuid" type="char(38)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_icd11_diagnosis_patient"
+                                 baseTableName="rwandaemr_icd11_patient_diagnosis" baseColumnNames="patient_id"
+                                 referencedTableName="patient" referencedColumnNames="patient_id"/>
+        <addForeignKeyConstraint constraintName="fk_icd11_diagnosis_encounter"
+                                 baseTableName="rwandaemr_icd11_patient_diagnosis" baseColumnNames="encounter_id"
+                                 referencedTableName="encounter" referencedColumnNames="encounter_id"/>
+        <addForeignKeyConstraint constraintName="fk_icd11_diagnosis_creator"
+                                 baseTableName="rwandaemr_icd11_patient_diagnosis" baseColumnNames="creator"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_icd11_diagnosis_changed_by"
+                                 baseTableName="rwandaemr_icd11_patient_diagnosis" baseColumnNames="changed_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_icd11_diagnosis_voided_by"
+                                 baseTableName="rwandaemr_icd11_patient_diagnosis" baseColumnNames="voided_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <createIndex tableName="rwandaemr_icd11_patient_diagnosis" indexName="idx_icd11_diagnosis_patient">
+            <column name="patient_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_icd11_patient_diagnosis" indexName="idx_icd11_diagnosis_encounter">
+            <column name="encounter_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_icd11_patient_diagnosis" indexName="idx_icd11_diagnosis_code">
+            <column name="icd11_code"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260531-add-icd11-diagnosis-certainty" author="rwandaemr">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="rwandaemr_icd11_patient_diagnosis" columnName="certainty"/></not>
+        </preConditions>
+        <addColumn tableName="rwandaemr_icd11_patient_diagnosis">
+            <column name="certainty" type="varchar(50)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260531-add-icd11-diagnosis-obs-group" author="rwandaemr">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="rwandaemr_icd11_patient_diagnosis" columnName="obs_group_id"/></not>
+        </preConditions>
+        <addColumn tableName="rwandaemr_icd11_patient_diagnosis">
+            <column name="obs_group_id" type="int"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_icd11_diagnosis_obs_group"
+                                 baseTableName="rwandaemr_icd11_patient_diagnosis" baseColumnNames="obs_group_id"
+                                 referencedTableName="obs" referencedColumnNames="obs_id"/>
+        <createIndex tableName="rwandaemr_icd11_patient_diagnosis" indexName="idx_icd11_diagnosis_obs_group">
+            <column name="obs_group_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260531-add-icd11-code-cache" author="rwandaemr">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_icd11_code_cache"/></not>
+        </preConditions>
+        <createTable tableName="rwandaemr_icd11_code_cache">
+            <column name="icd11_code_cache_id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="cache_key" type="varchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="icd11_code" type="varchar(50)"/>
+            <column name="entity_uri" type="varchar(512)"/>
+            <column name="foundation_uri" type="varchar(512)"/>
+            <column name="title" type="varchar(500)"/>
+            <column name="linearization" type="varchar(100)"/>
+            <column name="language" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="api_version" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="response_json" type="mediumtext">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="creator" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int"/>
+            <column name="date_changed" type="datetime"/>
+            <column name="voided" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="voided_by" type="int"/>
+            <column name="date_voided" type="datetime"/>
+            <column name="void_reason" type="varchar(255)"/>
+            <column name="uuid" type="char(38)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_icd11_cache_creator"
+                                 baseTableName="rwandaemr_icd11_code_cache" baseColumnNames="creator"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_icd11_cache_changed_by"
+                                 baseTableName="rwandaemr_icd11_code_cache" baseColumnNames="changed_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_icd11_cache_voided_by"
+                                 baseTableName="rwandaemr_icd11_code_cache" baseColumnNames="voided_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <createIndex tableName="rwandaemr_icd11_code_cache" indexName="idx_icd11_cache_code">
+            <column name="icd11_code"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_icd11_code_cache" indexName="idx_icd11_cache_expires_at">
+            <column name="expires_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260531-add-icd11-concept-map" author="rwandaemr">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_icd11_concept_map"/></not>
+        </preConditions>
+        <createTable tableName="rwandaemr_icd11_concept_map">
+            <column name="icd11_concept_map_id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="icd11_code" type="varchar(50)"/>
+            <column name="entity_uri" type="varchar(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="linearization" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="concept_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="map_type" type="varchar(50)"/>
+            <column name="creator" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int"/>
+            <column name="date_changed" type="datetime"/>
+            <column name="voided" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="voided_by" type="int"/>
+            <column name="date_voided" type="datetime"/>
+            <column name="void_reason" type="varchar(255)"/>
+            <column name="uuid" type="char(38)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_icd11_map_concept"
+                                 baseTableName="rwandaemr_icd11_concept_map" baseColumnNames="concept_id"
+                                 referencedTableName="concept" referencedColumnNames="concept_id"/>
+        <addForeignKeyConstraint constraintName="fk_icd11_map_creator"
+                                 baseTableName="rwandaemr_icd11_concept_map" baseColumnNames="creator"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_icd11_map_changed_by"
+                                 baseTableName="rwandaemr_icd11_concept_map" baseColumnNames="changed_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_icd11_map_voided_by"
+                                 baseTableName="rwandaemr_icd11_concept_map" baseColumnNames="voided_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <createIndex tableName="rwandaemr_icd11_concept_map" indexName="idx_icd11_map_code">
+            <column name="icd11_code"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_icd11_concept_map" indexName="idx_icd11_map_concept">
+            <column name="concept_id"/>
+        </createIndex>
+    </changeSet>
+
 </databaseChangeLog>
