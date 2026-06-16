@@ -25,3 +25,65 @@
     top: -25px;
     position: inherit;
   }
+
+  /* Batch / total Irembo Pay entry — reads as a primary button */
+  a.irembo-pay-total-btn {
+    display: inline-block;
+    margin: 4px 0 12px 0;
+    padding: 10px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #fff !important;
+    text-decoration: none !important;
+    text-align: center;
+    background: linear-gradient(180deg, #0d9488 0%, #0f766e 100%);
+    border: 1px solid #0a5c52;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+  }
+  a.irembo-pay-total-btn:hover,
+  a.irembo-pay-total-btn:focus {
+    color: #fff !important;
+    background: linear-gradient(180deg, #14b8a6 0%, #0d9488 100%);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+    outline: none;
+  }
+  a.irembo-pay-total-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .irembo-batch-dialog-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+  }
+  .irembo-batch-pay-pill {
+    font-weight: 700;
+    font-size: 15px;
+    color: #00473f;
+    white-space: nowrap;
+  }
+  .irembo-momo-alert {
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #0f766e;
+    background: #d9f2f0;
+    border: 1px solid #9ed9d3;
+    border-radius: 4px;
+  }
+
+  .irembo-pay-total-wrap {
+    margin-bottom: 12px;
+  }
+  .irembo-batch-invoice-summary {
+    margin: 0 0 4px 0;
+    font-size: 13px;
+    color: #555;
+  }

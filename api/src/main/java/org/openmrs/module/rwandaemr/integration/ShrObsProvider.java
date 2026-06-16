@@ -3,6 +3,7 @@ package org.openmrs.module.rwandaemr.integration;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
@@ -95,7 +96,49 @@ public class ShrObsProvider {
     }
 
     public ShrObservation fetchObservationFromShrByUuid(String uuid){
-        log.info("The Implementation of fetch by UUID is ongoing please complete it ASAP");
+        if(!integrationConfig.isHieEnabled()){
+            throw new IllegalStateException("The HIE connection is not enabled on this server");
+        }
+        if (StringUtils.isBlank(uuid)) {
+            return null;
+        }
+        try(CloseableHttpClient httpClient = HttpUtils.getHieClient()){
+            if(httpClient == null){
+                throw new IllegalStateException("HIE client could not be created. Check HIE credentials configuration.");
+            }
+
+            String cleanUuid = uuid.trim();
+            String url = integrationConfig.getHieEndpointUrl("/shr/Observation/" + cleanUuid);
+            HttpGet httpGet = new HttpGet(url);
+            try(CloseableHttpResponse response = httpClient.execute(httpGet)){
+                int statusCode = response.getStatusLine().getStatusCode();
+                if (statusCode == 404) {
+                    return null;
+                }
+                if(statusCode != 200){
+                    log.debug("SHR observation UUID lookup failed with status " + statusCode + " for uuid=" + cleanUuid);
+                    return null;
+                }
+
+                HttpEntity httpEntity = response.getEntity();
+                String data = "";
+                try{
+                    data = EntityUtils.toString(httpEntity);
+                } catch(Exception e){
+                    log.debug("Unable to capture SHR observation UUID lookup response body", e);
+                }
+                if (StringUtils.isBlank(data)) {
+                    return null;
+                }
+
+                Observation fhirObservation = fhirContext.newJsonParser().parseResource(Observation.class, data);
+                if (fhirObservation != null) {
+                    return new ShrObservation(fhirObservation);
+                }
+            }
+        } catch(Exception e){
+            log.debug("Unable to get observation " + uuid + " from SHR registry", e);
+        }
         return null;
     }
     
