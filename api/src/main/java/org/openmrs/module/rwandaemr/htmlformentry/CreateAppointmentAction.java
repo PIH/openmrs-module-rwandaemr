@@ -9,12 +9,15 @@ import org.openmrs.Encounter;
 import org.openmrs.EncounterType;
 import org.openmrs.Obs;
 import org.openmrs.Visit;
+import org.openmrs.VisitAttribute;
+import org.openmrs.VisitAttributeType;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.htmlformentry.CustomFormSubmissionAction;
 import org.openmrs.module.htmlformentry.FormEntryContext;
 import org.openmrs.module.htmlformentry.FormEntrySession;
 import org.openmrs.module.htmlformentry.HtmlFormEntryUtil;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
+import org.openmrs.module.rwandaemr.integration.insurance.MmiReceptionStore;
 import org.openmrs.module.mohappointment.model.Appointment;
 import org.openmrs.module.mohappointment.utils.AppointmentUtil;
 
@@ -44,6 +47,7 @@ public class CreateAppointmentAction implements CustomFormSubmissionAction {
                 if (encounter.getEncounterType().equals(getRegistrationEncounterType())) {
                     if (visit.getStopDatetime() == null) {
                         log.debug("This is for an active visit in a registration encounter, proceeding");
+                        setMmiReceptionNumber(visit, encounter.getPatient().getPatientId());
                         Concept serviceRequestedConcept = getServiceRequestedConcept();
                         for (Obs o : encounter.getObsAtTopLevel(true)) {
                             if (o.getConcept().equals(serviceRequestedConcept)) {
@@ -87,5 +91,47 @@ public class CreateAppointmentAction implements CustomFormSubmissionAction {
             return HtmlFormEntryUtil.getConcept(gpVal);
         }
         return null;
+    }
+
+    private void setMmiReceptionNumber(Visit visit, Integer patientId) {
+        if (visit == null || patientId == null) {
+            return;
+        }
+        if (Context.getRegisteredComponents(MmiReceptionStore.class).isEmpty()) {
+            return;
+        }
+        MmiReceptionStore store = Context.getRegisteredComponents(MmiReceptionStore.class).get(0);
+        Integer userId = Context.getAuthenticatedUser() == null ? null : Context.getAuthenticatedUser().getUserId();
+        String receptionNumber = store.consumeReceptionNumber(userId, patientId);
+        if (StringUtils.isBlank(receptionNumber)) {
+            return;
+        }
+        if (Context.getRegisteredComponents(RwandaEmrConfig.class).isEmpty()) {
+            return;
+        }
+        VisitAttributeType attributeType = Context.getRegisteredComponents(RwandaEmrConfig.class).get(0)
+                .getMmiReceptionNumberAttributeType();
+        if (attributeType == null) {
+            log.warn("MMI reception number visit attribute type is not configured");
+            return;
+        }
+
+        VisitAttribute existing = null;
+        for (VisitAttribute attribute : visit.getActiveAttributes()) {
+            if (attributeType.equals(attribute.getAttributeType())) {
+                existing = attribute;
+                break;
+            }
+        }
+
+        if (existing != null) {
+            existing.setValue(receptionNumber);
+		} else {
+			VisitAttribute attribute = new VisitAttribute();
+			attribute.setAttributeType(attributeType);
+			attribute.setValue(receptionNumber);
+			visit.setAttribute(attribute);
+		}
+        Context.getVisitService().saveVisit(visit);
     }
 }

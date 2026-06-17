@@ -19,11 +19,13 @@ import org.openmrs.LocationAttributeType;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.PersonAttributeType;
 import org.openmrs.Provider;
+import org.openmrs.VisitAttributeType;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.LocationService;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.PersonService;
 import org.openmrs.api.ProviderService;
+import org.openmrs.api.VisitService;
 import org.openmrs.module.initializer.api.InitializerService;
 import org.openmrs.module.rwandaemr.radiology.RadiologyConfig;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +45,7 @@ public class RwandaEmrConfig {
 	private final LocationService locationService;
 	private final EncounterService encounterService;
 	private final ProviderService providerService;
+	private final VisitService visitService;
 	private final InitializerService initializerService;
 	private final RadiologyConfig radiologyConfig;
 
@@ -52,6 +55,7 @@ public class RwandaEmrConfig {
 						   @Autowired LocationService locationService,
 						   @Autowired EncounterService encounterService,
 						   @Autowired ProviderService providerService,
+						   @Autowired VisitService visitService,
 						   @Autowired InitializerService initializerService,
 						   @Autowired RadiologyConfig radiologyConfig) {
 		this.patientService = patientService;
@@ -59,6 +63,7 @@ public class RwandaEmrConfig {
 		this.locationService = locationService;
 		this.encounterService = encounterService;
 		this.providerService = providerService;
+		this.visitService = visitService;
 		this.initializerService = initializerService;
 		this.radiologyConfig = radiologyConfig;
 	}
@@ -165,5 +170,21 @@ public class RwandaEmrConfig {
 			return null;
 		}
 		return locationService.getLocationAttributeTypeByUuid(uuid);
+	}
+
+	public VisitAttributeType getVisitAttributeTypeByJsonKey(String jsonKey) {
+		String uuid = initializerService.getValueFromKey(jsonKey);
+		return getVisitAttributeTypeByUuid(uuid);
+	}
+
+	public VisitAttributeType getVisitAttributeTypeByUuid(String uuid) {
+		if (StringUtils.isBlank(uuid)) {
+			return null;
+		}
+		return visitService.getVisitAttributeTypeByUuid(uuid);
+	}
+
+	public VisitAttributeType getMmiReceptionNumberAttributeType() {
+		return getVisitAttributeTypeByJsonKey("visitAttribute.mmiReceptionNumber.uuid");
 	}
 }
