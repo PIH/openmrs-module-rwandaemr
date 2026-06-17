@@ -1,12 +1,9 @@
 package org.openmrs.module.rwandaemr.event;
 
-import lombok.Setter;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.openmrs.api.context.Daemon;
 import org.openmrs.event.EventListener;
-import org.openmrs.module.DaemonToken;
 
 import javax.jms.MapMessage;
 import javax.jms.Message;
@@ -18,7 +15,6 @@ import javax.jms.Message;
 public abstract class PatientEventListener implements EventListener {
 
 	protected final Log log = LogFactory.getLog(getClass());
-	@Setter private static DaemonToken daemonToken;
 
 	@Override
 	public void onMessage(Message message) {
@@ -31,7 +27,8 @@ public abstract class PatientEventListener implements EventListener {
 			if (StringUtils.isBlank(patientUuid)) {
 				throw new IllegalArgumentException("unable to retrieve patient uuid from message: " + message);
 			}
-			Daemon.runInDaemonThread(() -> handlePatient(patientUuid, mapMessage), daemonToken);
+			// Queue-only path: run directly in the JMS thread. Avoid daemon thread per event.
+			handlePatient(patientUuid, mapMessage);
 		}
 		catch (Exception e) {
 			handleException(e);

@@ -8,6 +8,7 @@
   		    http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
     <context:component-scan base-package="org.openmrs.module.rwandaemr.web" />
+    <context:component-scan base-package="org.openmrs.module.rwandaemr.rest" />
 
     <bean class="org.openmrs.ui.framework.page.GlobalResourceIncluder">
         <property name="resources">

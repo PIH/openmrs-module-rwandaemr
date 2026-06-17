@@ -6,8 +6,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.codehaus.jackson.map.ObjectMapper;
-import org.openmrs.Patient;
-import org.openmrs.api.PatientService;
+import org.openmrs.api.context.Context;
 import org.openmrs.module.rwandaemr.event.PatientEventListener;
 import org.openmrs.util.OpenmrsUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,8 +15,10 @@ import org.springframework.stereotype.Component;
 import javax.jms.MapMessage;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Date;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Updates the client registry
@@ -27,30 +28,36 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 
 	protected Log log = LogFactory.getLog(getClass());
 
-	private final PatientService patientService;
 	private final IntegrationConfig integrationConfig;
 	private final ClientRegistryPatientProvider clientRegistryPatientProvider;
 
-	private static boolean processing = false;
+	private static final AtomicBoolean processing = new AtomicBoolean(false);
 	private final ObjectMapper mapper = new ObjectMapper();
 	private File messagesDir;
 
 	public UpdateClientRegistryPatientListener(
-			@Autowired PatientService patientService,
 			@Autowired IntegrationConfig integrationConfig,
 			@Autowired ClientRegistryPatientProvider clientRegistryPatientProvider) {
-		this.patientService = patientService;
 		this.integrationConfig = integrationConfig;
 		this.clientRegistryPatientProvider = clientRegistryPatientProvider;
 	}
 
+    @Override
+    public void handlePatient(String patientUuid, MapMessage mapMessage) {
+        // Queue-only: do not call HIE or OpenMRS read API in event path.
+        addPatientToQueue(patientUuid, mapMessage);
+    }
+
 	@Override
-	public void handlePatient(String patientUuid, MapMessage mapMessage) {
-		if (!integrationConfig.isHieEnabled()) {
-			log.debug("Integration with client registry is not enabled, returning");
+	public void handleException(Exception e) {
+		log.error("Unexpected exception in " + getClass(), e);
+	}
+
+	public void addPatientToQueue(String patientUuid, MapMessage mapMessage) {
+		if (!integrationConfig.isHieEnabled() || !integrationConfig.isClientRegistryPushEnabled()) {
+			log.debug("Skipping client registry queue: HIE disabled or " + IntegrationConfig.HIE_ENABLE_CR_PUSH_PROPERTY + " is not true");
 			return;
 		}
-		log.warn("Adding patient to client registry queue: " + patientUuid);
 		try {
 			String action = mapMessage.getString("action");
 			if (StringUtils.isEmpty(action)) {
@@ -68,61 +75,101 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 		}
 	}
 
-	@Override
-	public void handleException(Exception e) {
-		log.error("Unexpected exception in " + getClass(), e);
-	}
-
 	public void processQueuedMessages() {
 		if (!integrationConfig.isHieEnabled()) {
 			log.debug("Integration with client registry is not enabled, returning");
 			return;
 		}
-		if (!processing) {
+		if (!integrationConfig.isClientRegistryPushEnabled()) {
+			log.debug("Client registry push is disabled (" + IntegrationConfig.HIE_ENABLE_CR_PUSH_PROPERTY + "), skipping queue processing");
+			return;
+		}
+		if (processing.compareAndSet(false, true)) {
+			long startedAt = System.currentTimeMillis();
 			try {
-				processing = true;
 				initializeMessageDir();
 				File[] files = Objects.requireNonNull(messagesDir.listFiles());
-				log.warn("Processing " + files.length + " messages from " + messagesDir.getAbsolutePath());
+				int queueWarnThreshold = integrationConfig.getQueueWarnThreshold();
+				int queueErrorThreshold = integrationConfig.getQueueErrorThreshold();
+				if (files.length >= queueErrorThreshold) {
+					log.error("Client registry queue depth is very high: " + files.length + " files");
+				} else if (files.length >= queueWarnThreshold) {
+					log.warn("Client registry queue depth is high: " + files.length + " files");
+				}
+				// Limit processing to prevent long-running operations that could freeze the system
+				int maxFilesPerRun = 100;
+				if(files.length > maxFilesPerRun){
+					log.warn("Limiting processing to " + maxFilesPerRun + " files out of " + files.length + " total to prevent system freeze");
+				}
+				int filesToProcess = Math.min(files.length, maxFilesPerRun);
+				log.warn("Processing " + filesToProcess + " messages from " + messagesDir.getAbsolutePath());
 				int numSuccess = 0;
 				int numFailure = 0;
-				for (File file : files) {
+				for (int i = 0; i < filesToProcess; i++) {
+					File file = files[i];
 					ClientRegistryPatientQueueItem item = null;
 					try {
 						log.warn("Processing message file: " + file.getName());
 						item = mapper.readValue(file, ClientRegistryPatientQueueItem.class);
-						Integer numAttempts = item.getNumAttempts();
-						numAttempts = (numAttempts == null) ? 0 : numAttempts;
-						if (numAttempts > 5) {
-							log.warn("Skipping file, as number of attempts = " + item.getNumAttempts());
+						log.warn("Loaded queue item - file: " + file.getName() + ", patientUuid: " + item.getPatientUuid() +
+								", eventType: " + item.getEventType() + ", currentAttempts: " +
+								(item.getNumAttempts() == null ? 0 : item.getNumAttempts()));
+						if (item.getNumAttempts() != null && item.getNumAttempts() > 5) {
+							log.warn("Skipping and deleting file after " + item.getNumAttempts() + " failed attempts: " + file.getName());
+							// Delete files that exceeded max attempts to prevent disk space issues
+							FileUtils.deleteQuietly(file);
+							numFailure++;
 							continue;
 						}
-						item.setNumAttempts(numAttempts + 1);
-						item.setLatestAttemptDatetime(new Date());
-
-						log.warn("Updating client registry with: " + item);
-						Patient patient = patientService.getPatientByUuid(item.getPatientUuid());
-						clientRegistryPatientProvider.updatePatientInClientRegistry(patient);
-
+						try {
+							Context.openSession();
+							processItem(item);
+						} finally {
+							Context.closeSession();
+						}
+						log.warn("Successfully synced patient to client registry - patientUuid: " + item.getPatientUuid() +
+								", file: " + file.getName());
 						log.warn("Deleting message file: " + file.getName());
-						FileUtils.deleteQuietly(file);
+						FileUtils.delete(file);
 						numSuccess++;
 					}
 					catch (Exception e) {
+						String patientUuidForLog = item != null ? item.getPatientUuid() : "unknown";
+						log.error("Failed processing client registry queue item - file: " + file.getName() +
+								", patientUuid: " + patientUuidForLog + ", reason: " + e.getMessage(), e);
 						if (item != null) {
+							item.setLatestAttemptDatetime(new Date());
 							item.setLatestAttemptResponse(e.getMessage());
+							// Increment attempt count
+							if(item.getNumAttempts() == null){
+								item.setNumAttempts(1);
+							} else {
+								item.setNumAttempts(item.getNumAttempts() + 1);
+							}
 							writeMessageToFile(item);
+							log.warn("Re-queued failed item - patientUuid: " + item.getPatientUuid() +
+									", newAttempts: " + item.getNumAttempts() + ", latestAttemptResponse: " +
+									item.getLatestAttemptResponse());
+							// Delete old file to avoid duplicates
+							FileUtils.deleteQuietly(file);
 						}
-						log.debug("Error processing file " + file.getName(), e);
 						numFailure++;
 					}
 				}
-				log.warn("Processing " + files.length + " complete: " + numSuccess + " successful " + numFailure + " failed");
+				long durationMs = System.currentTimeMillis() - startedAt;
+				log.warn("Client registry sync run completed in " + durationMs + " ms; processed " + filesToProcess +
+						" of " + files.length + " queued; " + numSuccess + " successful " + numFailure + " failed");
 			}
 			finally {
-				processing = false;
+				processing.set(false);
 			}
 		}
+	}
+
+	public void processItem(ClientRegistryPatientQueueItem item) throws Exception {
+		log.warn("Updating client registry with: " + item);
+		org.openmrs.Patient patient = Context.getPatientService().getPatientByUuid(item.getPatientUuid());
+		clientRegistryPatientProvider.updatePatientInClientRegistry(patient);
 	}
 
 	public void initializeMessageDir() {
@@ -139,10 +186,16 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 			initializeMessageDir();
 			String queueItemString = mapper.writeValueAsString(item);
 			String fileName = item.getEventDatetime().getTime() + "_" + item.getPatientUuid() + ".json";
-			FileUtils.writeStringToFile(new File(messagesDir, fileName), queueItemString, StandardCharsets.UTF_8);
+			File targetFile = new File(messagesDir, fileName);
+			// Delete existing file if it exists to avoid duplicates
+			if(targetFile.exists()){
+				FileUtils.deleteQuietly(targetFile);
+			}
+			// Use Files.write() instead of deprecated FileUtils.writeStringToFile()
+			Files.write(targetFile.toPath(), queueItemString.getBytes(StandardCharsets.UTF_8));
 		}
 		catch (Exception e) {
-			log.error("Unable to  write client registry patient queue item to file", e);
+			log.error("Unable to write client registry patient queue item to file", e);
 		}
 	}
 

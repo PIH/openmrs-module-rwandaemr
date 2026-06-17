@@ -124,6 +124,7 @@ public class SearchClientRegistryFragmentController {
             // Default to generating a UPID from a tempid if needed
             identifiersToSearch.put(IntegrationConfig.IDENTIFIER_SYSTEM_TEMPID, UUID.randomUUID().toString());
 
+            Exception lastPopulationRegistryError = null;
             for (String identifierSystem : identifiersToSearch.keySet()) {
                 if (identifierSystem != null) {
                     String identifier = identifiersToSearch.get(identifierSystem);
@@ -132,7 +133,11 @@ public class SearchClientRegistryFragmentController {
                         citizen = citizenProvider.getCitizen(identifierSystem, identifier, fosaId);
                     }
                     catch (Exception e) {
-                        return noPatientResponse("rwandaemr.populationRegistry.connectionError", e, ui);
+                        // Don't abort on first identifier failure; try remaining identifiers (including TEMPID).
+                        // This avoids false "connectionError" when one lookup fails but another may succeed.
+                        lastPopulationRegistryError = e;
+                        log.warn("Population registry lookup failed for "+ identifierSystem + "="+ identifier + ":" + e.getMessage());
+                        continue;
                     }
                     if (citizen != null) {
                         try {
@@ -145,6 +150,9 @@ public class SearchClientRegistryFragmentController {
                         }
                     }
                 }
+            }
+            if (lastPopulationRegistryError != null) {
+                return noPatientResponse("rwandaemr.populationRegistry.connectionError", lastPopulationRegistryError, ui);
             }
         }
         catch (Exception e) {
