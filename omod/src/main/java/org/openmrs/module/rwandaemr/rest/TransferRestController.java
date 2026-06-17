@@ -37,6 +37,19 @@ public class TransferRestController {
 
     protected final Log log = LogFactory.getLog(getClass());
 
+    private static final String EXT_RECEIVING_CLINICIAN_CONTACT =
+            "http://example.org/fhir/StructureDefinition/receiving-clinician-contact";
+    private static final String EXT_REFERRING_DEPARTMENT =
+            "http://example.org/fhir/StructureDefinition/referring-department";
+    private static final String EXT_RECEIVING_DEPARTMENT =
+            "http://example.org/fhir/StructureDefinition/receiving-department";
+    private static final String EXT_AMBULANCE_CALL_TIME =
+            "http://example.org/fhir/StructureDefinition/ambulance-call-time";
+    private static final String EXT_PRACTITIONER_INFO =
+            "http://example.org/fhir/StructureDefinition/practitioner-info";
+    private static final String EXT_ETRANSFER_FORM =
+            "http://moh.gov.rw/fhir/StructureDefinition/etransfer-transfer-form";
+
     @Autowired
     IntegrationConfig integrationConfig;
 
@@ -359,10 +372,12 @@ public class TransferRestController {
         transfer.put("telephone", caregiverPhone);
         transfer.put("providerPhone", caregiverPhone);
 
-        // Address
-        transfer.put("province", stripCodePrefix(extractNestedExtensionValue(resource, "http://example.org/fhir/StructureDefinition/patient-address", "province")));
-        transfer.put("district", stripCodePrefix(extractNestedExtensionValue(resource, "http://example.org/fhir/StructureDefinition/patient-address", "district")));
-        transfer.put("patientDistrict", transfer.get("district"));
+        // Receiving hospital location (form header)
+        transfer.put("province", stripCodePrefix(extractExtensionValue(resource, "http://example.org/fhir/StructureDefinition/receiving-province")));
+        transfer.put("district", stripCodePrefix(extractExtensionValue(resource, "http://example.org/fhir/StructureDefinition/receiving-district")));
+
+        // Patient residence address
+        transfer.put("patientDistrict", stripCodePrefix(extractNestedExtensionValue(resource, "http://example.org/fhir/StructureDefinition/patient-address", "district")));
         transfer.put("patientSector", stripCodePrefix(extractNestedExtensionValue(resource, "http://example.org/fhir/StructureDefinition/patient-address", "sector")));
         transfer.put("patientCell", stripCodePrefix(extractNestedExtensionValue(resource, "http://example.org/fhir/StructureDefinition/patient-address", "cell")));
         transfer.put("patientVillage", stripCodePrefix(extractNestedExtensionValue(resource, "http://example.org/fhir/StructureDefinition/patient-address", "village")));
@@ -377,8 +392,7 @@ public class TransferRestController {
         transfer.put("departureTime", firstNonBlank(
                 extractExtensionDateTime(resource, "http://example.org/fhir/StructureDefinition/departure-time"),
                 periodEnd));
-        transfer.put("ambulanceCalledTime", extractExtensionDateTime(resource, "http://example.org/fhir/StructureDefinition/ambulance-call-time"));
-        transfer.put("callingTime", transfer.get("ambulanceCalledTime"));
+        transfer.put("ambulanceCalledTime", extractExtensionDateTime(resource, EXT_AMBULANCE_CALL_TIME));
 
         String transferType = extractExtensionDisplay(resource, "http://example.org/fhir/StructureDefinition/transfer-type");
         transfer.put("transferType", transferType);
@@ -388,28 +402,48 @@ public class TransferRestController {
         transfer.put("isFollowUp", String.valueOf(transferTypeLower.contains("follow")));
 
         // Facilities and services
-        transfer.put("receivingService", extractExtensionValue(resource, "http://example.org/fhir/StructureDefinition/receiving-department"));
-        transfer.put("referringUnit", extractExtensionValue(resource, "http://example.org/fhir/StructureDefinition/referring-department"));
+        JsonNode hospitalization = resource.get("hospitalization");
+        String originDisplay = hospitalization != null
+                ? textOrDefault(hospitalization.path("origin").path("display"), "") : "";
+        String destinationDisplay = hospitalization != null
+                ? textOrDefault(hospitalization.path("destination").path("display"), "")
+                : textOrDefault(resource.path("location").path(0).path("location").path("display"), "");
+        String admitSourceDisplay = hospitalization != null
+                ? codingDisplay(hospitalization.path("admitSource")) : "";
+        String dischargeDispositionDisplay = hospitalization != null
+                ? codingDisplay(hospitalization.path("dischargeDisposition")) : "";
+        String serviceTypeDisplay = codingDisplay(resource.path("serviceType"));
+
+        transfer.put("referringFacilityName", originDisplay);
+        transfer.put("hospitalName", destinationDisplay);
+        transfer.put("receivingFacility", destinationDisplay);
+        transfer.put("referringUnit", firstNonBlank(
+                admitSourceDisplay,
+                extractExtensionValue(resource, EXT_REFERRING_DEPARTMENT)));
+        transfer.put("receivingService", firstNonBlank(
+                serviceTypeDisplay,
+                dischargeDispositionDisplay,
+                extractExtensionValue(resource, EXT_RECEIVING_DEPARTMENT)));
+
+        String receivingClinicianContact = extractExtensionValue(resource, EXT_RECEIVING_CLINICIAN_CONTACT);
+        String[] clinicianContactParts = parseReceivingClinicianContact(receivingClinicianContact);
+        transfer.put("receivingClinicianPhone", receivingClinicianContact);
+        transfer.put("staffContactedAtReceivingFacility", clinicianContactParts[0]);
+        transfer.put("staffContactPhone", clinicianContactParts[1]);
+
         transfer.put("reasonForTransfer", firstNonBlank(
                 extractNestedExtensionValue(resource, "http://example.org/fhir/StructureDefinition/clinical-presentation", "immediate-condition"),
+                extractExtensionValue(resource, "http://example.org/fhir/StructureDefinition/clinical-presentation"),
                 textOrDefault(resource.path("reasonCode").path(0).path("text"), "")));
         transfer.put("clinicalPresentation", firstNonBlank(
                 extractNestedExtensionValue(resource, "http://example.org/fhir/StructureDefinition/clinical-presentation", "presentation"),
+                extractExtensionValue(resource, "http://example.org/fhir/StructureDefinition/clinical-presentation"),
                 textOrDefault(resource.path("diagnosis").path(0).path("condition").path("display"), "")));
         transfer.put("diagnosis", textOrDefault(resource.path("diagnosis").path(0).path("condition").path("display"), ""));
 
-        JsonNode hospitalization = resource.get("hospitalization");
-        if (hospitalization != null) {
-            transfer.put("referringFacilityName", textOrDefault(hospitalization.path("origin").path("display"), ""));
-            transfer.put("hospitalName", transfer.get("referringFacilityName"));
-            transfer.put("receivingFacility", firstNonBlank(
-                    textOrDefault(hospitalization.path("destination").path("display"), ""),
-                    textOrDefault(resource.path("location").path(0).path("location").path("display"), "")));
-        }
-
         // Practitioner info
         transfer.put("referringProviderName", textOrDefault(resource.path("participant").path(0).path("individual").path("display"), ""));
-        transfer.put("referringProviderQualification", extractNestedExtensionValue(resource, "http://example.org/fhir/StructureDefinition/practitioner-info", "qualification"));
+        transfer.put("referringProviderQualification", extractNestedExtensionValue(resource, EXT_PRACTITIONER_INFO, "qualification"));
 
         // Transport
         String transportType = extractExtensionDisplay(resource, "http://example.org/fhir/StructureDefinition/transport-type");
@@ -443,6 +477,83 @@ public class TransferRestController {
         }
         if (extHeight != null && extHeight.trim().length() > 0) {
             transfer.put("height", extHeight.trim());
+        }
+
+        // Optional snapshot JSON — only fills fields still blank after FHIR mapping.
+        applyEtransferFormFallback(transfer, extractEtransferFormNode(resource));
+    }
+
+    /**
+     * Fills transfer form fields from etransfer-transfer-form only when FHIR/native
+     * mapping left them empty. Not all HIE sources include this extension.
+     */
+    private void applyEtransferFormFallback(SimpleObject transfer, JsonNode form) {
+        if (form == null) {
+            return;
+        }
+
+        putIfBlank(transfer, "province", jsonText(form, "province"));
+        putIfBlank(transfer, "district", jsonText(form, "district"));
+        putIfBlank(transfer, "hospitalName", jsonText(form, "hospitalName"));
+        putIfBlank(transfer, "referringFacilityName", jsonText(form, "referringFacilityName"));
+        putIfBlank(transfer, "referringUnit", jsonText(form, "referringUnit"));
+        putIfBlank(transfer, "receivingFacility", jsonText(form, "receivingFacility"));
+        putIfBlank(transfer, "receivingService", jsonText(form, "receivingService"));
+        putIfBlank(transfer, "receivingClinicianPhone", jsonText(form, "receivingClinicianPhone"));
+        putIfBlank(transfer, "staffContactedAtReceivingFacility", jsonText(form, "staffContactedName"));
+        putIfBlank(transfer, "staffContactPhone", jsonText(form, "staffContactedPhone"));
+        putIfBlank(transfer, "callingTime", jsonText(form, "callingTime"));
+        putIfBlank(transfer, "ambulanceCalledTime", jsonText(form, "ambulanceCalledTime"));
+        putIfBlank(transfer, "departureTime", jsonText(form, "departureFromReferringTime"));
+
+        putIfBlank(transfer, "clientName", jsonText(form, "clientName"));
+        putIfBlank(transfer, "serialNumberOrEmrId", jsonText(form, "serialNumberEmr"));
+        putIfBlank(transfer, "ageDob", jsonText(form, "ageOrDob"));
+        putIfBlank(transfer, "sex", jsonText(form, "sex"));
+        putIfBlank(transfer, "caregiverName", jsonText(form, "caregiverName"));
+        putIfBlank(transfer, "telephone", firstNonBlank(
+                jsonText(form, "caregiverTelephone"),
+                jsonText(form, "clientTelephone")));
+        putIfBlank(transfer, "providerPhone", firstNonBlank(
+                jsonText(form, "referringProviderPhone"),
+                jsonText(form, "caregiverTelephone")));
+
+        putIfBlank(transfer, "patientDistrict", jsonText(form, "clientDistrict"));
+        putIfBlank(transfer, "patientSector", jsonText(form, "sector"));
+        putIfBlank(transfer, "patientCell", jsonText(form, "cell"));
+        putIfBlank(transfer, "patientVillage", jsonText(form, "village"));
+
+        putIfBlank(transfer, "admissionDatetime", jsonText(form, "admissionAt"));
+        putIfBlank(transfer, "transferDecisionDatetime", jsonText(form, "decisionToTransferAt"));
+        putIfBlank(transfer, "reasonForTransfer", jsonText(form, "reasonForTransfer"));
+        putIfBlank(transfer, "clinicalPresentation", jsonText(form, "clinicalPresentation"));
+        putIfBlank(transfer, "diagnosis", jsonText(form, "diagnosis"));
+        putIfBlank(transfer, "proceduresAndTreatments", jsonText(form, "proceduresAndTreatments"));
+        putIfBlank(transfer, "laboratory", jsonText(form, "laboratory"));
+        putIfBlank(transfer, "others", jsonText(form, "othersNotes"));
+
+        putIfBlank(transfer, "referringProviderName", jsonText(form, "referringProviderName"));
+        putIfBlank(transfer, "referringProviderQualification", jsonText(form, "referringProviderQualification"));
+        putIfBlank(transfer, "formDate", jsonText(form, "referringSignedDate"));
+        putIfBlank(transfer, "formTime", jsonText(form, "referringSignedTime"));
+
+        putIfBlank(transfer, "temperature", jsonText(form, "vitalTemp"));
+        putIfBlank(transfer, "spo2", jsonText(form, "vitalSpo2"));
+        putIfBlank(transfer, "respiratoryRate", jsonText(form, "vitalRr"));
+        putIfBlank(transfer, "pulse", jsonText(form, "vitalPulse"));
+        putIfBlank(transfer, "bloodPressure", jsonText(form, "vitalBp"));
+        putIfBlank(transfer, "weight", jsonText(form, "vitalWeight"));
+        putIfBlank(transfer, "height", jsonText(form, "vitalHeight"));
+        putIfBlank(transfer, "muac", jsonText(form, "vitalMuac"));
+    }
+
+    private void putIfBlank(SimpleObject transfer, String key, String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return;
+        }
+        Object existing = transfer.get(key);
+        if (existing == null || String.valueOf(existing).trim().isEmpty()) {
+            transfer.put(key, value);
         }
     }
 
@@ -513,11 +624,76 @@ public class TransferRestController {
         return value == null ? defaultValue : sanitizeFrontendText(value);
     }
 
-    private String firstNonBlank(String first, String second) {
-        if (first != null && first.trim().length() > 0) {
-            return first;
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
         }
-        return second == null ? "" : second;
+        for (String value : values) {
+            if (value != null && value.trim().length() > 0) {
+                return value;
+            }
+        }
+        return "";
+    }
+
+    private JsonNode extractEtransferFormNode(JsonNode resource) {
+        String raw = extractExtensionValue(resource, EXT_ETRANSFER_FORM);
+        if (raw == null || raw.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return new ObjectMapper().readTree(raw);
+        } catch (Exception e) {
+            log.warn("Failed to parse etransfer-transfer-form extension: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String jsonText(JsonNode node, String field) {
+        if (node == null || field == null || !node.has(field) || node.get(field).isNull()) {
+            return "";
+        }
+        String text = node.get(field).asText();
+        if (text == null || "null".equalsIgnoreCase(text.trim())) {
+            return "";
+        }
+        return sanitizeFrontendText(text);
+    }
+
+    private String codingDisplay(JsonNode codeableConceptNode) {
+        if (codeableConceptNode == null || codeableConceptNode.isNull()) {
+            return "";
+        }
+        JsonNode coding = codeableConceptNode.path("coding");
+        if (coding.isArray() && coding.size() > 0) {
+            String display = textOrDefault(coding.path(0).path("display"), "");
+            if (!display.trim().isEmpty()) {
+                return display;
+            }
+            return textOrDefault(coding.path(0).path("code"), "");
+        }
+        return textOrDefault(codeableConceptNode.path("text"), "");
+    }
+
+    /** Splits "Name - Phone" or "Name / Phone" from receiving-clinician-contact. */
+    private String[] parseReceivingClinicianContact(String contact) {
+        String[] result = new String[] { "", "" };
+        if (contact == null || contact.trim().isEmpty()) {
+            return result;
+        }
+        String normalized = contact.trim();
+        if (normalized.contains(" - ")) {
+            int sep = normalized.indexOf(" - ");
+            result[0] = normalized.substring(0, sep).trim();
+            result[1] = normalized.substring(sep + 3).trim();
+        } else if (normalized.contains("/")) {
+            int sep = normalized.indexOf('/');
+            result[0] = normalized.substring(0, sep).trim();
+            result[1] = normalized.substring(sep + 1).trim();
+        } else {
+            result[0] = normalized;
+        }
+        return result;
     }
 
     /**

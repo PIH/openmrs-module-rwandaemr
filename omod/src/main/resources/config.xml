@@ -70,6 +70,30 @@
 	</privilege>
 
 	<globalProperty>
+		<property>rwandaemr.hie.url</property>
+		<defaultValue>30</defaultValue>
+		<description>
+			HIE Base URL
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.username</property>
+		<defaultValue></defaultValue>
+		<description>
+			HIE Username
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.password</property>
+		<defaultValue></defaultValue>
+		<description>
+			HIE Password
+		</description>
+	</globalProperty>
+
+	<globalProperty>
 		<property>rwandaemr.autoExpireLabOrdersOlderThanDays</property>
 		<defaultValue>30</defaultValue>
 		<description>

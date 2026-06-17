@@ -14,7 +14,7 @@
     </div>
     <div class="row">
         <div class="col-12">
-            <div class="alert alert-info text-center">Enter the phone number with ${roundedAmountFormatted} RWF on MoMo Balance to complete the payment</div>
+            <div class="alert alert-info text-center">${ ui.message("rwandaemr.billing.momoBalanceAlert", roundedAmountFormatted + " RWF") }</div>
         </div>
     </div>
     <div class="row">
