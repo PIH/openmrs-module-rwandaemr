@@ -35,6 +35,8 @@ public class HtmlFormEntrySetup implements Setup {
 
     public static final String INSURANCE_POLICY_OBS_TAG = "insurancePolicyObs";
 
+    public static final String ICD11_DIAGNOSES_TAG = "icd11Diagnoses";
+
     public static final String FORM_ENGINE_RESOURCE_NAME = "formEngine";
 
     public static final String FORM_ENGINE_RESOURCE_VALUE = "htmlformentry";
@@ -51,6 +53,11 @@ public class HtmlFormEntrySetup implements Setup {
         tagHandler.setUiUtils(uiUtils);
         htmlFormEntryService.addHandler(INSURANCE_POLICY_OBS_TAG, tagHandler);
         log.warn("Registered " + INSURANCE_POLICY_OBS_TAG + " tag with htmlformentry");
+
+        Icd11DiagnosesTagHandler icd11DiagnosesTagHandler = new Icd11DiagnosesTagHandler();
+        icd11DiagnosesTagHandler.setUiUtils(uiUtils);
+        htmlFormEntryService.addHandler(ICD11_DIAGNOSES_TAG, icd11DiagnosesTagHandler);
+        log.warn("Registered " + ICD11_DIAGNOSES_TAG + " tag with htmlformentry");
 
         // Add form engine resources
         int numResourcesSaved = 0;

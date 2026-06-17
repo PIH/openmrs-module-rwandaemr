@@ -53,6 +53,10 @@
 
 	<activator>org.openmrs.module.rwandaemr.RwandaEmrActivator</activator>
 
+	<mappingFiles>
+		Icd11.hbm.xml
+	</mappingFiles>
+
 	<extension>
 		<point>org.openmrs.admin.list</point>
 		<class>org.openmrs.module.rwandaemr.web.AdminPageExtension</class>
@@ -226,5 +230,82 @@
 		<description>When true, encounter and observation events are queued for SHR and the scheduled tasks may push them. Requires HIE credentials. Any other value disables SHR queueing and pushing for both encounters and observations.</description>
 	</globalProperty>
 
-</module>
+	<globalProperty>
+		<property>rwandaemr.icd11.enabled</property>
+		<defaultValue>false</defaultValue>
+		<description>Enable ICD-11 diagnosis search through the WHO ICD API.</description>
+	</globalProperty>
 
+	<globalProperty>
+		<property>rwandaemr.icd11.api.clientId</property>
+		<defaultValue></defaultValue>
+		<description>OAuth2 client ID used by the backend to access the WHO ICD API.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.api.clientSecret</property>
+		<defaultValue></defaultValue>
+		<description>OAuth2 client secret used by the backend to access the WHO ICD API.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.api.baseUrl</property>
+		<defaultValue>https://id.who.int</defaultValue>
+		<description>Base URL for the WHO ICD API.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.api.tokenUrl</property>
+		<defaultValue>https://icdaccessmanagement.who.int/connect/token</defaultValue>
+		<description>OAuth2 token endpoint for the WHO ICD API.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.api.version</property>
+		<defaultValue>v2</defaultValue>
+		<description>WHO ICD API version header value.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.api.language</property>
+		<defaultValue>en</defaultValue>
+		<description>Language requested from the WHO ICD API.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.default.linearization</property>
+		<defaultValue>mms</defaultValue>
+		<description>Default ICD-11 linearization used for diagnosis searches.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.default.releaseId</property>
+		<defaultValue>2026-01</defaultValue>
+		<description>WHO ICD-11 release ID used for diagnosis searches.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.cache.enabled</property>
+		<defaultValue>true</defaultValue>
+		<description>Cache normalized ICD-11 searches locally and use the cache when the WHO API is unavailable.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.cache.ttlHours</property>
+		<defaultValue>24</defaultValue>
+		<description>Number of hours before a locally cached ICD-11 search result is considered stale.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.search.minChars</property>
+		<defaultValue>3</defaultValue>
+		<description>Minimum query length accepted for ICD-11 searches.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.search.timeoutSeconds</property>
+		<defaultValue>10</defaultValue>
+		<description>Connect and read timeout in seconds for WHO ICD API calls.</description>
+	</globalProperty>
+
+</module>
