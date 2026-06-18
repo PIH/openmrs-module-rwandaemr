@@ -18,12 +18,15 @@ import org.openmrs.Encounter;
 import org.openmrs.Obs;
 import org.openmrs.Patient;
 import org.openmrs.Visit;
+import org.openmrs.VisitAttribute;
+import org.openmrs.VisitAttributeType;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.htmlformentry.FormEntryContext;
 import org.openmrs.module.htmlformentry.FormEntrySession;
 import org.openmrs.module.mohbilling.model.Beneficiary;
 import org.openmrs.module.mohbilling.model.InsurancePolicy;
 import org.openmrs.module.mohbilling.service.BillingService;
+import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
 import org.openmrs.module.rwandaemr.integration.IntegrationResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -172,6 +175,10 @@ public class MmiPatientReceptionOrchestratorService {
 			entry.setDateCreated(new Date());
 			logRepository.saveLogEntry(entry);
 
+			if (success) {
+				saveReceptionNumberOnVisit(visit, entry.getReceptionNumber());
+			}
+
 			if (!success) {
 				log.warn("MMI patient reception failed for visit " + visit.getVisitId() + ": " + errorMessage);
 			}
@@ -261,5 +268,36 @@ public class MmiPatientReceptionOrchestratorService {
 			return "HTTP " + response.getResponseCode() + " returned from patient reception endpoint";
 		}
 		return null;
+	}
+
+	private void saveReceptionNumberOnVisit(Visit visit, String receptionNumber) {
+		if (visit == null || StringUtils.isBlank(receptionNumber)) {
+			return;
+		}
+		if (Context.getRegisteredComponents(RwandaEmrConfig.class).isEmpty()) {
+			return;
+		}
+		VisitAttributeType attributeType = Context.getRegisteredComponents(RwandaEmrConfig.class).get(0)
+				.getMmiReceptionNumberAttributeType();
+		if (attributeType == null) {
+			log.warn("MMI reception number visit attribute type is not configured");
+			return;
+		}
+		VisitAttribute existing = null;
+		for (VisitAttribute attribute : visit.getActiveAttributes()) {
+			if (attributeType.equals(attribute.getAttributeType())) {
+				existing = attribute;
+				break;
+			}
+		}
+		if (existing != null) {
+			existing.setValue(receptionNumber);
+		} else {
+			VisitAttribute attribute = new VisitAttribute();
+			attribute.setAttributeType(attributeType);
+			attribute.setValue(receptionNumber);
+			visit.setAttribute(attribute);
+		}
+		Context.getVisitService().saveVisit(visit);
 	}
 }

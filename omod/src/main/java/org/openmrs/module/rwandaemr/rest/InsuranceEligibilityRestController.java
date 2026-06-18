@@ -1,12 +1,17 @@
 package org.openmrs.module.rwandaemr.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.openmrs.Patient;
+import org.openmrs.Visit;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
 import org.openmrs.module.rwandaemr.integration.IntegrationResponse;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceEligibilityProvider;
+import org.openmrs.module.rwandaemr.integration.insurance.MmiPatientReceptionLogEntry;
+import org.openmrs.module.rwandaemr.integration.insurance.MmiPatientReceptionLogRepository;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiReceptionData;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiReceptionResponse;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiReceptionStore;
@@ -20,13 +25,17 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.Date;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Controller
 public class InsuranceEligibilityRestController {
 
     protected final Log log = LogFactory.getLog(getClass());
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Autowired
     InsuranceEligibilityProvider insuranceEligibilityProvider;
@@ -36,6 +45,9 @@ public class InsuranceEligibilityRestController {
 
     @Autowired
     MmiReceptionStore mmiReceptionStore;
+
+    @Autowired
+    MmiPatientReceptionLogRepository mmiPatientReceptionLogRepository;
 
     @RequestMapping(value = "/rest/v1/rwandaemr/insurance/eligibility", method = RequestMethod.GET)
     @ResponseBody
@@ -105,6 +117,7 @@ public class InsuranceEligibilityRestController {
             }
             boolean success = receptionResponse.getResponseEntity() instanceof MmiReceptionResponse &&
                     ((MmiReceptionResponse) receptionResponse.getResponseEntity()).isSuccess();
+            persistMmiReceptionLog(patientId, identifier, fosaid, patientType, receptionResponse, success);
             response.put("receptionNumber", receptionNumber);
             response.put("success", success);
             response.put("message", receptionResponse.getResponseEntity() instanceof MmiReceptionResponse ?
@@ -142,6 +155,65 @@ public class InsuranceEligibilityRestController {
         }
         return null;
     }
+
+    private void persistMmiReceptionLog(Integer patientId, String identifier, String fosaid, String patientType,
+                                        IntegrationResponse receptionResponse, boolean success) {
+        try {
+            Patient patient = patientId == null ? null : Context.getPatientService().getPatient(patientId);
+            Visit visit = patient == null ? null : getActiveVisit(patient);
+            MmiReceptionResponse responseEntity = receptionResponse.getResponseEntity() instanceof MmiReceptionResponse
+                    ? (MmiReceptionResponse) receptionResponse.getResponseEntity()
+                    : null;
+            MmiReceptionData data = responseEntity == null ? null : responseEntity.getData();
+
+            Map<String, Object> requestPayload = new LinkedHashMap<>();
+            requestPayload.put("insuranceType", "MMI");
+            requestPayload.put("patientIdentifier", identifier);
+            requestPayload.put("facilityFosaId", fosaid);
+            requestPayload.put("patientType", patientType);
+            requestPayload.put("prescriptionRequired", true);
+
+            MmiPatientReceptionLogEntry entry = new MmiPatientReceptionLogEntry();
+            entry.setPatientId(patientId);
+            entry.setVisitId(visit == null ? null : visit.getVisitId());
+            entry.setPatientIdentifier(identifier);
+            entry.setFacilityFosaId(fosaid);
+            entry.setPatientType(patientType);
+            entry.setPrescriptionRequired(true);
+            entry.setRequestPayload(OBJECT_MAPPER.writeValueAsString(requestPayload));
+            entry.setResponsePayload(responseEntity == null ? null : OBJECT_MAPPER.writeValueAsString(responseEntity));
+            entry.setResponseCode(receptionResponse.getResponseCode());
+            entry.setStatus(success ? "SUCCESS" : "FAILED");
+            entry.setReceptionNumber(data == null ? null : data.getReceptionNumber());
+            entry.setBpCode(data == null ? null : data.getBpCode());
+            entry.setReceptionStatus(data == null ? null : data.getStatus());
+            entry.setErrorMessage(resolveReceptionErrorMessage(receptionResponse, responseEntity));
+            entry.setCreator(Context.getAuthenticatedUser() == null ? null : Context.getAuthenticatedUser().getUserId());
+            entry.setDateCreated(new Date());
+            mmiPatientReceptionLogRepository.saveLogEntry(entry);
+        }
+        catch (Exception e) {
+            log.warn("Unable to persist MMI reception log", e);
+        }
+    }
+
+    private Visit getActiveVisit(Patient patient) {
+        List<Visit> activeVisits = Context.getVisitService().getActiveVisitsByPatient(patient);
+        return activeVisits == null || activeVisits.isEmpty() ? null : activeVisits.get(0);
+    }
+
+    private String resolveReceptionErrorMessage(IntegrationResponse response, MmiReceptionResponse responseEntity) {
+        if (response == null) {
+            return "No response returned from MMI reception endpoint";
+        }
+		if (StringUtils.isNotBlank(response.getErrorMessage())) {
+			return response.getErrorMessage();
+		}
+		if (responseEntity != null && !responseEntity.isSuccess() && StringUtils.isNotBlank(responseEntity.getMessage())) {
+			return responseEntity.getMessage();
+		}
+		return null;
+	}
 
     public static class OtpVerificationRequest {
 

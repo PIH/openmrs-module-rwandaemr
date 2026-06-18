@@ -107,21 +107,11 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     let mmiMemberSelected = false;
 
     function enableVerification() {
-        jq("#owner-name-field").val("").attr("disabled", "disabled");
-        jq("#company-field").val("").attr("disabled", "disabled");
-        jq("#level-field").val("").attr("disabled", "disabled");
-        jq("#policy-number-field").val("").attr("disabled", "disabled");
         jq("#rhip-patient-id-field").val("");
-        jq("#start-date-picker-field").val("");
-        jq("#start-date-picker-display").val("").attr("disabled", "disabled");
-        jq("#start-date-picker-wrapper >> .icon-calendar").hide();
-        jq("#expiration-date-picker-field").val("");
-        jq("#expiration-date-picker-display").val("").attr("disabled", "disabled");
-        jq("#expiration-date-picker-wrapper >> .icon-calendar").hide();
-        jq("#save-button").attr("disabled", "disabled");
+        enableManualEntry();
     }
 
-    function disableVerification() {
+    function enableManualEntry() {
         jq("#owner-name-field").removeAttr("disabled");
         jq("#company-field").removeAttr("disabled");
         jq("#level-field").removeAttr("disabled");
@@ -132,6 +122,10 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         jq("#expiration-date-picker-display").removeAttr("disabled");
         jq("#expiration-date-picker-wrapper >> .icon-calendar").show();
         jq("#save-button").removeAttr("disabled");
+    }
+
+    function disableVerification() {
+        enableManualEntry();
     }
 
     function toggleVerificationButton() {
@@ -177,7 +171,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     }
 
     function isMmiInsuranceSelected() {
-        return isMmiInsuranceName(getSelectedInsuranceName());
+        const insuranceTypeId = getInsuranceTypeId();
+        const mappedType = insurancesToVerify.get(insuranceTypeId);
+        return (mappedType && mappedType.toLowerCase() === "mmi") || isMmiInsuranceName(getSelectedInsuranceName());
     }
 
     function getInsuranceTypeForRequest(insuranceTypeId) {
@@ -201,6 +197,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     function setVerifyResultsMessage(message) {
         jq("#verify-member-section").find(".verify-member-row").remove();
         jq("#verify-results-message").html(message ?? "");
+        jq("#mmi-reception-page-message").html(message ?? "");
         if (mmiReceptionNumber) {
             jq("#mmi-reception-number-value").text(mmiReceptionNumber);
             jq("#mmi-reception-number-row").show();
@@ -213,60 +210,8 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     }
 
     function updateMmiReceptionControls() {
-        const isMmiSelected = isMmiInsuranceSelected();
-        if (!isMmiSelected) {
-            jq("#mmi-patient-type-page-row").hide();
-            jq("#mmi-reception-action-row").hide();
-            return;
-        }
-        jq("#mmi-patient-type-page-row").show();
-        jq("#mmi-reception-action-row").show();
-        const patientType = jq("#mmi-patient-type-page").val();
-        const canCreate = isMmiEligibilityFlow && mmiMemberSelected && patientType;
-        jq("#mmi-create-reception-button-page").prop("disabled", !canCreate);
-    }
-
-    function loadMmiPatientTypes() {
-        const selectPage = jq("#mmi-patient-type-page");
-        selectPage.empty();
-        selectPage.append(jq("<option>").val("").text("Loading..."));
-        selectPage.attr("disabled", "disabled");
-        jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility/mmi/patient-types", function (typesData) {
-            selectPage.empty();
-            selectPage.append(jq("<option>").val("").text(""));
-            console.log("MMI patient types response", typesData);
-            const entity = (typesData && typesData.responseEntity) ? typesData.responseEntity : typesData;
-            const types = (entity && entity.patientTypes) ? entity.patientTypes :
-                ((entity && entity.data && entity.data.patientTypes) ? entity.data.patientTypes : []);
-            let activeCount = 0;
-            types.forEach((type) => {
-                const isActive = (type.isActive === undefined || type.isActive === null)
-                    ? (type.active === undefined || type.active === null ? true : type.active)
-                    : type.isActive;
-                if (isActive) {
-                    selectPage.append(jq("<option>").val(type.typeId).text(type.typeName));
-                    activeCount += 1;
-                }
-            });
-            if (activeCount === 0 && types.length > 0) {
-                types.forEach((type) => {
-                    selectPage.append(jq("<option>").val(type.typeId).text(type.typeName));
-                });
-            }
-            if (selectPage.children("option").length > 1) {
-                selectPage.removeAttr("disabled");
-            } else {
-                selectPage.attr("disabled", "disabled");
-                setVerifyResultsMessage("No active patient types found.");
-            }
-            updateMmiReceptionControls();
-        }).fail(function () {
-            selectPage.empty();
-            selectPage.append(jq("<option>").val("").text(""));
-            selectPage.attr("disabled", "disabled");
-            setVerifyResultsMessage("Unable to load patient types.");
-            updateMmiReceptionControls();
-        });
+        jq("#mmi-patient-type-page-row").hide();
+        jq("#mmi-reception-action-row").hide();
     }
 
     function setNoMatchingInsurancesFound(insuranceType) {
@@ -288,12 +233,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 if (insuranceTypeId === "" || insurancesToVerify.has(insuranceTypeId) || isMmiInsuranceSelected()) {
                     toggleVerificationButton();
                     enableVerification();
-                    if (isMmiInsuranceSelected()) {
-                        loadMmiPatientTypes();
-                    }
                 }
                 else {
-                    disableVerification();
+                    enableManualEntry();
                 }
                 updateMmiReceptionControls();
             });
@@ -361,12 +303,6 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     sendOTP: isMmiInsurance
                 });
 
-                if (isMmiInsurance && !patientPhoneNumber) {
-                    setVerifyResultsMessage("Patient phone number is required to send the OTP.");
-                    jq("#verify-button").removeAttr("disabled");
-                    return;
-                }
-
                 jq.get(eligibilityUrl + "?" + eligibilityParams, function(data) {
                     if (isMmiInsurance) {
                         if (data.responseCode === 200) {
@@ -395,7 +331,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 }).fail(function(xhr) {
                     const message = xhr && xhr.responseText ? xhr.responseText : "Insurance verification request failed.";
                     setVerifyResultsMessage("Error: " + message);
-                    disableVerification();
+                    enableManualEntry();
                     jq("#verify-button").removeAttr("disabled");
                 });
             });
@@ -459,53 +395,6 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             });
         });
 
-        jq("#mmi-create-reception-button-page").click(function () {
-            const ownerCode = jq("#owner-code-field").val();
-            if (!ownerCode) {
-                setVerifyResultsMessage("Owner code is required.");
-                return;
-            }
-            mmiPatientType = jq("#mmi-patient-type-page").val();
-            if (!mmiPatientType) {
-                setVerifyResultsMessage("Patient type is required.");
-                return;
-            }
-            jq(this).attr("disabled", "disabled");
-            jq.ajax({
-                url: openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility/mmi/reception",
-                type: "POST",
-                contentType: "application/json",
-                data: JSON.stringify({
-                    identifier: ownerCode,
-                    otpCode: mmiOtpCode,
-                    patientId: patientId,
-                    patientType: mmiPatientType
-                }),
-                success: function (data) {
-                    jq("#mmi-create-reception-button-page").removeAttr("disabled");
-                    if (data && data.success) {
-                        mmiReceptionNumber = data.receptionNumber || null;
-                        setVerifyResultsMessage("MMI reception created.");
-                        if (verifyMemberDialog) {
-                            verifyMemberDialog.close();
-                            verifyMemberDialog = null;
-                        }
-                        disableVerification();
-                    } else {
-                        const errorMessage = data && data.message ? data.message : "Unable to create reception.";
-                        setVerifyResultsMessage(errorMessage);
-                    }
-                },
-                error: function () {
-                    jq("#mmi-create-reception-button-page").removeAttr("disabled");
-                    setVerifyResultsMessage("Unable to create reception. Please try again.");
-                }
-            });
-        });
-
-        jq("#mmi-patient-type-page").change(function () {
-            updateMmiReceptionControls();
-        });
     });
 
     function handleEligibilityResponse(data, insuranceType, dialogModal, isMmiFlow) {
@@ -750,9 +639,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         size: 30,
                         otherAttributes: ["disabled": "disabled"]
                 ])}
-                <p id="mmi-reception-number-field-wrapper" style="display: none;">
+                <p id="mmi-reception-number-field-wrapper" style="${policyModel.mmiReceptionNumber ? '' : 'display: none;'}">
                     <label for="mmi-reception-number-field">MMI Reception Number</label>
-                    <input type="text" id="mmi-reception-number-field" disabled="disabled" />
+                    <input type="text" id="mmi-reception-number-field" value="${ui.format(policyModel.mmiReceptionNumber)}" disabled="disabled" />
                 </p>
             <% } else { %>
                 <p>
@@ -763,6 +652,12 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     <label for="view-rhip-patient-id">RHIP Patient ID</label>
                     <span id="view-rhip-patient-id" class="field-value">${ui.format(policyModel.rhipPatientId)}</span>
                 </p>
+                <% if (policyModel.mmiReceptionNumber) { %>
+                    <p>
+                        <label for="view-mmi-reception-number">MMI Reception Number</label>
+                        <span id="view-mmi-reception-number" class="field-value">${ui.format(policyModel.mmiReceptionNumber)}</span>
+                    </p>
+                <% } %>
             <% } %>
 
             <% if (editMode) { %>
@@ -807,13 +702,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         initialValue: (policyModel.thirdPartyId ?: ''),
                         options: thirdPartyOptions
                 ])}
-                <p id="mmi-patient-type-page-row" style="display: none;">
-                    <label for="mmi-patient-type-page">Patient Type (MMI only)</label>
-                    <select id="mmi-patient-type-page" disabled="disabled"></select>
-                </p>
-                <p id="mmi-reception-action-row" style="display: none;">
-                    <button type="button" id="mmi-create-reception-button-page" disabled="disabled">Create reception</button>
-                </p>
+                <p id="mmi-reception-page-message"></p>
             <% } else { %>
                 <p>
                     <label for="view-insurance-third-party">${ui.message("rwandaemr.insurance.thirdParty")}</label>

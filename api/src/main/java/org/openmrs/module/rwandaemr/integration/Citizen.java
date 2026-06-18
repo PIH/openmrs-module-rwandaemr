@@ -28,6 +28,7 @@ public class Citizen {
     private String nid;
     private String upi;
     private String passportNumber;
+    private String refugeeNumber;
     private String surName;
     private String postNames;
     private String fatherName;

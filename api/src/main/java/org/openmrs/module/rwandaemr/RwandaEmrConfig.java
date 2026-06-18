@@ -26,6 +26,7 @@ import org.openmrs.api.PatientService;
 import org.openmrs.api.PersonService;
 import org.openmrs.api.ProviderService;
 import org.openmrs.api.VisitService;
+import org.openmrs.api.context.Context;
 import org.openmrs.module.initializer.api.InitializerService;
 import org.openmrs.module.rwandaemr.radiology.RadiologyConfig;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -174,6 +175,12 @@ public class RwandaEmrConfig {
 
 	public VisitAttributeType getVisitAttributeTypeByJsonKey(String jsonKey) {
 		String uuid = initializerService.getValueFromKey(jsonKey);
+		if (StringUtils.isBlank(uuid)) {
+			uuid = Context.getAdministrationService().getGlobalProperty("rwandaemr." + jsonKey);
+		}
+		if (StringUtils.isBlank(uuid)) {
+			uuid = Context.getAdministrationService().getGlobalProperty(jsonKey);
+		}
 		return getVisitAttributeTypeByUuid(uuid);
 	}
 

@@ -38,9 +38,7 @@
                 <constraints nullable="false" primaryKey="true"/>
             </column>
             <column name="patient_id" type="int"/>
-            <column name="visit_id" type="int">
-                <constraints nullable="false"/>
-            </column>
+            <column name="visit_id" type="int"/>
             <column name="encounter_id" type="int"/>
             <column name="insurance_policy_id" type="int"/>
             <column name="insurance_name" type="varchar(255)"/>
@@ -73,6 +71,14 @@
         <createIndex tableName="mmi_patient_reception_log" indexName="idx_mmi_reception_created">
             <column name="date_created"/>
         </createIndex>
+    </changeSet>
+
+    <changeSet id="rwandaemr-allow-pre-visit-mmi-patient-reception-log" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="mmi_patient_reception_log"/>
+            <columnExists tableName="mmi_patient_reception_log" columnName="visit_id"/>
+        </preConditions>
+        <dropNotNullConstraint tableName="mmi_patient_reception_log" columnName="visit_id" columnDataType="int"/>
     </changeSet>
 
     <changeSet id="20260531-add-icd11-patient-diagnosis" author="rwandaemr">

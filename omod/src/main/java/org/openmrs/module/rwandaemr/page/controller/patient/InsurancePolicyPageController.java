@@ -5,6 +5,9 @@ import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.Patient;
 import org.openmrs.User;
+import org.openmrs.Visit;
+import org.openmrs.VisitAttribute;
+import org.openmrs.VisitAttributeType;
 import org.openmrs.api.APIException;
 import org.openmrs.api.context.Context;
 import org.openmrs.messagesource.MessageSourceService;
@@ -71,9 +74,10 @@ public class InsurancePolicyPageController {
         model.addAttribute("editMode", BooleanUtils.isTrue(edit));
         model.addAttribute("patient", patientDomainWrapper);
         model.addAttribute("policy", policy);
-        model.addAttribute("policyModel", new InsurancePolicyModel(policy));
+        model.addAttribute("policyModel", new InsurancePolicyModel(policy, patient, rwandaEmrConfig));
         model.addAttribute("insurances", InsuranceUtil.getInsurances(true));
         model.addAttribute("insurancesToVerify", insuranceIntegrationConfig.getInsurancesToVerify());
+        model.addAttribute("hasMmiInsurance", hasMmiInsurance(InsuranceUtil.getInsurances(true), insuranceIntegrationConfig));
         model.addAttribute("thirdParties", InsurancePolicyUtil.getAllThirdParties());
         model.addAttribute("owners", getEligiblePolicyOwnersForPatient(patient));
         model.addAttribute("patientPhoneNumber", getPatientPhoneNumber(patient, rwandaEmrConfig));
@@ -179,9 +183,12 @@ public class InsurancePolicyPageController {
             request.getSession().setAttribute("emr.errorMessage", e.getMessage());
             model.addAttribute("patient", patientDomainWrapper);
             model.addAttribute("policy", policy);
+            policyModel.setMmiReceptionNumber(getMmiReceptionNumber(patient, policy,
+                    Context.getRegisteredComponents(RwandaEmrConfig.class).get(0)));
             model.addAttribute("policyModel", policyModel);
             model.addAttribute("insurances", InsuranceUtil.getInsurances(true));
             model.addAttribute("insurancesToVerify", insuranceIntegrationConfig.getInsurancesToVerify());
+            model.addAttribute("hasMmiInsurance", hasMmiInsurance(InsuranceUtil.getInsurances(true), insuranceIntegrationConfig));
             model.addAttribute("thirdParties", InsurancePolicyUtil.getAllThirdParties());
             model.addAttribute("owners", getEligiblePolicyOwnersForPatient(patient));
             model.addAttribute("patientPhoneNumber",
@@ -247,6 +254,67 @@ public class InsurancePolicyPageController {
         return ret;
     }
 
+    private boolean hasMmiInsurance(List<Insurance> insurances, InsuranceIntegrationConfig insuranceIntegrationConfig) {
+        if (insuranceIntegrationConfig.getInsuranceTypesToVerify().stream().anyMatch(type -> "mmi".equalsIgnoreCase(type))) {
+            return true;
+        }
+        for (Insurance insurance : insurances) {
+            if (insurance != null && StringUtils.containsIgnoreCase(insurance.getName(), "mmi")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String getMmiReceptionNumber(Patient patient, InsurancePolicy policy, RwandaEmrConfig rwandaEmrConfig) {
+        if (patient == null || rwandaEmrConfig == null) {
+            return null;
+        }
+        VisitAttributeType attributeType = rwandaEmrConfig.getMmiReceptionNumberAttributeType();
+        if (attributeType != null) {
+            List<Visit> activeVisits = Context.getVisitService().getActiveVisitsByPatient(patient);
+            if (activeVisits != null) {
+                for (Visit visit : activeVisits) {
+                    for (VisitAttribute attribute : visit.getActiveAttributes()) {
+                        if (attributeType.equals(attribute.getAttributeType())) {
+                            Object value = attribute.getValue();
+                            String receptionNumber = value == null ? null : value.toString();
+                            if (StringUtils.isNotBlank(receptionNumber)) {
+                                return receptionNumber;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        List<String> clauses = new ArrayList<>();
+        if (patient.getPatientId() != null) {
+            clauses.add("patient_id = " + patient.getPatientId());
+        }
+        if (policy != null && StringUtils.isNotBlank(policy.getInsuranceCardNo())) {
+            clauses.add("patient_identifier = '" + policy.getInsuranceCardNo().trim().replace("'", "''") + "'");
+        }
+        if (clauses.isEmpty()) {
+            return null;
+        }
+        try {
+            List<List<Object>> rows = Context.getAdministrationService().executeSQL(
+                    "select reception_number from mmi_patient_reception_log " +
+                            "where status = 'SUCCESS' and (" + StringUtils.join(clauses, " or ") + ") " +
+                            "and reception_number is not null and reception_number <> '' " +
+                            "order by date_created desc limit 1",
+                    true
+            );
+            if (rows != null && !rows.isEmpty() && rows.get(0) != null && !rows.get(0).isEmpty()) {
+                Object value = rows.get(0).get(0);
+                return value == null ? null : StringUtils.trimToNull(value.toString());
+            }
+        }
+        catch (Exception ignored) {}
+        return null;
+    }
+
     private String getPatientPhoneNumber(Patient patient, RwandaEmrConfig rwandaEmrConfig) {
         if (patient == null || rwandaEmrConfig == null || rwandaEmrConfig.getTelephoneNumber() == null) {
             return null;
@@ -270,15 +338,17 @@ public class InsurancePolicyPageController {
         private Integer level;
         private String company;
         private String rhipPatientId;
+        private String mmiReceptionNumber;
 
         public InsurancePolicyModel() {}
 
-        public InsurancePolicyModel(InsurancePolicy policy) {
+        public InsurancePolicyModel(InsurancePolicy policy, Patient patient, RwandaEmrConfig rwandaEmrConfig) {
             this.policyId = policy.getInsurancePolicyId();
             this.owner = policy.getOwner();
             this.insuranceId = policy.getInsurance() == null ? null : policy.getInsurance().getInsuranceId();
             this.insuranceCardNo = policy.getInsuranceCardNo();
             this.rhipPatientId = policy.getRhipPatientId();
+            this.mmiReceptionNumber = InsurancePolicyPageController.getMmiReceptionNumber(patient, policy, rwandaEmrConfig);
             this.coverageStartDate = policy.getCoverageStartDate();
             this.expirationDate = policy.getExpirationDate();
             this.thirdPartyId = policy.getThirdParty() == null ? null : policy.getThirdParty().getThirdPartyId();

@@ -19,13 +19,19 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
+import org.openmrs.User;
+import org.openmrs.api.context.Context;
+import org.openmrs.module.mohbilling.model.RhipIntegrationLog;
+import org.openmrs.module.mohbilling.service.BillingService;
 import org.openmrs.module.rwandaemr.integration.HttpUtils;
 import org.openmrs.module.rwandaemr.integration.IntegrationResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Supports connections to and operations with the patient-reception endpoint for MMI flows.
@@ -34,6 +40,8 @@ import java.util.Map;
 public class InsurancePatientReceptionProvider {
 
 	protected Log log = LogFactory.getLog(getClass());
+
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 	private final InsuranceIntegrationConfig config;
 
@@ -45,16 +53,19 @@ public class InsurancePatientReceptionProvider {
 	                                                  String patientType, String otpCode, Boolean prescriptionRequired) {
 		IntegrationResponse ret = new IntegrationResponse();
 		ret.setEnabled(config.isPatientReceptionEnabled());
+		String url = config.getPatientReceptionUrl();
+		Map<String, Object> parameters = buildPatientReceptionPayload(insuranceType, patientIdentifier, facilityFosaId,
+				patientType, otpCode, prescriptionRequired);
+		String requestPayload = toJson(parameters);
 		if (!ret.isEnabled()) {
 			ret.setErrorMessage("Patient reception integration is not enabled. Configure " +
 					InsuranceIntegrationConfig.PATIENT_RECEPTION_URL + " global property.");
 		}
 		if (ret.isEnabled()) {
 			try (CloseableHttpClient httpClient = HttpUtils.getHttpClient(null, null, false)) {
-				ObjectMapper mapper = new ObjectMapper();
-				String url = config.getPatientReceptionUrl();
 				HttpPost httpPost = new HttpPost(url);
 				log.debug("POSTING " + url);
+				log.info("MMI patient reception request payload: " + requestPayload);
 				httpPost.setHeader("Content-Type", "application/json");
 				String apiKey = config.getPatientReceptionApiKey();
 				if (StringUtils.isNotBlank(apiKey)) {
@@ -64,16 +75,7 @@ public class InsurancePatientReceptionProvider {
 				if (StringUtils.isNotBlank(apiOrigin)) {
 					httpPost.setHeader("Origin", apiOrigin);
 				}
-				Map<String, Object> parameters = new HashMap<>();
-				parameters.put("insuranceType", StringUtils.isBlank(insuranceType) ? "MMI" : insuranceType.trim());
-				parameters.put("patientIdentifier", patientIdentifier);
-				parameters.put("facilityFosaId", facilityFosaId);
-				parameters.put("patientType", patientType);
-				parameters.put("prescriptionRequired", prescriptionRequired == null ? Boolean.TRUE : prescriptionRequired);
-				if (StringUtils.isNotBlank(otpCode)) {
-					parameters.put("otpCode", otpCode.trim());
-				}
-				httpPost.setEntity(new StringEntity(mapper.writeValueAsString(parameters)));
+				httpPost.setEntity(new StringEntity(requestPayload == null ? "" : requestPayload));
 				ret.setEndpointAccessible(false);
 				try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
 					ret.setEndpointAccessible(true);
@@ -87,7 +89,7 @@ public class InsurancePatientReceptionProvider {
 					}
 					if (StringUtils.isNotBlank(data)) {
 						try {
-							ret.setResponseEntity(mapper.readValue(data, InsurancePatientReceptionResponse.class));
+							ret.setResponseEntity(OBJECT_MAPPER.readValue(data, InsurancePatientReceptionResponse.class));
 						}
 						catch (Exception e) {
 							ret.setErrorMessage(e.getMessage());
@@ -98,7 +100,78 @@ public class InsurancePatientReceptionProvider {
 			catch (Exception e) {
 				ret.setErrorMessage(e.getMessage());
 			}
+			finally {
+				persistRhipIntegrationLog(url, "MMI_PATIENT_RECEPTION", requestPayload, ret);
+			}
+		} else {
+			persistRhipIntegrationLog(url, "MMI_PATIENT_RECEPTION", requestPayload, ret);
 		}
 		return ret;
+	}
+
+	private Map<String, Object> buildPatientReceptionPayload(String insuranceType, String patientIdentifier,
+	                                                         String facilityFosaId, String patientType, String otpCode,
+	                                                         Boolean prescriptionRequired) {
+		Map<String, Object> parameters = new HashMap<>();
+		parameters.put("insuranceType", StringUtils.isBlank(insuranceType) ? "MMI" : insuranceType.trim());
+		parameters.put("patientIdentifier", patientIdentifier);
+		parameters.put("facilityFosaId", facilityFosaId);
+		parameters.put("patientType", patientType);
+		parameters.put("prescriptionRequired", prescriptionRequired == null ? Boolean.TRUE : prescriptionRequired);
+		if (StringUtils.isNotBlank(otpCode)) {
+			parameters.put("otpCode", otpCode.trim());
+		}
+		return parameters;
+	}
+
+	private String toJson(Object value) {
+		try {
+			return OBJECT_MAPPER.writeValueAsString(value);
+		}
+		catch (Exception e) {
+			log.warn("Unable to serialize MMI patient reception payload", e);
+			return null;
+		}
+	}
+
+	private void persistRhipIntegrationLog(String url, String operationType, String requestPayload,
+	                                       IntegrationResponse response) {
+		try {
+			BillingService billingService = Context.getService(BillingService.class);
+			if (billingService == null) {
+				return;
+			}
+			User currentUser = Context.getAuthenticatedUser();
+			RhipIntegrationLog logEntry = new RhipIntegrationLog();
+			logEntry.setDateCreated(new Date());
+			logEntry.setCreator(currentUser);
+			logEntry.setSenderUsername(currentUser == null ? null : currentUser.getUsername());
+			logEntry.setOperationType(operationType);
+			logEntry.setEndpointUrl(url);
+			logEntry.setRequestPayload(requestPayload);
+			logEntry.setResponseCode(response == null ? null : response.getResponseCode());
+			logEntry.setResponseStatus(resolveResponseStatus(response));
+			logEntry.setResponseBody(toJson(response == null ? null : response.getResponseEntity()));
+			logEntry.setErrorMessage(response == null ? "No response" : response.getErrorMessage());
+			logEntry.setUuid(UUID.randomUUID().toString());
+			billingService.saveRhipIntegrationLog(logEntry);
+		}
+		catch (Exception e) {
+			log.warn("Unable to persist MMI patient reception in RHIP integration logs", e);
+		}
+	}
+
+	private String resolveResponseStatus(IntegrationResponse response) {
+		if (response == null) {
+			return "NO_RESPONSE";
+		}
+		if (StringUtils.isNotBlank(response.getErrorMessage())) {
+			return "ERROR";
+		}
+		Integer code = response.getResponseCode();
+		if (code == null) {
+			return "UNKNOWN";
+		}
+		return code >= 200 && code < 300 ? "SUCCESS" : "HTTP_" + code;
 	}
 }
