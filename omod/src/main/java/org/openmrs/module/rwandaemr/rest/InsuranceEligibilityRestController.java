@@ -12,9 +12,11 @@ import org.openmrs.module.rwandaemr.integration.IntegrationResponse;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceEligibilityProvider;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiPatientReceptionLogEntry;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiPatientReceptionLogRepository;
+import org.openmrs.module.rwandaemr.integration.insurance.MmiOtpVerificationResponse;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiReceptionData;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiReceptionResponse;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiReceptionStore;
+import org.openmrs.module.rwandaemr.session.MmiOtpSessionStore;
 import org.openmrs.module.webservices.rest.web.response.ResponseException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -65,7 +67,8 @@ public class InsuranceEligibilityRestController {
 
     @RequestMapping(value = "/rest/v1/rwandaemr/insurance/eligibility/verify-otp", method = RequestMethod.POST)
     @ResponseBody
-    public Object verifyInsuranceOtp(@RequestBody OtpVerificationRequest requestBody) throws ResponseException {
+    public Object verifyInsuranceOtp(@RequestBody OtpVerificationRequest requestBody,
+                                     HttpServletRequest request) throws ResponseException {
         String type = requestBody.getInsuranceType();
         String identifier = requestBody.getIdentifier();
         String otpCode = requestBody.getOtpCode();
@@ -75,11 +78,13 @@ public class InsuranceEligibilityRestController {
             fosaid = integrationConfig.getFosaId(Context.getUserContext().getLocation());
         }
         IntegrationResponse ret = insuranceEligibilityProvider.verifyOtp(type, identifier, otpCode, fosaid);
-        if (ret.getResponseEntity() instanceof org.openmrs.module.rwandaemr.integration.insurance.MmiOtpVerificationResponse) {
-            org.openmrs.module.rwandaemr.integration.insurance.MmiOtpVerificationResponse responseEntity =
-                    (org.openmrs.module.rwandaemr.integration.insurance.MmiOtpVerificationResponse) ret.getResponseEntity();
+        if (ret != null && ret.getResponseEntity() instanceof MmiOtpVerificationResponse) {
+            MmiOtpVerificationResponse responseEntity = (MmiOtpVerificationResponse) ret.getResponseEntity();
             log.info("MMI OTP verify result success=" + responseEntity.isSuccess());
-        } else if (StringUtils.isNotBlank(ret.getErrorMessage())) {
+            if (responseEntity.isSuccess()) {
+                MmiOtpSessionStore.rememberOtp(request, requestBody.getPatientId(), identifier, otpCode);
+            }
+        } else if (ret != null && StringUtils.isNotBlank(ret.getErrorMessage())) {
             log.warn("MMI OTP verify error=" + ret.getErrorMessage());
         }
         return ret;

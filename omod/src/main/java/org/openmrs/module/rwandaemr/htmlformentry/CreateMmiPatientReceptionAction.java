@@ -1,12 +1,15 @@
 package org.openmrs.module.rwandaemr.htmlformentry;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.openmrs.Encounter;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.htmlformentry.CustomFormSubmissionAction;
 import org.openmrs.module.htmlformentry.FormEntrySession;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiPatientReceptionContextHolder;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiPatientReceptionOrchestratorService;
+import org.openmrs.module.rwandaemr.session.MmiOtpSessionStore;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -26,6 +29,10 @@ public class CreateMmiPatientReceptionAction implements CustomFormSubmissionActi
 				HttpServletRequest request = ((ServletRequestAttributes) requestAttributes).getRequest();
 				if (request != null) {
 					otpCode = request.getParameter("mmiOtpCode");
+					if (StringUtils.isBlank(otpCode)) {
+						Integer patientId = resolvePatientId(session);
+						otpCode = MmiOtpSessionStore.getOtp(request, patientId, null);
+					}
 				}
 			}
 			MmiPatientReceptionContextHolder.setSubmittedOtpCode(otpCode);
@@ -40,5 +47,13 @@ public class CreateMmiPatientReceptionAction implements CustomFormSubmissionActi
 		finally {
 			MmiPatientReceptionContextHolder.clear();
 		}
+	}
+
+	private Integer resolvePatientId(FormEntrySession session) {
+		if (session == null || session.getEncounter() == null) {
+			return null;
+		}
+		Encounter encounter = session.getEncounter();
+		return encounter.getPatient() == null ? null : encounter.getPatient().getPatientId();
 	}
 }
