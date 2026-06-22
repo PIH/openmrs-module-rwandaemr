@@ -71,6 +71,17 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     .not-eligible-cell {
         background-color: darkred; color: white; font-weight: bold;
     }
+    .mmi-inactive-alert {
+        background-color: #c00000;
+        border: 2px solid #7f0000;
+        color: #ffffff;
+        display: block;
+        font-size: 16px;
+        font-weight: bold;
+        margin: 10px 0;
+        padding: 12px 14px;
+        border-radius: 3px;
+    }
 
     .simplemodal-data {
         max-height: 600px; /* Set a maximum height for the content */
@@ -105,6 +116,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     let mmiReceptionNumber = null;
     let mmiPatientType = null;
     let mmiMemberSelected = false;
+    const mmiInactiveAlertClass = "mmi-inactive-alert";
 
     function enableVerification() {
         jq("#rhip-patient-id-field").val("");
@@ -126,6 +138,19 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 
     function disableVerification() {
         enableManualEntry();
+    }
+
+    function setInsuranceCardNumberDisabled(disabled) {
+        if (disabled) {
+            jq("#policy-number-field").attr("disabled", "disabled");
+        } else {
+            jq("#policy-number-field").removeAttr("disabled");
+        }
+    }
+
+    function resetMmiInactiveEligibilityState() {
+        setInsuranceCardNumberDisabled(false);
+        jq("#verify-results-message, #mmi-reception-page-message").removeClass(mmiInactiveAlertClass).html("");
     }
 
     function toggleVerificationButton() {
@@ -194,10 +219,14 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         return patientPhoneNumber.substring(0, patientPhoneNumber.length - 4).replace(/./g, "*") + patientPhoneNumber.substring(patientPhoneNumber.length - 4);
     }
 
-    function setVerifyResultsMessage(message) {
+    function setVerifyResultsMessage(message, messageClass) {
         jq("#verify-member-section").find(".verify-member-row").remove();
-        jq("#verify-results-message").html(message ?? "");
-        jq("#mmi-reception-page-message").html(message ?? "");
+        const messageTargets = jq("#verify-results-message, #mmi-reception-page-message");
+        messageTargets.removeClass(mmiInactiveAlertClass);
+        if (messageClass) {
+            messageTargets.addClass(messageClass);
+        }
+        messageTargets.html(message ?? "");
         if (mmiReceptionNumber) {
             jq("#mmi-reception-number-value").text(mmiReceptionNumber);
             jq("#mmi-reception-number-row").show();
@@ -226,9 +255,28 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         }
     }
 
+    function getMmiEligibilityData(data) {
+        return data && data.responseEntity ? data.responseEntity.data : null;
+    }
+
+    function isMmiInactiveEligibilityResponse(data) {
+        const eligibilityData = getMmiEligibilityData(data);
+        return data && data.responseEntity && data.responseEntity.success === true
+            && eligibilityData && eligibilityData.isEligible === false;
+    }
+
+    function getMmiInactiveEligibilityMessage(data) {
+        const eligibilityData = getMmiEligibilityData(data);
+        const fullName = eligibilityData && eligibilityData.fullName ? eligibilityData.fullName.trim() : "";
+        return fullName
+            ? "MMI client " + fullName + " is not active. OTP was not sent."
+            : "MMI client is not active. OTP was not sent.";
+    }
+
     jq(document).ready(function () {
         if (jq("#verify-button").length > 0) {
             jq("#insurance-type-field, #insurance-type, select[name='insuranceId'], input[name='insuranceId']").change(function () {
+                resetMmiInactiveEligibilityState();
                 const insuranceTypeId = getInsuranceTypeId();
                 if (insuranceTypeId === "" || insurancesToVerify.has(insuranceTypeId) || isMmiInsuranceSelected()) {
                     toggleVerificationButton();
@@ -244,6 +292,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             <% } %>
 
             jq("#owner-code-field").on("change paste keyup", function () {
+                resetMmiInactiveEligibilityState();
                 toggleVerificationButton();
             });
             toggleVerificationButton();
@@ -262,6 +311,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 
             jq("#verify-button").click(function () {
                 jq("#verify-button").attr("disabled", "disabled");
+                resetMmiInactiveEligibilityState();
                 const insuranceTypeId = getInsuranceTypeId();
                 const insuranceType = getInsuranceTypeForRequest(insuranceTypeId);
                 const ownerCode = jq("#owner-code-field").val();
@@ -305,7 +355,11 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 
                 jq.get(eligibilityUrl + "?" + eligibilityParams, function(data) {
                     if (isMmiInsurance) {
-                        if (data.responseCode === 200) {
+                        if (isMmiInactiveEligibilityResponse(data)) {
+                            enableManualEntry();
+                            setInsuranceCardNumberDisabled(true);
+                            setVerifyResultsMessage(getMmiInactiveEligibilityMessage(data), mmiInactiveAlertClass);
+                        } else if (data.responseCode === 200 && data.responseEntity && data.responseEntity.success !== false) {
                             const maskedPhone = getMaskedPhoneNumber();
                             const message = maskedPhone ? ("OTP sent to " + maskedPhone + ". Enter the code to continue.") : "OTP sent. Enter the code to continue.";
                             jq("#mmi-otp-message").text(message);
@@ -321,7 +375,10 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             });
                             setVerifyResultsMessage("Waiting for OTP verification...");
                         } else {
-                            setVerifyResultsMessage("Failed to send OTP.");
+                            const errorMessage = data && data.responseEntity && data.responseEntity.message
+                                ? data.responseEntity.message
+                                : "Failed to send OTP.";
+                            setVerifyResultsMessage(errorMessage);
                         }
                         jq("#verify-button").removeAttr("disabled");
                         return;

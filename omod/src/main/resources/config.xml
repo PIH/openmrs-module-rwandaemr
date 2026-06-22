@@ -105,6 +105,60 @@
 	</globalProperty>
 
 	<globalProperty>
+		<property>rwandaemr.labNotification.enabled</property>
+		<defaultValue>false</defaultValue>
+		<description>Whether sending SMS notifications for ready laboratory results is enabled</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.url</property>
+		<defaultValue>http://41.186.44.171:1401/send</defaultValue>
+		<description>InTouch SMS gateway URL for sending high-volume SMS messages</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.username</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS gateway username</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.password</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS gateway password</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.sender</property>
+		<defaultValue></defaultValue>
+		<description>Sender name shown on lab result SMS notifications</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.coding</property>
+		<defaultValue>0</defaultValue>
+		<description>InTouch SMS message coding value</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.dlrUrl</property>
+		<defaultValue></defaultValue>
+		<description>Public URL that InTouch should call with delivery reports</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.dlrLevel</property>
+		<defaultValue>2</defaultValue>
+		<description>InTouch delivery report level, typically 2 for terminal delivery reports</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.messageTemplate</property>
+		<defaultValue>Your laboratory results are ready at {facility}. Please return to the facility or contact your provider.</defaultValue>
+		<description>SMS template for lab result notifications. Supported placeholders: {facility}, {patientName}, {order}</description>
+	</globalProperty>
+
+	<globalProperty>
 		<property>rwandaemr.hie.registration_encounter_type_id</property>
 		<defaultValue>5</defaultValue>
 		<description>Encounter type id used to identify registration encounters for HIE consent flow</description>
