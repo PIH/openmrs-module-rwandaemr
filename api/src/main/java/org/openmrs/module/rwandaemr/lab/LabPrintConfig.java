@@ -22,13 +22,13 @@ public class LabPrintConfig {
 
     protected final Log log = LogFactory.getLog(getClass());
 
-    public static final String PROP_FACILITY_NAME    = "rwandaemr.lab.print.facilityName";
-    public static final String PROP_FACILITY_ADDRESS = "rwandaemr.lab.print.facilityAddress";
-    public static final String PROP_FACILITY_EMAIL   = "rwandaemr.lab.print.facilityEmail";
-    public static final String PROP_FACILITY_PHONE   = "rwandaemr.lab.print.facilityPhone";
-    public static final String PROP_FACILITY_LOGO    = "rwandaemr.lab.print.facilityLogo";
-    public static final String PROP_LAB_TECH_NAME    = "rwandaemr.lab.print.labTechName";
-    public static final String PROP_LAB_TECH_STAMP   = "rwandaemr.lab.print.labTechStamp";
+    public static final String PROP_FACILITY_NAME    = "rwandaemr.facilityName";
+    public static final String PROP_FACILITY_ADDRESS = "rwandaemr.facilityAddress";
+    public static final String PROP_FACILITY_EMAIL   = "rwandaemr.facilityEmail";
+    public static final String PROP_FACILITY_PHONE   = "rwandaemr.facilityPhone";
+    public static final String PROP_FACILITY_LOGO    = "rwandaemr.facilityLogo";
+    public static final String PROP_LAB_TECH_NAME    = "rwandaemr.labTechName";
+    public static final String PROP_LAB_TECH_STAMP   = "rwandaemr.labTechStamp";
 
     public String getFacilityName() {
         return firstNonBlank(
