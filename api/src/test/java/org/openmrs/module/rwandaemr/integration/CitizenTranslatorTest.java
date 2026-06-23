@@ -57,4 +57,16 @@ public class CitizenTranslatorTest {
             assertThat(p.getAttribute(rwandaEmrConfig.getFathersName()).getValue(), equalTo("Manzi Callixte"));
         }
     }
+
+    @Test
+    public void shouldDeserializeCitizenResponseWithRefugeeNumber() throws Exception {
+        String data = "{\"status\":\"ok\",\"unexpectedRootField\":\"ignored\",\"data\":{\"documentType\":\"NID\","
+                + "\"documentNumber\":\"1198280185801049\",\"refugeeNumber\":\"REF-123\","
+                + "\"unexpectedCitizenField\":\"ignored\"}}";
+
+        CitizenResponse response = new ObjectMapper().readValue(data, CitizenResponse.class);
+
+        assertThat(response.getData(), notNullValue());
+        assertThat(response.getData().getRefugeeNumber(), equalTo("REF-123"));
+    }
 }

@@ -14,7 +14,10 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.openmrs.Encounter;
 import org.openmrs.api.context.Context;
+import org.openmrs.api.context.Daemon;
+import org.openmrs.module.DaemonToken;
 import org.openmrs.module.rwandaemr.event.HieEventListener;
 import org.openmrs.util.OpenmrsUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +32,9 @@ public class UpdateShrEncounterListener extends HieEventListener {
     private final IntegrationConfig integrationConfig;
     private final ShrEncounterProvider shrEncounterProvider;
 
+    private static DaemonToken daemonToken;
+    private static final String ENCOUNTER_FORM_IDS_TO_PUSH_GP = "rwandaemr.hie.encounterFormIdToBePushed";
+    private static final String ENCOUNTER_TYPE_IDS_TO_PUSH_GP = "rwandaemr.hie.encounterTypeIdToBePushed";
     private static final AtomicBoolean processing = new AtomicBoolean(false);
     private final ObjectMapper mapper = new ObjectMapper();
     private File messagesDir;
@@ -41,11 +47,44 @@ public class UpdateShrEncounterListener extends HieEventListener {
         this.shrEncounterProvider = shrEncounterProvider;
     }
 
+    public static void setDaemonToken(DaemonToken daemonToken) {
+        UpdateShrEncounterListener.daemonToken = daemonToken;
+    }
+
     @Override
     public void handle(String uuid, MapMessage mapMessage) {
-        // Queue-only: do not call HIE or OpenMRS read API in event path.
-        // Scheduled task validates and processes in controlled daemon context.
-        addEncounterToQueue(uuid, mapMessage);
+        String action;
+        try {
+            action = mapMessage.getString("action");
+        }
+        catch (Exception e) {
+            throw new IllegalStateException("Unable to retrieve action from MapMessage", e);
+        }
+        if (StringUtils.isEmpty(action)) {
+            throw new IllegalArgumentException("Unable to retrieve action from MapMessage");
+        }
+        if (daemonToken == null) {
+            throw new IllegalStateException("Daemon token is not set for UpdateShrEncounterListener");
+        }
+        Daemon.runInDaemonThread(() -> {
+            try {
+                Context.openSession();
+                try {
+                    if (!integrationConfig.isHieEnabled() || !integrationConfig.isShrPushEnabled()) {
+                        log.debug("Skipping SHR encounter queue: HIE disabled or " + IntegrationConfig.HIE_ENABLE_SHR_PUSH_PROPERTY + " is not true");
+                        return;
+                    }
+                    if (shouldPushEncounter(uuid)) {
+                        addEncounterToQueue(uuid, action);
+                    }
+                } finally {
+                    Context.closeSession();
+                }
+            }
+            catch (Exception e) {
+                handleException(e);
+            }
+        }, daemonToken);
     }
 
     @Override
@@ -55,14 +94,22 @@ public class UpdateShrEncounterListener extends HieEventListener {
     }
 
     public void addEncounterToQueue(String encounterUuid, MapMessage mapMessage){
+        try {
+            String action = mapMessage.getString("action");
+            addEncounterToQueue(encounterUuid, action);
+        } catch(Exception e){
+            throw new IllegalStateException("Error handling encounter message", e);
+        }
+    }
+
+    private void addEncounterToQueue(String encounterUuid, String action){
         if (!integrationConfig.isHieEnabled() || !integrationConfig.isShrPushEnabled()) {
             log.debug("Skipping SHR encounter queue: HIE disabled or " + IntegrationConfig.HIE_ENABLE_SHR_PUSH_PROPERTY + " is not true");
             return;
         }
         //handle the enccounter adding process into queue
         try{
-            String action = mapMessage.getString("action");
-            if(StringUtils.isEmpty(action)){
+            if (StringUtils.isEmpty(action)) {
                 throw new IllegalArgumentException("Unable to retrieve action from MapMessage");
             }
 
@@ -166,8 +213,61 @@ public class UpdateShrEncounterListener extends HieEventListener {
     }
 
     public void processItem(ShrEncounterQueueItem item) throws Exception {
-        org.openmrs.Encounter encounter = Context.getEncounterService().getEncounterByUuid(item.getEncounterUuid());
+        Encounter encounter = Context.getEncounterService().getEncounterByUuid(item.getEncounterUuid());
+        if (encounter == null) {
+            log.warn("Skipping SHR encounter sync because encounter was not found: " + item.getEncounterUuid());
+            return;
+        }
         shrEncounterProvider.updateEncounterInShr(encounter);
+    }
+
+    private boolean shouldPushEncounter(String encounterUuid) {
+        Encounter encounter = Context.getEncounterService().getEncounterByUuid(encounterUuid);
+        if (encounter == null) {
+            log.warn("Skipping SHR encounter queue because encounter was not found: " + encounterUuid);
+            return false;
+        }
+        return isConfiguredEncounter(encounter);
+    }
+
+    private boolean isConfiguredEncounter(Encounter encounter) {
+        Integer formId = encounter.getForm() == null ? null : encounter.getForm().getFormId();
+        Integer encounterTypeId = encounter.getEncounterType() == null ? null : encounter.getEncounterType().getEncounterTypeId();
+
+        if (isConfiguredId(formId, ENCOUNTER_FORM_IDS_TO_PUSH_GP) ||
+                isConfiguredId(encounterTypeId, ENCOUNTER_TYPE_IDS_TO_PUSH_GP)) {
+            return true;
+        }
+
+        log.debug("Skipping SHR encounter because form id " + formId + " is not listed in " + ENCOUNTER_FORM_IDS_TO_PUSH_GP +
+                " and encounter type id " + encounterTypeId + " is not listed in " + ENCOUNTER_TYPE_IDS_TO_PUSH_GP);
+        return false;
+    }
+
+    private boolean isConfiguredId(Integer id, String propertyName) {
+        if (id == null) {
+            return false;
+        }
+
+        String configuredIds = Context.getAdministrationService().getGlobalProperty(propertyName);
+        if (StringUtils.isBlank(configuredIds)) {
+            return false;
+        }
+
+        for (String configuredId : configuredIds.split(",")) {
+            if (StringUtils.isBlank(configuredId)) {
+                continue;
+            }
+            try {
+                if (id == Integer.parseInt(configuredId.trim())) {
+                    return true;
+                }
+            }
+            catch (NumberFormatException e) {
+                log.warn("Ignoring invalid id in " + propertyName + ": " + configuredId);
+            }
+        }
+        return false;
     }
 
     public void initializeMessageDir(){

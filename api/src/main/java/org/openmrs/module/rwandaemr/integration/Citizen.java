@@ -9,12 +9,14 @@
  */
 package org.openmrs.module.rwandaemr.integration;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 /**
  * Represents the citizen component of the response from the citizen endpoints in the HIE
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Citizen {
     private String fosaid;
     private String documentType; // NID, PASSPORT
@@ -28,6 +30,7 @@ public class Citizen {
     private String nid;
     private String upi;
     private String passportNumber;
+    private String refugeeNumber;
     private String surName;
     private String postNames;
     private String fatherName;
