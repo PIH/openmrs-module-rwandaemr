@@ -285,6 +285,30 @@
 	</globalProperty>
 
 	<globalProperty>
+		<property>rwandaemr.hie.obsConceptIdToBePushed</property>
+		<defaultValue>105500,105502,3065</defaultValue>
+		<description>
+			Concept IDs to be filtered when obs is going to be pushed to HIE. The concept IDs will be mentioned by coma(,) separator.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.encounterFormIdToBePushed</property>
+		<defaultValue>132</defaultValue>
+		<description>
+			Encounters to be filtered when encounter is going to be pushed to HIE. The form IDs will be mentioned by coma(,) separator.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.encounterTypeIdToBePushed</property>
+		<defaultValue>37</defaultValue>
+		<description>
+			Encounter Type IDs to be filtered when encounter is going to be pushed to HIE. The encounter IDs will be mentioned by coma(,) separator.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
 		<property>rwandaemr.icd11.enabled</property>
 		<defaultValue>false</defaultValue>
 		<description>Enable ICD-11 diagnosis search through the WHO ICD API.</description>

@@ -15,7 +15,10 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.openmrs.Obs;
 import org.openmrs.api.context.Context;
+import org.openmrs.api.context.Daemon;
+import org.openmrs.module.DaemonToken;
 import org.openmrs.module.rwandaemr.event.HieEventListener;
 import org.openmrs.util.OpenmrsUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +34,8 @@ public class UpdateShrObsListener extends HieEventListener {
     private final IntegrationConfig integrationConfig;
     private final ShrObsProvider shrObsProvider;
 
+    private static DaemonToken daemonToken;
+    private static final String OBS_CONCEPT_IDS_TO_PUSH_GP = "rwandaemr.hie.obsConceptIdToBePushed";
     private static final AtomicBoolean processing = new AtomicBoolean(false);
     private final ObjectMapper mapper = new ObjectMapper();
     private File messagesDir;
@@ -42,11 +47,45 @@ public class UpdateShrObsListener extends HieEventListener {
         this.integrationConfig = integrationConfig;
         this.shrObsProvider = shrObsProvider;
     }
+
+    public static void setDaemonToken(DaemonToken daemonToken) {
+        UpdateShrObsListener.daemonToken = daemonToken;
+    }
     
     @Override
     public void handle(String uuid, MapMessage mapMessage) {
-        // Queue-only: do not call HIE or OpenMRS read API in event path.
-        addObsToQueue(uuid, mapMessage);
+        String action;
+        try {
+            action = mapMessage.getString("action");
+        }
+        catch (Exception e) {
+            throw new IllegalStateException("Unable to retrieve action from MapMessage", e);
+        }
+        if (StringUtils.isEmpty(action)) {
+            throw new IllegalArgumentException("Unable to retrieve action from MapMessage");
+        }
+        if (daemonToken == null) {
+            throw new IllegalStateException("Daemon token is not set for UpdateShrObsListener");
+        }
+        Daemon.runInDaemonThread(() -> {
+            try {
+                Context.openSession();
+                try {
+                    if (!integrationConfig.isHieEnabled() || !integrationConfig.isShrPushEnabled()) {
+                        log.debug("Skipping SHR obs queue: HIE disabled or " + IntegrationConfig.HIE_ENABLE_SHR_PUSH_PROPERTY + " is not true");
+                        return;
+                    }
+                    if (shouldPushObs(uuid)) {
+                        addObsToQueue(uuid, action);
+                    }
+                } finally {
+                    Context.closeSession();
+                }
+            }
+            catch (Exception e) {
+                handleException(e);
+            }
+        }, daemonToken);
     }
 
     @Override
@@ -56,13 +95,21 @@ public class UpdateShrObsListener extends HieEventListener {
     }
 
     public void addObsToQueue(String obsUuid, MapMessage mapMessage){
+        try {
+            String action = mapMessage.getString("action");
+            addObsToQueue(obsUuid, action);
+        } catch(Exception e){
+            throw new IllegalStateException ("Error handling Obs message", e);
+        }
+    }
+
+    private void addObsToQueue(String obsUuid, String action){
         if (!integrationConfig.isHieEnabled() || !integrationConfig.isShrPushEnabled()) {
             log.debug("Skipping SHR obs queue: HIE disabled or " + IntegrationConfig.HIE_ENABLE_SHR_PUSH_PROPERTY + " is not true");
             return;
         }
         try {
-            String action = mapMessage.getString("action");
-            if(StringUtils.isEmpty(action)){
+            if (StringUtils.isEmpty(action)) {
                 throw new IllegalArgumentException("Unable to retrieve action from MapMessage");
             }
 
@@ -161,8 +208,53 @@ public class UpdateShrObsListener extends HieEventListener {
     }
 
     public void processItem(ShrObsQueueItem item) throws Exception {
-        org.openmrs.Obs obs = Context.getObsService().getObsByUuid(item.getObsUuid());
-        shrObsProvider.updateObsInShr(obs);
+        Obs obs = Context.getObsService().getObsByUuid(item.getObsUuid());
+        if (obs == null) {
+            log.warn("Skipping SHR obs sync because obs was not found: " + item.getObsUuid());
+            return;
+        }
+        //if (isConfiguredConcept(obs)) {
+            shrObsProvider.updateObsInShr(obs);
+        //}
+    }
+
+    private boolean shouldPushObs(String obsUuid) {
+        Obs obs = Context.getObsService().getObsByUuid(obsUuid);
+        if (obs == null) {
+            log.warn("Skipping SHR obs queue because obs was not found: " + obsUuid);
+            return false;
+        }
+        return isConfiguredConcept(obs);
+    }
+
+    private boolean isConfiguredConcept(Obs obs) {
+        if (obs.getConcept() == null || obs.getConcept().getConceptId() == null) {
+            log.warn("Skipping SHR obs because obs has no concept: " + obs.getUuid());
+            return false;
+        }
+
+        int conceptId = obs.getConcept().getConceptId();
+        String configuredConceptIds = Context.getAdministrationService().getGlobalProperty(OBS_CONCEPT_IDS_TO_PUSH_GP);
+        if (StringUtils.isBlank(configuredConceptIds)) {
+            log.debug("Skipping SHR obs because " + OBS_CONCEPT_IDS_TO_PUSH_GP + " is blank");
+            return false;
+        }
+
+        for (String configuredConceptId : configuredConceptIds.split(",")) {
+            if (StringUtils.isBlank(configuredConceptId)) {
+                continue;
+            }
+            try {
+                if (conceptId == Integer.parseInt(configuredConceptId.trim())) {
+                    return true;
+                }
+            }
+            catch (NumberFormatException e) {
+                log.warn("Ignoring invalid concept id in " + OBS_CONCEPT_IDS_TO_PUSH_GP + ": " + configuredConceptId);
+            }
+        }
+        log.debug("Skipping SHR obs because concept id " + conceptId + " is not listed in " + OBS_CONCEPT_IDS_TO_PUSH_GP);
+        return false;
     }
 
     public void initializeMessageDir(){
@@ -176,12 +268,13 @@ public class UpdateShrObsListener extends HieEventListener {
 
     public void writeMessafeToFile(ShrObsQueueItem queueItem){
         try{
+            // This runs in the JMS event path too, where OpenMRS Context may not be open.
             initializeMessageDir();
             String queueItemString = mapper.writeValueAsString(queueItem);
             String fileName = queueItem.getEventDatetime().getTime() + "_" + queueItem.getObsUuid() + ".json";
             File targetFile = new File(messagesDir, fileName);
             // Delete existing file if it exists to avoid duplicates
-            if(targetFile.exists()){
+            if (targetFile.exists()) {
                 FileUtils.deleteQuietly(targetFile);
             }
             // Use Files.write() instead of deprecated FileUtils.writeStringToFile()
