@@ -35,6 +35,7 @@ public class UpdateShrEncounterListener extends HieEventListener {
     private static DaemonToken daemonToken;
     private static final String ENCOUNTER_FORM_IDS_TO_PUSH_GP = "rwandaemr.hie.encounterFormIdToBePushed";
     private static final String ENCOUNTER_TYPE_IDS_TO_PUSH_GP = "rwandaemr.hie.encounterTypeIdToBePushed";
+    private static final String ENCOUNTER_TYPE_ID_TO_PUSH_WITH_ALL_OBS_GP = "rwandaemr.hie.oneEncounterTypeIdToBePushedWithAllObs";
     private static final AtomicBoolean processing = new AtomicBoolean(false);
     private final ObjectMapper mapper = new ObjectMapper();
     private File messagesDir;
@@ -235,12 +236,14 @@ public class UpdateShrEncounterListener extends HieEventListener {
         Integer encounterTypeId = encounter.getEncounterType() == null ? null : encounter.getEncounterType().getEncounterTypeId();
 
         if (isConfiguredId(formId, ENCOUNTER_FORM_IDS_TO_PUSH_GP) ||
-                isConfiguredId(encounterTypeId, ENCOUNTER_TYPE_IDS_TO_PUSH_GP)) {
+                isConfiguredId(encounterTypeId, ENCOUNTER_TYPE_IDS_TO_PUSH_GP) ||
+                isConfiguredId(encounterTypeId, ENCOUNTER_TYPE_ID_TO_PUSH_WITH_ALL_OBS_GP)) {
             return true;
         }
 
         log.debug("Skipping SHR encounter because form id " + formId + " is not listed in " + ENCOUNTER_FORM_IDS_TO_PUSH_GP +
-                " and encounter type id " + encounterTypeId + " is not listed in " + ENCOUNTER_TYPE_IDS_TO_PUSH_GP);
+                " and encounter type id " + encounterTypeId + " is not listed in " + ENCOUNTER_TYPE_IDS_TO_PUSH_GP +
+                " or " + ENCOUNTER_TYPE_ID_TO_PUSH_WITH_ALL_OBS_GP);
         return false;
     }
 

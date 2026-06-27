@@ -36,6 +36,7 @@ public class UpdateShrObsListener extends HieEventListener {
 
     private static DaemonToken daemonToken;
     private static final String OBS_CONCEPT_IDS_TO_PUSH_GP = "rwandaemr.hie.obsConceptIdToBePushed";
+    private static final String ENCOUNTER_TYPE_ID_TO_PUSH_WITH_ALL_OBS_GP = "rwandaemr.hie.oneEncounterTypeIdToBePushedWithAllObs";
     private static final AtomicBoolean processing = new AtomicBoolean(false);
     private final ObjectMapper mapper = new ObjectMapper();
     private File messagesDir;
@@ -228,6 +229,12 @@ public class UpdateShrObsListener extends HieEventListener {
     }
 
     private boolean isConfiguredConcept(Obs obs) {
+        Integer encounterTypeId = obs.getEncounter() == null || obs.getEncounter().getEncounterType() == null ?
+                null : obs.getEncounter().getEncounterType().getEncounterTypeId();
+        if (isConfiguredId(encounterTypeId, ENCOUNTER_TYPE_ID_TO_PUSH_WITH_ALL_OBS_GP)) {
+            return true;
+        }
+
         if (obs.getConcept() == null || obs.getConcept().getConceptId() == null) {
             log.warn("Skipping SHR obs because obs has no concept: " + obs.getUuid());
             return false;
@@ -254,6 +261,32 @@ public class UpdateShrObsListener extends HieEventListener {
             }
         }
         log.debug("Skipping SHR obs because concept id " + conceptId + " is not listed in " + OBS_CONCEPT_IDS_TO_PUSH_GP);
+        return false;
+    }
+
+    private boolean isConfiguredId(Integer id, String propertyName) {
+        if (id == null) {
+            return false;
+        }
+
+        String configuredIds = Context.getAdministrationService().getGlobalProperty(propertyName);
+        if (StringUtils.isBlank(configuredIds)) {
+            return false;
+        }
+
+        for (String configuredId : configuredIds.split(",")) {
+            if (StringUtils.isBlank(configuredId)) {
+                continue;
+            }
+            try {
+                if (id == Integer.parseInt(configuredId.trim())) {
+                    return true;
+                }
+            }
+            catch (NumberFormatException e) {
+                log.warn("Ignoring invalid id in " + propertyName + ": " + configuredId);
+            }
+        }
         return false;
     }
 

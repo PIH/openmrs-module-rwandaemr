@@ -307,6 +307,13 @@
 			Encounter Type IDs to be filtered when encounter is going to be pushed to HIE. The encounter IDs will be mentioned by coma(,) separator.
 		</description>
 	</globalProperty>
+	<globalProperty>
+		<property>rwandaemr.hie.oneEncounterTypeIdToBePushedWithAllObs</property>
+		<defaultValue>43</defaultValue>
+		<description>
+			On Encounter Type ID to be pushed to HIE with its related All Observations(eg: Laboratory Encounter).
+		</description>
+	</globalProperty>
 
 	<globalProperty>
 		<property>rwandaemr.icd11.enabled</property>
