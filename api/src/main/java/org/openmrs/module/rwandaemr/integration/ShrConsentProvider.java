@@ -49,6 +49,7 @@ public class ShrConsentProvider {
             }
             String url = integrationConfig.getHieEndpointUrl("/shr/Consent/$list-consents", "patient", upid, "page", "1", "size", "5","sort", "_lastUpdated,desc");
             HttpGet httpGet = new HttpGet(url);
+            httpGet.setHeader("Accept", HttpUtils.FHIR_JSON_CONTENT_TYPE);
             //log.debug("Getting Encounters for " + upid + " from " + url);
 
             try(CloseableHttpResponse response = httpClient.execute(httpGet)){

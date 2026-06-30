@@ -3,6 +3,7 @@ package org.openmrs.module.rwandaemr.integration;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -144,6 +145,7 @@ public class UpdateShrEncounterListener extends HieEventListener {
 
                 //get the list of files not synced to HIE
                 File[] files = Objects.requireNonNull(messagesDir.listFiles());
+                Arrays.sort(files, (left, right) -> Long.compare(left.lastModified(), right.lastModified()));
                 int queueWarnThreshold = integrationConfig.getQueueWarnThreshold();
                 int queueErrorThreshold = integrationConfig.getQueueErrorThreshold();
                 if (files.length >= queueErrorThreshold) {
@@ -198,7 +200,9 @@ public class UpdateShrEncounterListener extends HieEventListener {
                             }
                             writeMessafeToFile(item);
                             // Delete old file to avoid duplicates
-                            FileUtils.deleteQuietly(file);
+                            if (!file.equals(getMessageFile(item.getEncounterUuid()))) {
+                                FileUtils.deleteQuietly(file);
+                            }
                         }
                         //mark log message for later referance
                         log.debug("Error while processing the " + file.getName(), e);
@@ -286,8 +290,7 @@ public class UpdateShrEncounterListener extends HieEventListener {
         try{
             initializeMessageDir();
             String queueItemString = mapper.writeValueAsString(queueItem);
-            String fileName = queueItem.getEventDatetime().getTime() + "_" + queueItem.getEncounterUuid() + ".json";
-            File targetFile = new File(messagesDir, fileName);
+            File targetFile = getMessageFile(queueItem.getEncounterUuid());
             // Delete existing file if it exists to avoid duplicates
             if(targetFile.exists()){
                 FileUtils.deleteQuietly(targetFile);
@@ -297,6 +300,10 @@ public class UpdateShrEncounterListener extends HieEventListener {
         } catch(Exception e){
             log.error("Unable to save shr encounter for later synchronization: ", e);
         }
+    }
+
+    private File getMessageFile(String encounterUuid) {
+        return new File(messagesDir, encounterUuid + ".json");
     }
 
     @Data

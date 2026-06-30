@@ -56,6 +56,7 @@ public class ShrObsProvider {
             String url = integrationConfig.getHieEndpointUrl("/shr/Observation", "searchSet", "ENCOUNTER", "value", encounterUuid, "page", "1", "size", "500");
 
             HttpGet httpGet = new HttpGet(url);
+            httpGet.setHeader("Accept", HttpUtils.FHIR_JSON_CONTENT_TYPE);
             try(CloseableHttpResponse response = httpClient.execute(httpGet)){
                 int statusCode = response.getStatusLine().getStatusCode();
                 if(statusCode != 200){
@@ -110,6 +111,7 @@ public class ShrObsProvider {
             String cleanUuid = uuid.trim();
             String url = integrationConfig.getHieEndpointUrl("/shr/Observation/" + cleanUuid);
             HttpGet httpGet = new HttpGet(url);
+            httpGet.setHeader("Accept", HttpUtils.FHIR_JSON_CONTENT_TYPE);
             try(CloseableHttpResponse response = httpClient.execute(httpGet)){
                 int statusCode = response.getStatusLine().getStatusCode();
                 if (statusCode == 404) {
@@ -177,7 +179,8 @@ public class ShrObsProvider {
             }
             HttpPost httpPost = new HttpPost(integrationConfig.getHieEndpointUrl(endPoint));
             httpPost.setEntity(new StringEntity(postBody));
-            httpPost.setHeader("Content-Type", "application/json");
+            httpPost.setHeader("Content-Type", HttpUtils.FHIR_JSON_CONTENT_TYPE);
+            httpPost.setHeader("Accept", HttpUtils.FHIR_JSON_CONTENT_TYPE);
 
             //Make sure to send the request
             try(CloseableHttpResponse response = httpClient.execute(httpPost)){

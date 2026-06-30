@@ -12,6 +12,7 @@ import org.hl7.fhir.r4.model.DateTimeType;
 import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.Coding;
 import org.hl7.fhir.r4.model.Identifier;
+import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Provenance;
 import org.hl7.fhir.r4.model.Quantity;
 import org.hl7.fhir.r4.model.Reference;
@@ -80,6 +81,13 @@ public class ShrObsTranslator {
     }
 
     public void  updateShrObservation(@NotNull ShrObservation shrObservation, @Nonnull Obs obs){
+        Observation fhirObservation = shrObservation.getObservation();
+        fhirObservation.getContained().clear();
+        fhirObservation.getPerformer().clear();
+        fhirObservation.getCategory().clear();
+        fhirObservation.getHasMember().clear();
+        fhirObservation.getReferenceRange().clear();
+
         Patient patient = obs.getEncounter().getPatient();
 
         if(patient != null){
@@ -90,11 +98,11 @@ public class ShrObsTranslator {
             Identifier identifier = new Identifier().setType(idType).setValue(patientIdentifier.getIdentifier());
             Reference subject = new Reference().setReference("Patient/" + patientIdentifier.getIdentifier()).setType("Patient").setIdentifier(identifier).setDisplay(patient.getFamilyName() + " " + patient.getGivenName());
 
-            shrObservation.getObservation().setSubject(subject);
+            fhirObservation.setSubject(subject);
         }
 
         //Make sure to add the status which is final
-        shrObservation.getObservation().setStatus(ObservationStatus.FINAL);
+        fhirObservation.setStatus(ObservationStatus.FINAL);
 
         //
         User creator = obs.getCreator();
@@ -116,7 +124,7 @@ public class ShrObsTranslator {
             agentComponent.setWho(who);
             provenance.addAgent(agentComponent);
 
-            shrObservation.getObservation().addContained(provenance);
+            fhirObservation.addContained(provenance);
 
             //Adding missing performer paremeters too.
             Reference practitioner = new Reference()
@@ -126,14 +134,14 @@ public class ShrObsTranslator {
                 .setIdentifier(new Identifier().setValue(creator.getSystemId()))
             ;
 
-            shrObservation.getObservation().addPerformer(practitioner);
+            fhirObservation.addPerformer(practitioner);
 
         }
 
         //Make sure to category
         if(obs.getEncounter() != null){
             Reference encounterReference = new Reference().setReference("Encounter/" + obs.getEncounter().getUuid()).setType("Encounter");
-            shrObservation.getObservation().setEncounter(encounterReference);
+            fhirObservation.setEncounter(encounterReference);
 
             //Here use the encounter location to add HealthcareService which was missing
             Reference healthCareServiceReference = new Reference()
@@ -143,7 +151,7 @@ public class ShrObsTranslator {
             .setIdentifier(new Identifier().setValue(obs.getEncounter().getLocation().getName()))
             ;
 
-            shrObservation.getObservation().addPerformer(healthCareServiceReference);
+            fhirObservation.addPerformer(healthCareServiceReference);
 
             //Add the missing Location parameters
             if(obs.getEncounter().getLocation().getCityVillage() != null){
@@ -153,21 +161,21 @@ public class ShrObsTranslator {
                 .setDisplay(obs.getEncounter().getLocation().getCityVillage())
                 .setIdentifier(new Identifier().setValue(obs.getEncounter().getLocation().getCityVillage()))
                 ;
-                shrObservation.getObservation().addPerformer(locationReference);
+                fhirObservation.addPerformer(locationReference);
             }
         }
 
         if(obs.getDateCreated() != null){
-            shrObservation.getObservation().setEffective(new DateTimeType(obs.getDateCreated()));
-            shrObservation.getObservation().setIssued(obs.getDateCreated());
+            fhirObservation.setEffective(new DateTimeType(obs.getDateCreated()));
+            fhirObservation.setIssued(obs.getDateCreated());
         }
 
         if(obs.getUuid() != null){
-            shrObservation.getObservation().setId(obs.getUuid());
+            fhirObservation.setId(obs.getUuid());
         }
 
         if(obs.getValueText() != null){
-            shrObservation.getObservation().setValue(new StringType(obs.getValueText()));
+            fhirObservation.setValue(new StringType(obs.getValueText()));
         }
 
         if(obs.getEncounter().getEncounterType() != null){
@@ -175,7 +183,7 @@ public class ShrObsTranslator {
             Coding categoryCoding = new Coding().setSystem("http://terminology.hl7.org/CodeSystem/observation-category").setCode(encounterType.getName()).setDisplay(encounterType.getDescription());
             CodeableConcept categoryConcept = new CodeableConcept().addCoding(categoryCoding);
 
-            shrObservation.getObservation().addCategory(categoryConcept);
+            fhirObservation.addCategory(categoryConcept);
         }
 
         if(obs.getConcept() != null){
@@ -184,7 +192,7 @@ public class ShrObsTranslator {
             Coding obsCode = new Coding().setCode(obsConcept.getUuid()).setDisplay(obsConcept.getName().getName());
 
             CodeableConcept obsCodeableConcept = new CodeableConcept().addCoding(obsCode);
-            shrObservation.getObservation().setCode(obsCodeableConcept);
+            fhirObservation.setCode(obsCodeableConcept);
         }
 
         if(obs.hasGroupMembers()){
@@ -192,7 +200,7 @@ public class ShrObsTranslator {
             if(groupMembers != null && !groupMembers.isEmpty()){
                 for(Obs memberObs : groupMembers){
                     Reference referenceMember = new Reference().setReference("Observation/" + memberObs.getUuid()).setType("Observation");
-                    shrObservation.getObservation().addHasMember(referenceMember);
+                    fhirObservation.addHasMember(referenceMember);
                 }
             }
         }
@@ -201,7 +209,7 @@ public class ShrObsTranslator {
             Concept valueCoded = obs.getValueCoded();
             Coding valueCodedCoding = new Coding().setCode(valueCoded.getUuid()).setDisplay(valueCoded.getDisplayString());
             CodeableConcept codeableConcept = new CodeableConcept().addCoding(valueCodedCoding);
-            shrObservation.getObservation().setValue(codeableConcept);
+            fhirObservation.setValue(codeableConcept);
         }
         
         if(obs.getValueNumeric() != null){
@@ -212,7 +220,7 @@ public class ShrObsTranslator {
                 ConceptNumeric conceptNumeric = Context.getConceptService().getConceptNumeric(obs_concept.getConceptId()); // (ConceptNumeric) obs_concept;
                 if(conceptNumeric != null) {
                     Quantity quantity = new Quantity().setValue(obs.getValueNumeric()).setUnit(conceptNumeric.getUnits());
-                    shrObservation.getObservation().setValue(quantity);
+                    fhirObservation.setValue(quantity);
 
                     //here add the reference information
                     Coding typeCoding = new Coding().setSystem("http://terminology.hl7.org/CodeSystem/referencerange-meaning").setCode("normal");
@@ -223,7 +231,7 @@ public class ShrObsTranslator {
                     Quantity quantity_high = new Quantity().setValue(obs.getValueNumeric()).setUnit(conceptNumeric.getUnits());
                     ObservationReferenceRangeComponent rangeComponent = new ObservationReferenceRangeComponent().setLow(quantity_low).setHigh(quantity_high).setType(typeCodeableConcept);
 
-                    shrObservation.getObservation().addReferenceRange(rangeComponent);
+                    fhirObservation.addReferenceRange(rangeComponent);
                 }
             } catch(ClassCastException cce){
                 log.error("Unable to get Numeric characteristics of the OBS: " + cce.getMessage());

@@ -104,6 +104,12 @@ public class ShrEncounterTranslator {
      * @param encounter
      */
     public void updateShrEncounter(@NotNull ShrEncounter shrEncounter, @Nonnull Encounter encounter){
+        org.hl7.fhir.r4.model.Encounter fhirEncounter = shrEncounter.getEncounter();
+        fhirEncounter.getType().clear();
+        fhirEncounter.getParticipant().clear();
+        fhirEncounter.getLocation().clear();
+        fhirEncounter.getContained().clear();
+
         //Adding Subject reference for HIE To filter UPID
         Patient patient = encounter.getPatient();
         if(patient != null){
@@ -114,7 +120,7 @@ public class ShrEncounterTranslator {
                 CodeableConcept idType = new CodeableConcept().addCoding(idTypeCoding);
                 Identifier identifier = new Identifier().setType(idType).setValue(patientIdentifier.getIdentifier());
                 org.hl7.fhir.r4.model.Reference subject = new org.hl7.fhir.r4.model.Reference().setReference("Patient/" + patientIdentifier.getIdentifier()).setType("Patient").setIdentifier(identifier).setDisplay(patient.getFamilyName() + " " + patient.getGivenName());
-                shrEncounter.getEncounter().setSubject(subject);
+                fhirEncounter.setSubject(subject);
             }
         }
 
@@ -124,11 +130,11 @@ public class ShrEncounterTranslator {
             // log.info(encounterType.getName() + " is used as encounter type");
             Coding typeCoding = new Coding().setSystem("http://fhir.openmrs.org/code-system/encounter-type").setCode(encounterType.getUuid()).setDisplay(encounterType.getName());
             CodeableConcept codeableConceptType = new CodeableConcept().addCoding(typeCoding);
-            shrEncounter.getEncounter().addType(codeableConceptType);
+            fhirEncounter.addType(codeableConceptType);
         }
 
         //Adding Class Object
-        shrEncounter.getEncounter().setClass_(new Coding().setSystem("http://terminology.hl7.org/CodeSystem/v3-ActCode").setCode("AMB"));
+        fhirEncounter.setClass_(new Coding().setSystem("http://terminology.hl7.org/CodeSystem/v3-ActCode").setCode("AMB"));
         
         //Adding Participant to the Object
         Set<EncounterProvider> providers = encounter.getEncounterProviders();
@@ -138,36 +144,38 @@ public class ShrEncounterTranslator {
                 EncounterProvider provider = providers.iterator().next();
                 // log.info(provider.getProvider().getUuid() + " is going to be used as encounter provider");
                 org.hl7.fhir.r4.model.Reference providerReference = new org.hl7.fhir.r4.model.Reference().setReference("Practitioner/" + provider.getProvider().getUuid()).setType("Practitioner").setIdentifier(new Identifier().setValue(provider.getProvider().getIdentifier())).setDisplay(provider.getProvider().getName());
-                shrEncounter.getEncounter().addParticipant().setIndividual(providerReference);
+                fhirEncounter.addParticipant().setIndividual(providerReference);
             // }
         }
 
         //Adding Location field to Object
         Location location = encounter.getLocation();
-        if(location.getParentLocation() != null){
+        if(location != null && location.getParentLocation() != null){
             //This will make sure the used location is Hospital level not sub locations
             location = location.getParentLocation();
         }
         if(location != null){
             // log.info(location.getName() + " is going to be used as location");
             org.hl7.fhir.r4.model.Reference locationReference = new org.hl7.fhir.r4.model.Reference().setReference("Location/" + location.getUuid()).setType("Location").setIdentifier(new Identifier().setValue(location.getDescription())).setDisplay(location.getName());
-            shrEncounter.getEncounter().addLocation().setLocation(locationReference);
+            fhirEncounter.addLocation().setLocation(locationReference);
         }
 
         //Adding the service type
-        CodeableConcept serviceType = new CodeableConcept()
-                .addCoding(new Coding()
-                        .setSystem("http://terminology.hl7.org/CodeSystem/service-type")
-                        .setCode("Service/"+ encounter.getLocation().getLocationId())
-                        .setDisplay(encounter.getLocation().getName())
-                ).setText(encounter.getLocation().getName());
-        shrEncounter.getEncounter().setServiceType(serviceType);
+        if (encounter.getLocation() != null) {
+            CodeableConcept serviceType = new CodeableConcept()
+                    .addCoding(new Coding()
+                            .setSystem("http://terminology.hl7.org/CodeSystem/service-type")
+                            .setCode("Service/" + encounter.getLocation().getLocationId())
+                            .setDisplay(encounter.getLocation().getName())
+                    ).setText(encounter.getLocation().getName());
+            fhirEncounter.setServiceType(serviceType);
+        }
         
         //Adding Period field to object
         if(encounter.getEncounterDatetime() != null){
             // log.info(encounter.getEncounterDatetime() + " is being used as Period Start object");
             Period period = new Period().setStart(encounter.getEncounterDatetime());
-            shrEncounter.getEncounter().setPeriod(period);
+            fhirEncounter.setPeriod(period);
         }
 
         //Adding Contained field to Object
@@ -193,14 +201,14 @@ public class ShrEncounterTranslator {
 
             provenance.addAgent(agent);
 
-            shrEncounter.getEncounter().addContained(provenance);
+            fhirEncounter.addContained(provenance);
         }
         // log.info("Meta is going to be added");
         //Adding Meta to the object
-        shrEncounter.getEncounter().setMeta(new Meta().addTag(new Coding().setSystem("http://fhir.openmrs.org/ext/encounter-tag").setCode("encounter").setDisplay("Encounter")));
+        fhirEncounter.setMeta(new Meta().addTag(new Coding().setSystem("http://fhir.openmrs.org/ext/encounter-tag").setCode("encounter").setDisplay("Encounter")));
         // log.info("Status is going to be added too.");
         //Add Status field to the Object
-        shrEncounter.getEncounter().setStatus(EncounterStatus.UNKNOWN);
+        fhirEncounter.setStatus(EncounterStatus.UNKNOWN);
         log.info("Translation Update process ended");
     }
 }

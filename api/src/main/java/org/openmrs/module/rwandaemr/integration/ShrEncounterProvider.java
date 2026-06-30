@@ -72,6 +72,7 @@ public class ShrEncounterProvider {
             }
             String url = integrationConfig.getHieEndpointUrl("/shr/Encounter", "searchSet", "ALL","value", upid, "page", "1", "size", "50");
             HttpGet httpGet = new HttpGet(url);
+            httpGet.setHeader("Accept", HttpUtils.FHIR_JSON_CONTENT_TYPE);
             int fetchTimeoutMs = resolveShrFetchTimeoutMs();
             httpGet.setConfig(RequestConfig.copy(RequestConfig.DEFAULT)
                     .setConnectTimeout(HttpUtils.CONNECT_TIMEOUT)
@@ -199,6 +200,7 @@ public class ShrEncounterProvider {
             String cleanUuid = uuid.trim();
             String url = integrationConfig.getHieEndpointUrl("/shr/Encounter/" + cleanUuid);
             HttpGet httpGet = new HttpGet(url);
+            httpGet.setHeader("Accept", HttpUtils.FHIR_JSON_CONTENT_TYPE);
             try(CloseableHttpResponse response = httpClient.execute(httpGet)){
                 int statusCode = response.getStatusLine().getStatusCode();
                 if(statusCode == 404){
@@ -271,7 +273,8 @@ public class ShrEncounterProvider {
 
             HttpPost httpPost = new HttpPost(integrationConfig.getHieEndpointUrl(endPoint));
             httpPost.setEntity(new StringEntity(postBody));
-            httpPost.setHeader("Content-Type", "application/json");
+            httpPost.setHeader("Content-Type", HttpUtils.FHIR_JSON_CONTENT_TYPE);
+            httpPost.setHeader("Accept", HttpUtils.FHIR_JSON_CONTENT_TYPE);
 
             //sent the request and wait for the response
             try(CloseableHttpResponse response = httpClient.execute(httpPost)) {
@@ -326,7 +329,8 @@ public class ShrEncounterProvider {
                     log.info("Sending consent creation request to: " + consentUrl);
                     HttpPost httpPost = new HttpPost(consentUrl);
                     httpPost.setEntity(new StringEntity(consentPostBody));
-                    httpPost.setHeader("Content-Type", "application/json");
+                    httpPost.setHeader("Content-Type", HttpUtils.FHIR_JSON_CONTENT_TYPE);
+                    httpPost.setHeader("Accept", HttpUtils.FHIR_JSON_CONTENT_TYPE);
 
                     //sent the request and wait for the response
                     try(CloseableHttpResponse response = httpClientConsent.execute(httpPost)) {

@@ -4,6 +4,7 @@ package org.openmrs.module.rwandaemr.integration;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -142,6 +143,7 @@ public class UpdateShrObsListener extends HieEventListener {
             try{
                 initializeMessageDir();
                 File[] files = Objects.requireNonNull(messagesDir.listFiles());
+                Arrays.sort(files, (left, right) -> Long.compare(left.lastModified(), right.lastModified()));
                 int queueWarnThreshold = integrationConfig.getQueueWarnThreshold();
                 int queueErrorThreshold = integrationConfig.getQueueErrorThreshold();
                 if (files.length >= queueErrorThreshold) {
@@ -193,7 +195,9 @@ public class UpdateShrObsListener extends HieEventListener {
                             }
                             writeMessafeToFile(item);
                             // Delete old file to avoid duplicates
-                            FileUtils.deleteQuietly(file);
+                            if (!file.equals(getMessageFile(item.getObsUuid()))) {
+                                FileUtils.deleteQuietly(file);
+                            }
                         }
                         //mark log message for later referance
                         log.debug("Error while processing the " + file.getName(), e);
@@ -304,8 +308,7 @@ public class UpdateShrObsListener extends HieEventListener {
             // This runs in the JMS event path too, where OpenMRS Context may not be open.
             initializeMessageDir();
             String queueItemString = mapper.writeValueAsString(queueItem);
-            String fileName = queueItem.getEventDatetime().getTime() + "_" + queueItem.getObsUuid() + ".json";
-            File targetFile = new File(messagesDir, fileName);
+            File targetFile = getMessageFile(queueItem.getObsUuid());
             // Delete existing file if it exists to avoid duplicates
             if (targetFile.exists()) {
                 FileUtils.deleteQuietly(targetFile);
@@ -315,6 +318,10 @@ public class UpdateShrObsListener extends HieEventListener {
         } catch(Exception e){
             log.error("Unable to save shr obs for later synchronization: ", e);
         }
+    }
+
+    private File getMessageFile(String obsUuid) {
+        return new File(messagesDir, obsUuid + ".json");
     }
 
     @Data
