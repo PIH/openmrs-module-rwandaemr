@@ -121,11 +121,17 @@ public class UpdateClientRegistryPatientListener extends PatientEventListener {
 							numFailure++;
 							continue;
 						}
+						boolean openedSession = false;
 						try {
-							Context.openSession();
+							if (!Context.isSessionOpen()) {
+								Context.openSession();
+								openedSession = true;
+							}
 							processItem(item);
 						} finally {
-							Context.closeSession();
+							if (openedSession) {
+								Context.closeSession();
+							}
 						}
 						log.warn("Successfully synced patient to client registry - patientUuid: " + item.getPatientUuid() +
 								", file: " + file.getName());

@@ -178,11 +178,17 @@ public class UpdateShrEncounterListener extends HieEventListener {
                         }
 
                         //Here launch the process of processing the selected encounter
+                        boolean openedSession = false;
                         try {
-                            Context.openSession();
+                            if (!Context.isSessionOpen()) {
+                                Context.openSession();
+                                openedSession = true;
+                            }
                             processItem(item);
                         } finally {
-                            Context.closeSession();
+                            if (openedSession) {
+                                Context.closeSession();
+                            }
                         }
                         //if the processing process succeed delete the file
                         FileUtils.delete(file);

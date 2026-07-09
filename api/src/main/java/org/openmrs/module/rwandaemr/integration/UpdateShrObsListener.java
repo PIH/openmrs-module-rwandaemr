@@ -174,11 +174,17 @@ public class UpdateShrObsListener extends HieEventListener {
                             numFailure++;
                             continue;
                         }
+                        boolean openedSession = false;
                         try {
-                            Context.openSession();
+                            if (!Context.isSessionOpen()) {
+                                Context.openSession();
+                                openedSession = true;
+                            }
                             processItem(item);
                         } finally {
-                            Context.closeSession();
+                            if (openedSession) {
+                                Context.closeSession();
+                            }
                         }
                         FileUtils.delete(file);
                         numSuccess++;

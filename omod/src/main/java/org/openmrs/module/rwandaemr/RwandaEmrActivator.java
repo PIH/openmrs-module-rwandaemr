@@ -36,6 +36,7 @@ import org.openmrs.module.rwandaemr.radiology.HL7ListenerSetup;
 import org.openmrs.module.rwandaemr.radiology.ORUR01MessageListener;
 import org.openmrs.module.rwandaemr.radiology.RadiologyOrderEventListener;
 import org.openmrs.module.rwandaemr.task.RwandaEmrTimerTask;
+import org.openmrs.module.rwandaemr.web.HieQueueMonitorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,6 +109,7 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 		CreateInsurancePatientListener.setDaemonToken(daemonToken);
 		UpdateShrEncounterListener.setDaemonToken(daemonToken);
 		UpdateShrObsListener.setDaemonToken(daemonToken);
+		HieQueueMonitorService.setDaemonToken(daemonToken);
 		RadiologyOrderEventListener.setDaemonToken(daemonToken);
 		ORUR01MessageListener.setDaemonToken(daemonToken);
 	}

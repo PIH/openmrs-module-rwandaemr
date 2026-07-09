@@ -43,6 +43,7 @@ public class AdminPageExtension extends AdministrationSectionExt {
 	public Map<String, String> getLinks() {
 		LinkedHashMap<String, String> map = new LinkedHashMap<String, String>();
 		map.put("/module/rwandaemr/triggerSync.htm", "Trigger Sync for Patient");
+		map.put("/rwandaemr/admin/hieQueueMonitor.page", "HIE Queue Monitor");
 		return map;
 	}
 	

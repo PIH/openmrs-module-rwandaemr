@@ -32,17 +32,22 @@ public class ShrObsProvider {
     private final IntegrationConfig integrationConfig;
     private final RwandaEmrConfig rwandaEmrConfig;
     private final ShrObsTranslator shrObsTranslator;
+    private final ShrEncounterProvider shrEncounterProvider;
+
+    private static final String MISSING_ENCOUNTER_IN_SHR_MESSAGE = "Encounter is not present in the SHR.";
 
     public ShrObsProvider(
         @Autowired @Qualifier("fhirR4") FhirContext fhirContext,
         @Autowired IntegrationConfig integrationConfig,
         @Autowired RwandaEmrConfig rwandaEmrConfig,
-        @Autowired ShrObsTranslator shrObsTranslator
+        @Autowired ShrObsTranslator shrObsTranslator,
+        @Autowired ShrEncounterProvider shrEncounterProvider
     ) {
         this.fhirContext = fhirContext;
         this.integrationConfig = integrationConfig;
         this.rwandaEmrConfig = rwandaEmrConfig;
         this.shrObsTranslator = shrObsTranslator;
+        this.shrEncounterProvider = shrEncounterProvider;
     }
 
     public List<ShrObservation> fetchObservationFromShr(String encounterUuid){
@@ -173,6 +178,24 @@ public class ShrObsProvider {
 
         //log.debug("End Point: " + endPoint);
         log.debug("Data: " + postBody);
+        try {
+            postObservationToShr(endPoint, postBody);
+        } catch (IllegalStateException e) {
+            if (!isMissingEncounterInShrFailure(e)) {
+                throw e;
+            }
+            log.info("Observation sync failed because the encounter is missing in SHR. Syncing encounter "
+                    + obs.getEncounter().getUuid() + " before retrying observation " + obs.getUuid());
+            shrEncounterProvider.updateEncounterInShr(obs.getEncounter());
+            postObservationToShr(endPoint, postBody);
+        }
+    }
+
+    private boolean isMissingEncounterInShrFailure(IllegalStateException e) {
+        return e.getMessage() != null && e.getMessage().contains(MISSING_ENCOUNTER_IN_SHR_MESSAGE);
+    }
+
+    private void postObservationToShr(String endPoint, String postBody) throws Exception {
         try(CloseableHttpClient httpClient = HttpUtils.getHieClient()){
             if(httpClient == null){
                 throw new IllegalStateException("HIE client could not be created. Check HIE credentials configuration.");
@@ -199,5 +222,4 @@ public class ShrObsProvider {
             }
         }
     }
-    
 }
