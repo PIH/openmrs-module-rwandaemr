@@ -61,7 +61,9 @@ public class InsuranceEligibilityRestController {
             fosaid = integrationConfig.getFosaId(Context.getUserContext().getLocation());
         }
         boolean sendOtp = Boolean.parseBoolean(request.getParameter("sendOTP"));
-        IntegrationResponse ret = insuranceEligibilityProvider.checkEligibility(type, identifier, fosaid, sendOtp);
+        boolean isMainInsurer = Boolean.parseBoolean(request.getParameter("isMainInsurer"));
+        IntegrationResponse ret = insuranceEligibilityProvider.checkEligibility(type, identifier, fosaid, sendOtp,
+                isMainInsurer);
         return ret;
     }
 

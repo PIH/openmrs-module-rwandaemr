@@ -75,6 +75,17 @@
 
 
 	<globalProperty>
+		<property>rwandaemr.insuranceIntegration.baseUrl</property>
+		<defaultValue></defaultValue>
+		<description>
+			Base URL for RHIP shared insurance integration API. Example:
+			https://rhip-stag.moh.gov.rw/backend. When configured, RwandaEMR derives
+			/insurance_integration/api/v2 eligibility, OTP, patient-types, and patient-reception
+			endpoint URLs from this value unless the older full endpoint URL properties are configured.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
 		<property>rwandaemr.autoExpireLabOrdersOlderThanDays</property>
 		<defaultValue>30</defaultValue>
 		<description>

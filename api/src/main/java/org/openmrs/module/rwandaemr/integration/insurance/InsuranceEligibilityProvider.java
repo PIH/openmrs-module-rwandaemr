@@ -16,7 +16,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -30,8 +29,6 @@ import org.openmrs.module.rwandaemr.integration.IntegrationResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -58,93 +55,78 @@ public class InsuranceEligibilityProvider {
 	}
 
 	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid) {
-		return checkEligibility(type, identifier, fosaid, false);
+		return checkEligibility(type, identifier, fosaid, false, false);
 	}
 
 	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid, boolean sendOtp) {
-		if (sendOtp) {
-			Map<String, Object> parameters = new HashMap<>();
-			parameters.put("insuranceType", type);
-			parameters.put("identifier", identifier);
-			parameters.put("fosaid", fosaid);
-			parameters.put("sendOTP", true);
-			return postRequest(config.getEligibilityCheckUrl(), parameters, Object.class, "MMI_ELIGIBILITY_OTP_REQUEST");
-		}
+		return checkEligibility(type, identifier, fosaid, sendOtp, false);
+	}
 
+	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid, boolean sendOtp,
+			boolean isMainInsurer) {
+		Map<String, Object> parameters = new HashMap<>();
+		String normalizedType = normalizeInsuranceType(type);
+		parameters.put("insuranceType", normalizedType);
+		parameters.put("identifier", identifier);
+		parameters.put("fosaid", fosaid);
+		parameters.put("sendOTP", sendOtp);
+		if ("rama".equalsIgnoreCase(normalizedType)) {
+			parameters.put("isMainInsurer", isMainInsurer);
+		}
+		return postEligibilityCheck(parameters, sendOtp ? "MMI_ELIGIBILITY_OTP_REQUEST" : "ELIGIBILITY_CHECK");
+	}
+
+	private IntegrationResponse postEligibilityCheck(Map<String, Object> parameters, String operationType) {
 		IntegrationResponse ret = new IntegrationResponse();
 		ret.setEnabled(config.isEligibilityCheckEnabled());
-		if (ret.isEnabled()) {
-			try (CloseableHttpClient httpClient = HttpUtils.getHttpClient(null, null, false)) {
-				ObjectMapper mapper = new ObjectMapper();
-				String url = config.getEligibilityCheckUrl();
-				url = url.replace("{identifier}", URLEncoder.encode(identifier == null ? "" : identifier, StandardCharsets.UTF_8.name()));
-				url = url.replace("{type}", URLEncoder.encode(type == null ? "" : type, StandardCharsets.UTF_8.name()));
-				log.debug("GETTING " + url);
-				String apiKey = config.getEligibilityCheckApiKey();
-				String apiOrigin = config.getEligibilityCheckApiOrigin();
-				ret.setEndpointAccessible(false);
-
-				HttpGet httpGet = new HttpGet(url);
-				httpGet.setHeader("Content-Type", "application/json");
-				if (StringUtils.isNotBlank(apiKey)) {
-					httpGet.setHeader("x-api-key", apiKey);
-				}
-				if (StringUtils.isNotBlank(apiOrigin)) {
-					httpGet.setHeader("Origin", apiOrigin);
-				}
-
-				try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
-					ret.setEndpointAccessible(true);
-					int getStatus = response.getStatusLine().getStatusCode();
-					String getData = readEntityAsString(response.getEntity());
-					ret.setResponseCode(getStatus);
-					log.info("INS_ELIGIBILITY_MARKER GET_PRIMARY_RESULT status=" + getStatus + " type=" + type + " identifier=" + identifier);
-					if (StringUtils.isNotBlank(getData)) {
-						ret.setResponseEntity(normalizeResponse(type, identifier, getStatus, getData, mapper));
-					}
-
-					// Compatibility fallback: if GET fails, try POST with body semantics used by 3-x API.
-					if (getStatus >= 500 || getStatus == 405 || getStatus == 404) {
-						HttpPost httpPost = new HttpPost(url);
-						httpPost.setHeader("Content-Type", "application/json");
-						if (StringUtils.isNotBlank(apiKey)) {
-							httpPost.setHeader("x-api-key", apiKey);
-						}
-						if (StringUtils.isNotBlank(apiOrigin)) {
-							httpPost.setHeader("Origin", apiOrigin);
-						}
-						Map<String, Object> parameters = new HashMap<>();
-						parameters.put("insuranceType", type);
-						parameters.put("identifier", identifier);
-						parameters.put("fosaid", fosaid);
-						parameters.put("sendOTP", false);
-						httpPost.setEntity(new StringEntity(mapper.writeValueAsString(parameters)));
-						log.info("INS_ELIGIBILITY_MARKER GET_FAIL_RETRY_POST status=" + getStatus + " type=" + type + " identifier=" + identifier);
-						try (CloseableHttpResponse postResponse = httpClient.execute(httpPost)) {
-							int postStatus = postResponse.getStatusLine().getStatusCode();
-							String postData = readEntityAsString(postResponse.getEntity());
-							log.info("INS_ELIGIBILITY_MARKER POST_FALLBACK_RESULT status=" + postStatus + " type=" + type + " identifier=" + identifier);
-							if (postStatus == 200 && StringUtils.isNotBlank(postData)) {
-								ret.setResponseCode(postStatus);
-								ret.setResponseEntity(normalizeResponse(type, identifier, postStatus, postData, mapper));
-								ret.setErrorMessage(null);
-								log.info("INS_ELIGIBILITY_MARKER POST_FALLBACK_SUCCESS type=" + type + " identifier=" + identifier);
-							}
-						}
-					}
-				}
+		String url = config.getEligibilityCheckUrl();
+		String requestPayload = toJson(parameters);
+		if (!ret.isEnabled()) {
+			ret.setErrorMessage("Endpoint URL is not configured");
+			persistRhipIntegrationLog(url, operationType, requestPayload, ret);
+			return ret;
+		}
+		try (CloseableHttpClient httpClient = HttpUtils.getHttpClient(null, null, false)) {
+			ObjectMapper mapper = new ObjectMapper();
+			HttpPost httpPost = new HttpPost(url);
+			log.debug("POSTING " + url);
+			httpPost.setHeader("Content-Type", "application/json");
+			String apiKey = config.getEligibilityCheckApiKey();
+			String apiOrigin = config.getEligibilityCheckApiOrigin();
+			if (StringUtils.isNotBlank(apiKey)) {
+				httpPost.setHeader("x-api-key", apiKey);
 			}
-			catch (Exception e) {
-				ret.setErrorMessage(e.getMessage());
+			if (StringUtils.isNotBlank(apiOrigin)) {
+				httpPost.setHeader("Origin", apiOrigin);
+			}
+			httpPost.setEntity(new StringEntity(requestPayload == null ? "" : requestPayload));
+			ret.setEndpointAccessible(false);
+			try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+				ret.setEndpointAccessible(true);
+				int status = response.getStatusLine().getStatusCode();
+				String data = readEntityAsString(response.getEntity());
+				ret.setResponseCode(status);
+				log.info("INS_ELIGIBILITY_MARKER POST_RESULT status=" + status
+						+ " type=" + parameters.get("insuranceType")
+						+ " identifier=" + parameters.get("identifier"));
+				if (StringUtils.isNotBlank(data)) {
+					ret.setResponseEntity(normalizeResponse((String) parameters.get("insuranceType"),
+							(String) parameters.get("identifier"), status, data, mapper));
+				}
 			}
 		}
-
+		catch (Exception e) {
+			ret.setErrorMessage(e.getMessage());
+		}
+		finally {
+			persistRhipIntegrationLog(url, operationType, requestPayload, ret);
+		}
 		return ret;
 	}
 
 	public IntegrationResponse verifyOtp(String type, String identifier, String otpCode, String fosaid) {
 		Map<String, Object> parameters = new HashMap<>();
-		parameters.put("insuranceType", type);
+		parameters.put("insuranceType", normalizeInsuranceType(type));
 		parameters.put("identifier", identifier);
 		parameters.put("otpCode", otpCode);
 		parameters.put("fosaid", fosaid);
@@ -153,7 +135,7 @@ public class InsuranceEligibilityProvider {
 
 	public IntegrationResponse getPatientTypes(String insuranceType, String facilityFosaId) {
 		Map<String, Object> parameters = new HashMap<>();
-		parameters.put("insuranceType", insuranceType);
+		parameters.put("insuranceType", normalizeInsuranceType(insuranceType));
 		parameters.put("facility_fosa_id", facilityFosaId);
 		return postRequest(config.getMmiPatientTypesUrl(), parameters, MmiPatientTypesResponse.class, "MMI_PATIENT_TYPES");
 	}
@@ -161,7 +143,7 @@ public class InsuranceEligibilityProvider {
 	public IntegrationResponse createReception(String insuranceType, String patientIdentifier, String facilityFosaId,
 											   String patientType, String otpCode, boolean prescriptionRequired) {
 		Map<String, Object> parameters = new HashMap<>();
-		parameters.put("insuranceType", insuranceType);
+		parameters.put("insuranceType", normalizeInsuranceType(insuranceType));
 		parameters.put("patientIdentifier", patientIdentifier);
 		parameters.put("facilityFosaId", facilityFosaId);
 		parameters.put("patientType", patientType);
@@ -170,6 +152,17 @@ public class InsuranceEligibilityProvider {
 		}
 		parameters.put("prescriptionRequired", prescriptionRequired);
 		return postRequest(config.getMmiReceptionUrl(), parameters, MmiReceptionResponse.class, "MMI_RECEPTION");
+	}
+
+	private String normalizeInsuranceType(String insuranceType) {
+		if (StringUtils.isBlank(insuranceType)) {
+			return insuranceType;
+		}
+		String normalized = insuranceType.trim();
+		if ("MUTUELLE".equalsIgnoreCase(normalized)) {
+			return "cbhi";
+		}
+		return normalized.toLowerCase();
 	}
 
 	private IntegrationResponse postRequest(String url, Map<String, Object> parameters, Class<?> responseType,
@@ -299,13 +292,8 @@ public class InsuranceEligibilityProvider {
 
 		// New unified format already used by 3-x endpoint.
 		if (root.has("success")) {
-			InsuranceEligibilityResponse parsed = mapper.readValue(data, InsuranceEligibilityResponse.class);
-			if (StringUtils.isBlank(parsed.getInsuranceType())) {
-				parsed.setInsuranceType(type);
-			}
-			if (StringUtils.isBlank(parsed.getIdentifier())) {
-				parsed.setIdentifier(identifier);
-			}
+			InsuranceEligibilityResponse parsed = normalizeUnifiedResponse(type, identifier, root);
+			propagateGovernmentSponsoredToDependants(parsed.getData());
 			log.info("INS_ELIGIBILITY_MARKER NORMALIZED_UNIFIED type=" + type + " identifier=" + identifier + " success=" + parsed.isSuccess());
 			return parsed;
 		}
@@ -341,6 +329,7 @@ public class InsuranceEligibilityProvider {
 					head.setEligibilityStartDate(m.getEligibilityStartDate());
 					head.setIsGovernmentSponsored(m.getIsGovernmentSponsored());
 					head.setStatus(m.getStatus());
+					head.setEmployerName(m.getEmployerName());
 					head.setDependants(new ArrayList<InsuranceMember>());
 					owner = head;
 				} else {
@@ -356,6 +345,7 @@ public class InsuranceEligibilityProvider {
 				owner.setStatus(text(root, "status"));
 			}
 			owner.setDependants(members);
+			propagateGovernmentSponsoredToDependants(owner);
 			normalized.setData(owner);
 			normalized.setStatus(text(root, "status"));
 			normalized.setSuccess(responseCode == 200);
@@ -376,6 +366,7 @@ public class InsuranceEligibilityProvider {
 			owner.setPatientId(text(root, "cardId"));
 			owner.setIsEligible(bool(root, "isEligible"));
 			owner.setStatus(text(root, "status"));
+			owner.setEmployerName(text(root, "employerName"));
 			owner.setDependants(new ArrayList<InsuranceMember>());
 			normalized.setData(owner);
 			normalized.setStatus(owner.getStatus());
@@ -393,6 +384,54 @@ public class InsuranceEligibilityProvider {
 		return normalized;
 	}
 
+	private InsuranceEligibilityResponse normalizeUnifiedResponse(String type, String identifier, JsonNode root) {
+		InsuranceEligibilityResponse normalized = new InsuranceEligibilityResponse();
+		normalized.setSuccess(root.has("success") && root.get("success").asBoolean());
+		normalized.setMessage(text(root, "message"));
+		normalized.setInsuranceType(StringUtils.isBlank(text(root, "insuranceType")) ? type : text(root, "insuranceType"));
+		normalized.setIdentifier(StringUtils.isBlank(text(root, "identifier")) ? identifier : text(root, "identifier"));
+		normalized.setStatus(text(root, "status"));
+		normalized.setError(text(root, "error"));
+
+		JsonNode data = root.get("data");
+		if (data != null && data.isObject()) {
+			InsuranceOwner owner = new InsuranceOwner();
+			populateInsuranceMember(owner, data);
+			owner.setDependants(new ArrayList<InsuranceMember>());
+			JsonNode dependants = data.get("dependants");
+			if (dependants != null && dependants.isArray()) {
+				for (JsonNode dependantNode : dependants) {
+					InsuranceMember dependant = new InsuranceMember();
+					populateInsuranceMember(dependant, dependantNode);
+					if (StringUtils.isBlank(dependant.getEmployerName())) {
+						dependant.setEmployerName(owner.getEmployerName());
+					}
+					owner.getDependants().add(dependant);
+				}
+			}
+			normalized.setData(owner);
+		}
+		return normalized;
+	}
+
+	private void populateInsuranceMember(InsuranceMember member, JsonNode node) {
+		if (member == null || node == null) {
+			return;
+		}
+		member.setPatientId(text(node, "patientId"));
+		member.setFullName(text(node, "fullName"));
+		member.setIsEligible(bool(node, "isEligible"));
+		member.setDocumentNumber(text(node, "documentNumber"));
+		member.setTelephone(text(node, "telephone"));
+		member.setGender(text(node, "gender"));
+		member.setDateOfBirth(text(node, "dateOfBirth"));
+		member.setNid(text(node, "nid"));
+		member.setEligibilityStartDate(text(node, "eligibilityStartDate"));
+		member.setIsGovernmentSponsored(boolGovernmentSponsored(node));
+		member.setStatus(text(node, "status"));
+		member.setEmployerName(text(node, "employerName"));
+	}
+
 	private String text(JsonNode node, String field) {
 		if (node == null || field == null || !node.has(field) || node.get(field).isNull()) {
 			return "";
@@ -405,6 +444,17 @@ public class InsuranceEligibilityProvider {
 			return null;
 		}
 		return node.get(field).asBoolean();
+	}
+
+	private void propagateGovernmentSponsoredToDependants(InsuranceOwner owner) {
+		if (owner == null || !Boolean.TRUE.equals(owner.getIsGovernmentSponsored()) || owner.getDependants() == null) {
+			return;
+		}
+		for (InsuranceMember dependant : owner.getDependants()) {
+			if (dependant != null) {
+				dependant.setIsGovernmentSponsored(true);
+			}
+		}
 	}
 
 	/** Reads government-sponsored flag; supports unified and legacy (misspelled) JSON keys. */

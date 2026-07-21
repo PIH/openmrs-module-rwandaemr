@@ -71,6 +71,59 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     .not-eligible-cell {
         background-color: darkred; color: white; font-weight: bold;
     }
+    .household-head-badge {
+        background-color: #6f42c1;
+        border-radius: 4px;
+        color: #ffffff;
+        display: inline-block;
+        font-size: 12px;
+        font-weight: bold;
+        line-height: 1;
+        margin-right: 6px;
+        padding: 4px 6px;
+        vertical-align: middle;
+        animation: household-head-pulse 1.2s ease-in-out infinite;
+        box-shadow: 0 0 0 0 rgba(111, 66, 193, 0.65);
+    }
+    @keyframes household-head-pulse {
+        0% {
+            background-color: #6f42c1;
+            box-shadow: 0 0 0 0 rgba(111, 66, 193, 0.75);
+            transform: scale(1);
+        }
+        50% {
+            background-color: #9b00d9;
+            box-shadow: 0 0 0 6px rgba(111, 66, 193, 0);
+            transform: scale(1.06);
+        }
+        100% {
+            background-color: #6f42c1;
+            box-shadow: 0 0 0 0 rgba(111, 66, 193, 0);
+            transform: scale(1);
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .household-head-badge {
+            animation: none;
+            background-color: #9b00d9;
+            box-shadow: 0 0 0 2px rgba(111, 66, 193, 0.35);
+        }
+    }
+    .member-full-name {
+        vertical-align: middle;
+    }
+    .rama-main-insurer-row {
+        margin: 0 0 10px 0;
+    }
+    .rama-main-insurer-row label {
+        display: inline;
+        font-weight: normal;
+        margin-left: 4px;
+        vertical-align: middle;
+    }
+    .rama-main-insurer-row input {
+        vertical-align: middle;
+    }
     .mmi-inactive-alert {
         background-color: #c00000;
         border: 2px solid #7f0000;
@@ -119,7 +172,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     const mmiInactiveAlertClass = "mmi-inactive-alert";
 
     function enableVerification() {
-        jq("#rhip-patient-id-field").val("");
+        setRhipPatientId("");
         enableManualEntry();
     }
 
@@ -128,7 +181,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         jq("#company-field").removeAttr("disabled");
         jq("#level-field").removeAttr("disabled");
         jq("#policy-number-field").removeAttr("disabled");
-        jq("#rhip-patient-id-field").attr("disabled", "disabled");
+        jq("#rhip-patient-id-display-field").attr("disabled", "disabled");
         jq("#start-date-picker-display").removeAttr("disabled");
         jq("#start-date-picker-wrapper >> .icon-calendar").show();
         jq("#expiration-date-picker-display").removeAttr("disabled");
@@ -178,12 +231,41 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         return isGovernmentSponsored === true ? "Yes" : "No";
     }
 
+    function escapeHtml(value) {
+        return jq("<div/>").text(value || "").html();
+    }
+
+    function getMemberNameHtml(member) {
+        const memberName = '<span class="member-full-name">' + escapeHtml(member.fullName) + '</span>';
+        return member.isHouseholdHead === true
+            ? '<span class="household-head-badge">Head</span>' + memberName
+            : memberName;
+    }
+
+    function applyOwnerGovernmentSponsoredToDependants(owner) {
+        if (!owner || owner.isGovernmentSponsored !== true || !owner.dependants) {
+            return;
+        }
+        owner.dependants.forEach((dependant) => {
+            dependant.isGovernmentSponsored = true;
+        });
+    }
+
     function getInsuranceTypeId() {
         return jq("#insurance-type-field").val()
             || jq("#insurance-type").val()
             || jq("select[name='insuranceId']").val()
             || jq("input[name='insuranceId']").val()
             || "";
+    }
+
+    function getRhipPatientId() {
+        return jq("#rhip-patient-id-field").val();
+    }
+
+    function setRhipPatientId(rhipPatientId) {
+        jq("#rhip-patient-id-field").val(rhipPatientId || "");
+        jq("#rhip-patient-id-display-field").val(rhipPatientId || "");
     }
 
     function isMmiInsuranceName(name) {
@@ -199,6 +281,23 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         const insuranceTypeId = getInsuranceTypeId();
         const mappedType = insurancesToVerify.get(insuranceTypeId);
         return (mappedType && mappedType.toLowerCase() === "mmi") || isMmiInsuranceName(getSelectedInsuranceName());
+    }
+
+    function isRamaInsuranceSelected() {
+        const insuranceTypeId = getInsuranceTypeId();
+        const mappedType = insurancesToVerify.get(insuranceTypeId);
+        const selectedName = getSelectedInsuranceName();
+        return (mappedType && mappedType.toLowerCase() === "rama")
+            || (selectedName && selectedName.toLowerCase().indexOf("rama") !== -1);
+    }
+
+    function updateRamaMainInsurerControls() {
+        if (isRamaInsuranceSelected()) {
+            jq("#rama-main-insurer-row").show();
+        } else {
+            jq("#rama-main-insurer-field").prop("checked", false);
+            jq("#rama-main-insurer-row").hide();
+        }
     }
 
     function getInsuranceTypeForRequest(insuranceTypeId) {
@@ -286,6 +385,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     enableManualEntry();
                 }
                 updateMmiReceptionControls();
+                updateRamaMainInsurerControls();
             });
             <% if (!hasErrors) { // Do not trigger change if returning to page after validation error on submit %>
                 jq("#insurance-type-field, #insurance-type, select[name='insuranceId'], input[name='insuranceId']").change();
@@ -297,11 +397,12 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             });
             toggleVerificationButton();
             updateMmiReceptionControls();
+            updateRamaMainInsurerControls();
 
             if (isEditMode && !hasErrorsFlag) {
                 const insuranceTypeId = getInsuranceTypeId();
                 const ownerCode = jq("#owner-code-field").val();
-                const rhipPatientId = jq("#rhip-patient-id-field").val();
+                const rhipPatientId = getRhipPatientId();
                 if (insuranceTypeId && ownerCode && !rhipPatientId && insurancesToVerify.has(insuranceTypeId)) {
                     toggleVerificationButton();
                     jq("#verify-button").removeAttr("disabled");
@@ -316,9 +417,11 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 const insuranceType = getInsuranceTypeForRequest(insuranceTypeId);
                 const ownerCode = jq("#owner-code-field").val();
                 const isMmiInsurance = isMmiInsuranceSelected();
+                const isRamaInsurance = isRamaInsuranceSelected();
                 isMmiEligibilityFlow = false;
                 mmiMemberSelected = false;
                 updateMmiReceptionControls();
+                updateRamaMainInsurerControls();
 
                 if (!insuranceTypeId || !ownerCode) {
                     setVerifyResultsMessage("Insurance and owner code are required.");
@@ -347,11 +450,15 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 }
 
                 const eligibilityUrl = openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility";
-                const eligibilityParams = jq.param({
+                const eligibilityRequest = {
                     type: insuranceType,
                     identifier: ownerCode,
                     sendOTP: isMmiInsurance
-                });
+                };
+                if (isRamaInsurance) {
+                    eligibilityRequest.isMainInsurer = jq("#rama-main-insurer-field").is(":checked");
+                }
+                const eligibilityParams = jq.param(eligibilityRequest);
 
                 jq.get(eligibilityUrl + "?" + eligibilityParams, function(data) {
                     if (isMmiInsurance) {
@@ -458,13 +565,26 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         console.log(data);
         if (data && data.responseCode === 200) {
             let verifyRows = [];
+            if (!data.responseEntity) {
+                setVerifyResultsMessage(data.errorMessage || 'Insurance verification returned no usable response.');
+                jq("#verify-member-table").hide();
+                return;
+            }
             if (data.responseEntity.success) {
                 const owner = data.responseEntity.data;
+                if (!owner) {
+                    setNoMatchingInsurancesFound(insuranceType);
+                    return;
+                }
+                applyOwnerGovernmentSponsoredToDependants(owner);
                 owner['ownerName'] = owner.fullName;
+                owner['isHouseholdHead'] = true;
                 verifyRows.push(owner);
                 if (owner.dependants) {
                     owner.dependants.forEach((dependant) => {
                         dependant['ownerName'] = owner.fullName;
+                        dependant['employerName'] = dependant.employerName || owner.employerName || "";
+                        dependant['isHouseholdHead'] = false;
                         verifyRows.push(dependant);
                     });
                 }
@@ -476,7 +596,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 setVerifyResultsMessage('Please choose an eligible member or cancel');
                 verifyRows.forEach((member) => {
                     const row = jq("#verify-member-row-template").clone();
-                    jq(row).find(".member-name").html(member.fullName);
+                    jq(row).find(".member-name").html(getMemberNameHtml(member));
                     jq(row).find(".member-gender").html(member.gender);
                     jq(row).find(".member-birthdate").html(getDateDisplay(member.dateOfBirth));
                     jq(row).find(".member-start-date").html(getDateDisplay(member.eligibilityStartDate));
@@ -487,8 +607,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         jq(row).find(".member-eligibility").html('<span class="pill eligible-cell">Eligible</span>');
                         jq(row).find(".member-select").click(function () {
                             jq("#owner-name-field").val(member.ownerName);
+                            jq("#company-field").val(member.employerName || "");
                             jq("#policy-number-field").val(member.documentNumber);
-                            jq("#rhip-patient-id-field").val(member.patientId || "");
+                            setRhipPatientId(member.patientId);
                             if (member.eligibilityStartDate) {
                                 jq("#start-date-picker-field").val(member.eligibilityStartDate);
                                 jq("#start-date-picker-display").val(getDateDisplay(member.eligibilityStartDate));
@@ -613,6 +734,10 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                             initialValue: (policyModel.ownerCode ?: ''),
                             size: 30
                     ])}
+                    <p id="rama-main-insurer-row" class="rama-main-insurer-row" style="display: none;">
+                        <input type="checkbox" id="rama-main-insurer-field" />
+                        <label for="rama-main-insurer-field">Provided ID is for the main insurer/adherent</label>
+                    </p>
                     <% if (!insurancesToVerify.isEmpty() || hasMmiInsurance) { %>
                         <p id="verify-section">
                             <input type="button" id="verify-button" value="Check eligibility"/>
@@ -689,7 +814,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         otherAttributes: ["autocomplete": "off"]
                 ])}
                 ${ ui.includeFragment("uicommons", "field/text", [
-                        id: "rhip-patient-id",
+                        id: "rhip-patient-id-display",
                         label: "RHIP Patient ID",
                         formFieldName: "rhipPatientIdDisplay",
                         initialValue: (policyModel.rhipPatientId ?: ''),

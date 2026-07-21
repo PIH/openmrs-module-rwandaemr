@@ -9,11 +9,13 @@
  */
 package org.openmrs.module.rwandaemr.integration.insurance;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class InsuranceOwner extends InsuranceMember {
     List<InsuranceMember> dependants;
 }
