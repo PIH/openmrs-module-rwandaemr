@@ -113,7 +113,7 @@ public class InsurancePatientReceptionProvider {
 	                                                         String facilityFosaId, String patientType, String otpCode,
 	                                                         Boolean prescriptionRequired) {
 		Map<String, Object> parameters = new HashMap<>();
-		parameters.put("insuranceType", StringUtils.isBlank(insuranceType) ? "MMI" : insuranceType.trim());
+		parameters.put("insuranceType", normalizeInsuranceType(insuranceType));
 		parameters.put("patientIdentifier", patientIdentifier);
 		parameters.put("facilityFosaId", facilityFosaId);
 		parameters.put("patientType", patientType);
@@ -122,6 +122,17 @@ public class InsurancePatientReceptionProvider {
 			parameters.put("otpCode", otpCode.trim());
 		}
 		return parameters;
+	}
+
+	private String normalizeInsuranceType(String insuranceType) {
+		if (StringUtils.isBlank(insuranceType)) {
+			return "mmi";
+		}
+		String normalized = insuranceType.trim();
+		if ("MUTUELLE".equalsIgnoreCase(normalized)) {
+			return "cbhi";
+		}
+		return normalized.toLowerCase();
 	}
 
 	private String toJson(Object value) {

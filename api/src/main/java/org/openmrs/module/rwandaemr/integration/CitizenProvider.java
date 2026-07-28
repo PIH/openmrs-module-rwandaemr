@@ -9,7 +9,9 @@
  */
 package org.openmrs.module.rwandaemr.integration;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -84,7 +86,7 @@ public class CitizenProvider {
 					data = EntityUtils.toString(entity);
 				} catch (Exception ignored) {
 				}
-				log.warn("Data: " + data);
+				log.warn("Data: " + dataForLog(data, mapper));
 				if (statusCode != 200) {
 					throw new IllegalStateException("Http Status Code: " + statusCode + "; Response: " + data);
 				}
@@ -112,5 +114,23 @@ public class CitizenProvider {
 			log.warn("Invalid " + CITIZEN_FETCH_TIMEOUT_MS_GP + " value, using default " + DEFAULT_CITIZEN_FETCH_TIMEOUT_MS + " ms");
 		}
 		return DEFAULT_CITIZEN_FETCH_TIMEOUT_MS;
+	}
+
+	private String dataForLog(String data, ObjectMapper mapper) {
+		if (StringUtils.isBlank(data)) {
+			return data;
+		}
+		try {
+			JsonNode root = mapper.readTree(data);
+			JsonNode citizen = root.path("data");
+			if (citizen instanceof ObjectNode && citizen.has("photo") && !citizen.get("photo").isNull()) {
+				String photo = citizen.get("photo").asText();
+				((ObjectNode) citizen).put("photo", "[photo omitted, length=" + photo.length() + "]");
+			}
+			return mapper.writeValueAsString(root);
+		}
+		catch (Exception e) {
+			return data;
+		}
 	}
 }

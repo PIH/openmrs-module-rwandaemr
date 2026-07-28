@@ -31,6 +31,8 @@ public class InsuranceIntegrationConfig {
 	protected Log log = LogFactory.getLog(getClass());
 
 	private static final String ELIGIBILITY_CHECK_PREFIX = "rwandaemr.insuranceEligibility.";
+	private static final String SHARED_API_PREFIX = "/insurance_integration/api/v2";
+	public static final String SHARED_BASE_URL = "rwandaemr.insuranceIntegration.baseUrl";
 	public static final String ELIGIBILITY_CHECK_URL = ELIGIBILITY_CHECK_PREFIX + "url";
 	public static final String ELIGIBILITY_OTP_VERIFY_URL = ELIGIBILITY_CHECK_PREFIX + "otpVerifyUrl";
 	public static final String ELIGIBILITY_MMI_PATIENT_TYPES_URL = ELIGIBILITY_CHECK_PREFIX + "mmiPatientTypesUrl";
@@ -46,19 +48,19 @@ public class InsuranceIntegrationConfig {
 	}
 
 	public String getEligibilityCheckUrl() {
-		return ConfigUtil.getProperty(ELIGIBILITY_CHECK_URL);
+		return configuredUrlOrSharedPath(ELIGIBILITY_CHECK_URL, "/eligibility-check");
 	}
 
 	public String getEligibilityOtpVerifyUrl() {
-		return ConfigUtil.getProperty(ELIGIBILITY_OTP_VERIFY_URL);
+		return configuredUrlOrSharedPath(ELIGIBILITY_OTP_VERIFY_URL, "/otp-verification");
 	}
 
 	public String getMmiPatientTypesUrl() {
-		return ConfigUtil.getProperty(ELIGIBILITY_MMI_PATIENT_TYPES_URL);
+		return configuredUrlOrSharedPath(ELIGIBILITY_MMI_PATIENT_TYPES_URL, "/patient-types");
 	}
 
 	public String getMmiReceptionUrl() {
-		return ConfigUtil.getProperty(ELIGIBILITY_MMI_RECEPTION_URL);
+		return configuredUrlOrSharedPath(ELIGIBILITY_MMI_RECEPTION_URL, "/patient-reception");
 	}
 
 	public String getEligibilityCheckApiKey() {
@@ -74,7 +76,7 @@ public class InsuranceIntegrationConfig {
 	}
 
 	public String getPatientReceptionUrl() {
-		return ConfigUtil.getProperty(PATIENT_RECEPTION_URL);
+		return configuredUrlOrSharedPath(PATIENT_RECEPTION_URL, "/patient-reception");
 	}
 
 	public String getPatientReceptionApiKey() {
@@ -99,6 +101,37 @@ public class InsuranceIntegrationConfig {
 
 	public String getPatientReceptionFacilityFosaIdOverride() {
 		return StringUtils.trimToNull(ConfigUtil.getProperty(PATIENT_RECEPTION_FACILITY_FOSA_ID_OVERRIDE));
+	}
+
+	public String getSharedBaseUrl() {
+		return ConfigUtil.getProperty(SHARED_BASE_URL);
+	}
+
+	private String configuredUrlOrSharedPath(String property, String endpointPath) {
+		String configured = ConfigUtil.getProperty(property);
+		if (StringUtils.isNotBlank(configured)) {
+			return configured;
+		}
+		String baseUrl = getSharedBaseUrl();
+		if (StringUtils.isBlank(baseUrl)) {
+			return null;
+		}
+		return joinUrl(baseUrl, endpointPath);
+	}
+
+	private String joinUrl(String baseUrl, String endpointPath) {
+		String normalizedBase = baseUrl.trim();
+		if (normalizedBase.endsWith("/")) {
+			normalizedBase = normalizedBase.substring(0, normalizedBase.length() - 1);
+		}
+		if (!normalizedBase.endsWith(SHARED_API_PREFIX)) {
+			normalizedBase = normalizedBase + SHARED_API_PREFIX;
+		}
+		String normalizedPath = endpointPath == null ? "" : endpointPath.trim();
+		if (!normalizedPath.startsWith("/")) {
+			normalizedPath = "/" + normalizedPath;
+		}
+		return normalizedBase + normalizedPath;
 	}
 
 	public List<String> getInsuranceTypesToVerify() {

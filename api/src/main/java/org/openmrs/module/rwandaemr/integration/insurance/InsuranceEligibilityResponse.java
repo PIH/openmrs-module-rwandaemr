@@ -9,9 +9,11 @@
  */
 package org.openmrs.module.rwandaemr.integration.insurance;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class InsuranceEligibilityResponse {
     private boolean success;
     private String message;
