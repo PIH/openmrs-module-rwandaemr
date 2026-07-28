@@ -55,6 +55,8 @@
 
 	<mappingFiles>
 		Icd11.hbm.xml
+		Queue.hbm.xml
+		RwandaEmrAppointment.hbm.xml
 	</mappingFiles>
 
 	<extension>
@@ -71,6 +73,68 @@
 		<name>Task: rwandaemr.radiologyorders</name>
 		<description>Access the radiology orders page from the patient chart</description>
 	</privilege>
+
+	<privilege>
+		<name>RwandaEMR Queue: View</name>
+		<description>View queue entries for the current login location</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: Manage</name>
+		<description>Manage queue entries</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: Call Patient</name>
+		<description>Call patients and update active service status</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: Transfer Patient</name>
+		<description>Transfer patients between login-location service points</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: Configure</name>
+		<description>Configure Service Requested concept mappings to login-location queue service points</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: Reports</name>
+		<description>View queue reports</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: View All Locations</name>
+		<description>View queue entries across all login locations</description>
+	</privilege>
+
+	<privilege>
+		<name>RwandaEMR Appointments: View</name>
+		<description>View appointment schedules, capacity, and patient bookings</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Appointments: Manage Schedules</name>
+		<description>Create and update daily service-point appointment schedules</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Appointments: Book</name>
+		<description>Request and cancel patient appointments against available schedules</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Appointments: Manage</name>
+		<description>Confirm and update patient appointment outcomes</description>
+	</privilege>
+
+	<globalProperty>
+		<property>registration.serviceRequestedConcept</property>
+		<defaultValue>6702</defaultValue>
+		<description>
+			ID, UUID, or mapping reference for the coded Service Requested concept whose answers are mapped to queue service points.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.queue.laboratoryServicePoint</property>
+		<defaultValue></defaultValue>
+		<description>
+			Location UUID, ID, or name of the Laboratory login-location service point. When blank, locations named Lab or containing Laboratory are treated as Laboratory.
+		</description>
+	</globalProperty>
 
 
 

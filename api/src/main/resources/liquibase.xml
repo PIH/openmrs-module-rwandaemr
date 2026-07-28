@@ -29,7 +29,7 @@
         <sqlFile path="sql/migrations/update-non-active-lab-orders.sql" relativeToChangelogFile="true" stripComments="true" />
     </changeSet>
 
-    <changeSet id="rwandaemr-create-mmi-patient-reception-log" author="codex">
+    <changeSet id="rwandaemr-create-mmi-patient-reception-log" author="jberchmas">
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="mmi_patient_reception_log"/></not>
         </preConditions>
@@ -73,7 +73,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="rwandaemr-allow-pre-visit-mmi-patient-reception-log" author="codex">
+    <changeSet id="rwandaemr-allow-pre-visit-mmi-patient-reception-log" author="jberchmas">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="mmi_patient_reception_log"/>
             <columnExists tableName="mmi_patient_reception_log" columnName="visit_id"/>
@@ -81,7 +81,7 @@
         <dropNotNullConstraint tableName="mmi_patient_reception_log" columnName="visit_id" columnDataType="int"/>
     </changeSet>
 
-    <changeSet id="rwandaemr-create-lab-notification-log" author="codex">
+    <changeSet id="rwandaemr-create-lab-notification-log" author="jberchmas">
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="lab_notification_log"/></not>
         </preConditions>
@@ -334,6 +334,407 @@
         <createIndex tableName="rwandaemr_icd11_concept_map" indexName="idx_icd11_map_concept">
             <column name="concept_id"/>
         </createIndex>
+    </changeSet>
+
+    <changeSet id="20260710-create-rwandaemr-queue-service-point-concept-map" author="jberchmas">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_queue_service_point_concept_map"/></not>
+        </preConditions>
+        <createTable tableName="rwandaemr_queue_service_point_concept_map">
+            <column name="queue_service_point_concept_map_id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="uuid" type="char(38)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="service_requested_concept_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="service_point_location_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="creator" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int"/>
+            <column name="date_changed" type="datetime"/>
+            <column name="voided" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="voided_by" type="int"/>
+            <column name="date_voided" type="datetime"/>
+            <column name="void_reason" type="varchar(255)"/>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_queue_map_concept"
+                                 baseTableName="rwandaemr_queue_service_point_concept_map" baseColumnNames="service_requested_concept_id"
+                                 referencedTableName="concept" referencedColumnNames="concept_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_map_sp_location"
+                                 baseTableName="rwandaemr_queue_service_point_concept_map" baseColumnNames="service_point_location_id"
+                                 referencedTableName="location" referencedColumnNames="location_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_map_creator"
+                                 baseTableName="rwandaemr_queue_service_point_concept_map" baseColumnNames="creator"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_map_changed_by"
+                                 baseTableName="rwandaemr_queue_service_point_concept_map" baseColumnNames="changed_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_map_voided_by"
+                                 baseTableName="rwandaemr_queue_service_point_concept_map" baseColumnNames="voided_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <createIndex tableName="rwandaemr_queue_service_point_concept_map" indexName="idx_queue_map_concept">
+            <column name="service_requested_concept_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_service_point_concept_map" indexName="idx_queue_map_sp_location">
+            <column name="service_point_location_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_service_point_concept_map" indexName="idx_queue_map_date_created">
+            <column name="date_created"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260710-create-rwandaemr-queue-entry" author="jberchmas">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_queue_entry"/></not>
+        </preConditions>
+        <createTable tableName="rwandaemr_queue_entry">
+            <column name="queue_entry_id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="uuid" type="char(38)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="patient_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="visit_id" type="int"/>
+            <column name="encounter_id" type="int"/>
+            <column name="encounter_location_id" type="int"/>
+            <column name="session_location_id" type="int"/>
+            <column name="service_point_location_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="service_requested_concept_id" type="int"/>
+            <column name="assigned_provider_id" type="int"/>
+            <column name="priority" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="queue_number" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="arrival_time" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="called_time" type="datetime"/>
+            <column name="service_start_time" type="datetime"/>
+            <column name="service_end_time" type="datetime"/>
+            <column name="completed_time" type="datetime"/>
+            <column name="comments" type="text"/>
+            <column name="creator" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int"/>
+            <column name="date_changed" type="datetime"/>
+            <column name="voided" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="voided_by" type="int"/>
+            <column name="date_voided" type="datetime"/>
+            <column name="void_reason" type="varchar(255)"/>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_patient"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="patient_id"
+                                 referencedTableName="patient" referencedColumnNames="patient_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_visit"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="visit_id"
+                                 referencedTableName="visit" referencedColumnNames="visit_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_encounter"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="encounter_id"
+                                 referencedTableName="encounter" referencedColumnNames="encounter_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_enc_location"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="encounter_location_id"
+                                 referencedTableName="location" referencedColumnNames="location_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_session_location"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="session_location_id"
+                                 referencedTableName="location" referencedColumnNames="location_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_sp_location"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="service_point_location_id"
+                                 referencedTableName="location" referencedColumnNames="location_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_service_concept"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="service_requested_concept_id"
+                                 referencedTableName="concept" referencedColumnNames="concept_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_provider"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="assigned_provider_id"
+                                 referencedTableName="provider" referencedColumnNames="provider_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_creator"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="creator"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_changed_by"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="changed_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_voided_by"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="voided_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_patient">
+            <column name="patient_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_visit">
+            <column name="visit_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_encounter">
+            <column name="encounter_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_enc_location">
+            <column name="encounter_location_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_session_location">
+            <column name="session_location_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_sp_location">
+            <column name="service_point_location_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_service_concept">
+            <column name="service_requested_concept_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_priority">
+            <column name="priority"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_arrival_time">
+            <column name="arrival_time"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_date_created">
+            <column name="date_created"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260710-create-rwandaemr-queue-status-history" author="jberchmas">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_queue_status_history"/></not>
+        </preConditions>
+        <createTable tableName="rwandaemr_queue_status_history">
+            <column name="queue_status_history_id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="uuid" type="char(38)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="queue_entry_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="previous_status" type="varchar(50)"/>
+            <column name="new_status" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_changed" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="varchar(1024)"/>
+        </createTable>
+        <addForeignKeyConstraint constraintName="fk_queue_history_entry"
+                                 baseTableName="rwandaemr_queue_status_history" baseColumnNames="queue_entry_id"
+                                 referencedTableName="rwandaemr_queue_entry" referencedColumnNames="queue_entry_id"/>
+        <addForeignKeyConstraint constraintName="fk_queue_history_changed_by"
+                                 baseTableName="rwandaemr_queue_status_history" baseColumnNames="changed_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <createIndex tableName="rwandaemr_queue_status_history" indexName="idx_queue_history_entry">
+            <column name="queue_entry_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_queue_status_history" indexName="idx_queue_history_date_changed">
+            <column name="date_changed"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260720-add-queue-entry-previous-service-point" author="rwandaemr">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="rwandaemr_queue_entry"/>
+            <not><columnExists tableName="rwandaemr_queue_entry" columnName="previous_service_point_location_id"/></not>
+        </preConditions>
+        <addColumn tableName="rwandaemr_queue_entry">
+            <column name="previous_service_point_location_id" type="int"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_queue_entry_previous_sp"
+                                 baseTableName="rwandaemr_queue_entry" baseColumnNames="previous_service_point_location_id"
+                                 referencedTableName="location" referencedColumnNames="location_id"/>
+        <createIndex tableName="rwandaemr_queue_entry" indexName="idx_queue_entry_previous_sp">
+            <column name="previous_service_point_location_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260723-create-rwandaemr-appointment-schedule" author="jberchmas">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_appointment_schedule"/></not>
+        </preConditions>
+        <createTable tableName="rwandaemr_appointment_schedule">
+            <column name="appointment_schedule_id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="uuid" type="char(38)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="service_point_location_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="schedule_date" type="date">
+                <constraints nullable="false"/>
+            </column>
+            <column name="maximum_patients" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="varchar(1024)"/>
+            <column name="creator" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int"/>
+            <column name="date_changed" type="datetime"/>
+            <column name="voided" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="voided_by" type="int"/>
+            <column name="date_voided" type="datetime"/>
+            <column name="void_reason" type="varchar(255)"/>
+        </createTable>
+        <addUniqueConstraint tableName="rwandaemr_appointment_schedule"
+                             columnNames="service_point_location_id,schedule_date"
+                             constraintName="uq_appointment_schedule_service_date"/>
+        <addForeignKeyConstraint constraintName="fk_appointment_schedule_location"
+                                 baseTableName="rwandaemr_appointment_schedule" baseColumnNames="service_point_location_id"
+                                 referencedTableName="location" referencedColumnNames="location_id"/>
+        <addForeignKeyConstraint constraintName="fk_appointment_schedule_creator"
+                                 baseTableName="rwandaemr_appointment_schedule" baseColumnNames="creator"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_appointment_schedule_changed_by"
+                                 baseTableName="rwandaemr_appointment_schedule" baseColumnNames="changed_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_appointment_schedule_voided_by"
+                                 baseTableName="rwandaemr_appointment_schedule" baseColumnNames="voided_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <createIndex tableName="rwandaemr_appointment_schedule" indexName="idx_appointment_schedule_date">
+            <column name="schedule_date"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_appointment_schedule" indexName="idx_appointment_schedule_active">
+            <column name="active"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260723-create-rwandaemr-appointment-booking" author="jberchmas">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_appointment_booking"/></not>
+        </preConditions>
+        <createTable tableName="rwandaemr_appointment_booking">
+            <column name="appointment_booking_id" type="int" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="uuid" type="char(38)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="appointment_schedule_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="patient_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="requested_at" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="varchar(1024)"/>
+            <column name="creator" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int"/>
+            <column name="date_changed" type="datetime"/>
+            <column name="voided" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="voided_by" type="int"/>
+            <column name="date_voided" type="datetime"/>
+            <column name="void_reason" type="varchar(255)"/>
+        </createTable>
+        <addUniqueConstraint tableName="rwandaemr_appointment_booking"
+                             columnNames="appointment_schedule_id,patient_id"
+                             constraintName="uq_appointment_booking_schedule_patient"/>
+        <addForeignKeyConstraint constraintName="fk_appointment_booking_schedule"
+                                 baseTableName="rwandaemr_appointment_booking" baseColumnNames="appointment_schedule_id"
+                                 referencedTableName="rwandaemr_appointment_schedule"
+                                 referencedColumnNames="appointment_schedule_id"/>
+        <addForeignKeyConstraint constraintName="fk_appointment_booking_patient"
+                                 baseTableName="rwandaemr_appointment_booking" baseColumnNames="patient_id"
+                                 referencedTableName="patient" referencedColumnNames="patient_id"/>
+        <addForeignKeyConstraint constraintName="fk_appointment_booking_creator"
+                                 baseTableName="rwandaemr_appointment_booking" baseColumnNames="creator"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_appointment_booking_changed_by"
+                                 baseTableName="rwandaemr_appointment_booking" baseColumnNames="changed_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <addForeignKeyConstraint constraintName="fk_appointment_booking_voided_by"
+                                 baseTableName="rwandaemr_appointment_booking" baseColumnNames="voided_by"
+                                 referencedTableName="users" referencedColumnNames="user_id"/>
+        <createIndex tableName="rwandaemr_appointment_booking" indexName="idx_appointment_booking_patient">
+            <column name="patient_id"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_appointment_booking" indexName="idx_appointment_booking_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_appointment_booking" indexName="idx_appointment_booking_requested">
+            <column name="requested_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260727-add-program-to-appointment-booking" author="jberchmas">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="rwandaemr_appointment_booking"/>
+                <not><columnExists tableName="rwandaemr_appointment_booking" columnName="program_id"/></not>
+            </and>
+        </preConditions>
+        <addColumn tableName="rwandaemr_appointment_booking">
+            <column name="program_id" type="int"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_appointment_booking_program"
+                                 baseTableName="rwandaemr_appointment_booking" baseColumnNames="program_id"
+                                 referencedTableName="program" referencedColumnNames="program_id"/>
+        <createIndex tableName="rwandaemr_appointment_booking" indexName="idx_appointment_booking_program">
+            <column name="program_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260727-add-visit-type-to-appointment-booking" author="jberchmas">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="rwandaemr_appointment_booking"/>
+                <not><columnExists tableName="rwandaemr_appointment_booking" columnName="visit_type"/></not>
+            </and>
+        </preConditions>
+        <addColumn tableName="rwandaemr_appointment_booking">
+            <column name="visit_type" type="varchar(20)"/>
+        </addColumn>
     </changeSet>
 
 </databaseChangeLog>

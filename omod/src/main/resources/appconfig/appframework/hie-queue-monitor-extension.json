@@ -1,0 +1,12 @@
+[
+  {
+    "id": "rwandaemr.hieQueueMonitor.systemAdministration",
+    "extensionPointId": "systemAdministration.overallActions",
+    "type": "link",
+    "label": "HIE Queue Monitor",
+    "url": "rwandaemr/admin/hieQueueMonitor.page",
+    "icon": "icon-exchange",
+    "requiredPrivilege": "App: coreapps.systemAdministration",
+    "order": 100
+  }
+]

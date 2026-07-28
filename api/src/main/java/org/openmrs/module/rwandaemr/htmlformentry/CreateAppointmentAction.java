@@ -28,6 +28,10 @@ import java.util.Date;
  */
 public class CreateAppointmentAction implements CustomFormSubmissionAction {
 
+    private static final String SERVICE_REQUESTED_CONCEPT_GP = "registration.serviceRequestedConcept";
+
+    private static final String DEFAULT_SERVICE_REQUESTED_CONCEPT = "6702";
+
     protected Log log = LogFactory.getLog(getClass());
 
     @Override
@@ -86,11 +90,10 @@ public class CreateAppointmentAction implements CustomFormSubmissionAction {
     }
 
     Concept getServiceRequestedConcept() {
-        String gpVal = Context.getAdministrationService().getGlobalProperty("registration.serviceRequestedConcept");
-        if (StringUtils.isNotBlank(gpVal)) {
-            return HtmlFormEntryUtil.getConcept(gpVal);
-        }
-        return null;
+        String gpVal = Context.getAdministrationService().getGlobalProperty(
+                SERVICE_REQUESTED_CONCEPT_GP, DEFAULT_SERVICE_REQUESTED_CONCEPT);
+        return HtmlFormEntryUtil.getConcept(StringUtils.isBlank(gpVal)
+                ? DEFAULT_SERVICE_REQUESTED_CONCEPT : gpVal);
     }
 
     private void setMmiReceptionNumber(Visit visit, Integer patientId) {

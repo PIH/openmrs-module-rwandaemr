@@ -66,4 +66,66 @@
 		</property>
 	</bean>
 
+	<bean id="queueDao" class="org.openmrs.module.rwandaemr.queue.dao.HibernateQueueDao">
+		<property name="sessionFactory"><ref bean="dbSessionFactory"/></property>
+	</bean>
+
+	<bean id="locationTagUtil" class="org.openmrs.module.rwandaemr.LocationTagUtil">
+		<constructor-arg ref="locationService"/>
+	</bean>
+
+	<bean id="queueService" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+		<property name="transactionManager"><ref bean="transactionManager"/></property>
+		<property name="target">
+			<bean class="org.openmrs.module.rwandaemr.queue.QueueServiceImpl">
+				<property name="dao"><ref bean="queueDao"/></property>
+				<property name="locationTagUtil"><ref bean="locationTagUtil"/></property>
+			</bean>
+		</property>
+		<property name="preInterceptors">
+			<ref bean="serviceInterceptors"/>
+		</property>
+		<property name="transactionAttributeSource">
+			<bean class="org.springframework.transaction.annotation.AnnotationTransactionAttributeSource"/>
+		</property>
+	</bean>
+
+	<bean parent="serviceContext">
+		<property name="moduleService">
+			<list merge="true">
+				<value>org.openmrs.module.rwandaemr.queue.QueueService</value>
+				<ref bean="queueService"/>
+			</list>
+		</property>
+	</bean>
+
+	<bean id="appointmentDao" class="org.openmrs.module.rwandaemr.appointment.dao.HibernateAppointmentDao">
+		<property name="sessionFactory"><ref bean="dbSessionFactory"/></property>
+	</bean>
+
+	<bean id="facilityAppointmentService" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+		<property name="transactionManager"><ref bean="transactionManager"/></property>
+		<property name="target">
+			<bean class="org.openmrs.module.rwandaemr.appointment.FacilityAppointmentServiceImpl">
+				<property name="dao"><ref bean="appointmentDao"/></property>
+				<property name="locationTagUtil"><ref bean="locationTagUtil"/></property>
+			</bean>
+		</property>
+		<property name="preInterceptors">
+			<ref bean="serviceInterceptors"/>
+		</property>
+		<property name="transactionAttributeSource">
+			<bean class="org.springframework.transaction.annotation.AnnotationTransactionAttributeSource"/>
+		</property>
+	</bean>
+
+	<bean parent="serviceContext">
+		<property name="moduleService">
+			<list merge="true">
+				<value>org.openmrs.module.rwandaemr.appointment.FacilityAppointmentService</value>
+				<ref bean="facilityAppointmentService"/>
+			</list>
+		</property>
+	</bean>
+
 </beans>

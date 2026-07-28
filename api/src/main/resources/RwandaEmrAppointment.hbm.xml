@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+        "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping package="org.openmrs.module.rwandaemr.appointment.model">
+
+	<class name="AppointmentSchedule" table="rwandaemr_appointment_schedule">
+		<id name="id" type="java.lang.Integer" column="appointment_schedule_id">
+			<generator class="native"/>
+		</id>
+		<property name="uuid" type="java.lang.String" column="uuid" length="38" not-null="true" unique="true"/>
+		<many-to-one name="servicePoint" class="org.openmrs.Location" column="service_point_location_id" not-null="true"/>
+		<property name="scheduleDate" type="date" column="schedule_date" not-null="true"/>
+		<property name="maximumPatients" type="java.lang.Integer" column="maximum_patients" not-null="true"/>
+		<property name="active" type="java.lang.Boolean" column="active" not-null="true"/>
+		<property name="notes" type="java.lang.String" column="notes" length="1024"/>
+		<many-to-one name="creator" class="org.openmrs.User" column="creator" not-null="true"/>
+		<property name="dateCreated" type="java.util.Date" column="date_created" not-null="true"/>
+		<many-to-one name="changedBy" class="org.openmrs.User" column="changed_by"/>
+		<property name="dateChanged" type="java.util.Date" column="date_changed"/>
+		<property name="voided" type="java.lang.Boolean" column="voided" not-null="true"/>
+		<many-to-one name="voidedBy" class="org.openmrs.User" column="voided_by"/>
+		<property name="dateVoided" type="java.util.Date" column="date_voided"/>
+		<property name="voidReason" type="java.lang.String" column="void_reason" length="255"/>
+	</class>
+
+	<class name="AppointmentBooking" table="rwandaemr_appointment_booking">
+		<id name="id" type="java.lang.Integer" column="appointment_booking_id">
+			<generator class="native"/>
+		</id>
+		<property name="uuid" type="java.lang.String" column="uuid" length="38" not-null="true" unique="true"/>
+		<many-to-one name="schedule" class="AppointmentSchedule" column="appointment_schedule_id" not-null="true"/>
+		<many-to-one name="patient" class="org.openmrs.Patient" column="patient_id" not-null="true"/>
+		<many-to-one name="program" class="org.openmrs.Program" column="program_id"/>
+		<property name="visitTypeName" type="java.lang.String" column="visit_type" length="20"/>
+		<property name="statusName" type="java.lang.String" column="status" length="50" not-null="true"/>
+		<property name="requestedAt" type="java.util.Date" column="requested_at" not-null="true"/>
+		<property name="notes" type="java.lang.String" column="notes" length="1024"/>
+		<many-to-one name="creator" class="org.openmrs.User" column="creator" not-null="true"/>
+		<property name="dateCreated" type="java.util.Date" column="date_created" not-null="true"/>
+		<many-to-one name="changedBy" class="org.openmrs.User" column="changed_by"/>
+		<property name="dateChanged" type="java.util.Date" column="date_changed"/>
+		<property name="voided" type="java.lang.Boolean" column="voided" not-null="true"/>
+		<many-to-one name="voidedBy" class="org.openmrs.User" column="voided_by"/>
+		<property name="dateVoided" type="java.util.Date" column="date_voided"/>
+		<property name="voidReason" type="java.lang.String" column="void_reason" length="255"/>
+	</class>
+
+</hibernate-mapping>

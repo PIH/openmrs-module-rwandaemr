@@ -1,0 +1,11 @@
+[
+  {
+    "id": "rwandaemr.hieQueueMonitor",
+    "description": "Monitor and manage pending and failed HIE queue requests",
+    "label": "HIE Queue Monitor",
+    "url": "rwandaemr/admin/hieQueueMonitor.page",
+    "icon": "icon-exchange",
+    "requiredPrivilege": "App: coreapps.systemAdministration",
+    "order": 100
+  }
+]

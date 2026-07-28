@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+        "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping package="org.openmrs.module.rwandaemr.queue.model">
+
+	<class name="QueueServicePointConceptMap" table="rwandaemr_queue_service_point_concept_map">
+		<id name="id" type="java.lang.Integer" column="queue_service_point_concept_map_id">
+			<generator class="native"/>
+		</id>
+		<property name="uuid" type="java.lang.String" column="uuid" length="38" not-null="true" unique="true"/>
+		<many-to-one name="serviceRequestedConcept" class="org.openmrs.Concept" column="service_requested_concept_id" not-null="true"/>
+		<many-to-one name="servicePoint" class="org.openmrs.Location" column="service_point_location_id" not-null="true"/>
+		<property name="active" type="java.lang.Boolean" column="active" not-null="true"/>
+		<many-to-one name="creator" class="org.openmrs.User" column="creator" not-null="true"/>
+		<property name="dateCreated" type="java.util.Date" column="date_created" not-null="true"/>
+		<many-to-one name="changedBy" class="org.openmrs.User" column="changed_by"/>
+		<property name="dateChanged" type="java.util.Date" column="date_changed"/>
+		<property name="voided" type="java.lang.Boolean" column="voided" not-null="true"/>
+		<many-to-one name="voidedBy" class="org.openmrs.User" column="voided_by"/>
+		<property name="dateVoided" type="java.util.Date" column="date_voided"/>
+		<property name="voidReason" type="java.lang.String" column="void_reason" length="255"/>
+	</class>
+
+	<class name="QueueEntry" table="rwandaemr_queue_entry">
+		<id name="id" type="java.lang.Integer" column="queue_entry_id">
+			<generator class="native"/>
+		</id>
+		<property name="uuid" type="java.lang.String" column="uuid" length="38" not-null="true" unique="true"/>
+		<many-to-one name="patient" class="org.openmrs.Patient" column="patient_id" not-null="true"/>
+		<many-to-one name="visit" class="org.openmrs.Visit" column="visit_id"/>
+		<many-to-one name="encounter" class="org.openmrs.Encounter" column="encounter_id"/>
+		<many-to-one name="encounterLocation" class="org.openmrs.Location" column="encounter_location_id"/>
+		<many-to-one name="sessionLocation" class="org.openmrs.Location" column="session_location_id"/>
+		<many-to-one name="servicePoint" class="org.openmrs.Location" column="service_point_location_id" not-null="true"/>
+		<many-to-one name="previousServicePoint" class="org.openmrs.Location" column="previous_service_point_location_id"/>
+		<many-to-one name="serviceRequestedConcept" class="org.openmrs.Concept" column="service_requested_concept_id"/>
+		<many-to-one name="assignedProvider" class="org.openmrs.Provider" column="assigned_provider_id"/>
+		<property name="priorityName" type="java.lang.String" column="priority" length="50" not-null="true"/>
+		<property name="statusName" type="java.lang.String" column="status" length="50" not-null="true"/>
+		<property name="queueNumber" type="java.lang.String" column="queue_number" length="100" not-null="true"/>
+		<property name="arrivalTime" type="java.util.Date" column="arrival_time" not-null="true"/>
+		<property name="calledTime" type="java.util.Date" column="called_time"/>
+		<property name="serviceStartTime" type="java.util.Date" column="service_start_time"/>
+		<property name="serviceEndTime" type="java.util.Date" column="service_end_time"/>
+		<property name="completedTime" type="java.util.Date" column="completed_time"/>
+		<property name="comments" type="text" column="comments"/>
+		<many-to-one name="creator" class="org.openmrs.User" column="creator" not-null="true"/>
+		<property name="dateCreated" type="java.util.Date" column="date_created" not-null="true"/>
+		<many-to-one name="changedBy" class="org.openmrs.User" column="changed_by"/>
+		<property name="dateChanged" type="java.util.Date" column="date_changed"/>
+		<property name="voided" type="java.lang.Boolean" column="voided" not-null="true"/>
+		<many-to-one name="voidedBy" class="org.openmrs.User" column="voided_by"/>
+		<property name="dateVoided" type="java.util.Date" column="date_voided"/>
+		<property name="voidReason" type="java.lang.String" column="void_reason" length="255"/>
+	</class>
+
+	<class name="QueueStatusHistory" table="rwandaemr_queue_status_history">
+		<id name="id" type="java.lang.Integer" column="queue_status_history_id">
+			<generator class="native"/>
+		</id>
+		<property name="uuid" type="java.lang.String" column="uuid" length="38" not-null="true" unique="true"/>
+		<many-to-one name="queueEntry" class="QueueEntry" column="queue_entry_id" not-null="true"/>
+		<property name="previousStatusName" type="java.lang.String" column="previous_status" length="50"/>
+		<property name="newStatusName" type="java.lang.String" column="new_status" length="50" not-null="true"/>
+		<many-to-one name="changedBy" class="org.openmrs.User" column="changed_by" not-null="true"/>
+		<property name="dateChanged" type="java.util.Date" column="date_changed" not-null="true"/>
+		<property name="reason" type="java.lang.String" column="reason" length="1024"/>
+	</class>
+
+</hibernate-mapping>

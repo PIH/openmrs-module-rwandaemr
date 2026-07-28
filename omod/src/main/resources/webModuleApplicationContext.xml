@@ -10,6 +10,8 @@
     <context:component-scan base-package="org.openmrs.module.rwandaemr.web" />
     <context:component-scan base-package="org.openmrs.module.rwandaemr.rest" />
 
+    <bean id="rwandaEmrVelocityContextProvider" class="org.openmrs.module.rwandaemr.htmlformentry.RwandaEmrVelocityContextProvider"/>
+
     <bean class="org.openmrs.ui.framework.page.GlobalResourceIncluder">
         <property name="resources">
             <list>

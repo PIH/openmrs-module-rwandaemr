@@ -6,5 +6,7 @@
 <hibernate-configuration>
     <session-factory>
         <mapping resource="Icd11.hbm.xml"/>
+        <mapping resource="Queue.hbm.xml"/>
+        <mapping resource="RwandaEmrAppointment.hbm.xml"/>
     </session-factory>
 </hibernate-configuration>
