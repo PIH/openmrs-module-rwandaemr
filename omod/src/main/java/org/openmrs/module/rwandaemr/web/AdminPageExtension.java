@@ -47,6 +47,7 @@ public class AdminPageExtension extends AdministrationSectionExt {
 		map.put("/rwandaemr/queue/queueDashboard.page", "Queue Dashboard");
 		map.put("/rwandaemr/queue/queueServicePointConfig.page", "Queue Service Point Mappings");
 		map.put("/rwandaemr/queue/queueReports.page", "Queue Reports");
+		map.put("/rwandaemr/admin/rhipVoucherSubmissions.page", "RHIP Voucher Submission");
 		return map;
 	}
 	

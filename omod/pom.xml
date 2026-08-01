@@ -81,6 +81,12 @@
 			<version>${webservicesRestVersion}</version>
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>mohbilling-api</artifactId>
+			<version>${mohbillingVersion}</version>
+			<scope>provided</scope>
+		</dependency>
 
 	</dependencies>
 
