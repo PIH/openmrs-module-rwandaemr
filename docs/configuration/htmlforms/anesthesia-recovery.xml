@@ -1,0 +1,59 @@
+<htmlform formName="Anesthesia Completion and Recovery"
+          formUuid="3a4a28af-57b4-403f-90e3-9a46b0c2d9f4"
+          formEncounterType="Anesthesia Record"
+          formVersion="2.1">
+
+    <style>
+        .anesthesia-entry fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 12px; padding: 12px; }
+        .anesthesia-entry legend { color: #00473f; font-weight: bold; padding: 0 6px; }
+        .anesthesia-entry .grid { display: grid; gap: 14px 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .anesthesia-entry .full-width { grid-column: 1 / -1; }
+        .anesthesia-entry label { display: block; font-weight: bold; margin-bottom: 4px; }
+        .anesthesia-entry textarea { box-sizing: border-box; max-width: 100%; width: 100%; }
+        .anesthesia-entry .obs-field label { display: inline-block; font-weight: normal; margin: 4px 14px 4px 0; }
+        .anesthesia-case-link { display: none; }
+        @media (max-width: 900px) {
+            .anesthesia-entry .grid { grid-template-columns: 1fr; }
+            .anesthesia-entry .full-width { grid-column: auto; }
+        }
+    </style>
+
+    <div class="anesthesia-entry">
+        <div class="anesthesia-case-link">
+            <anesthesiaCaseIdObs/>
+            <obs conceptId="20150cc7-a7ef-460e-bb23-c03ada212c89" style="yes_no" defaultValue="true" required="true"/>
+        </div>
+        <h2>Anesthesia Completion &amp; Recovery / Fin d'anesthesie et reveil</h2>
+        <fieldset>
+            <legend>Encounter / Consultation</legend>
+            <div class="grid">
+                <div><label>Date / Time</label><encounterDate default="now" showTime="true"/></div>
+                <div><label>Location</label><encounterLocation/></div>
+                <div><label>Provider</label><encounterProvider/></div>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Completion &amp; Recovery / Fin et reveil</legend>
+            <div class="grid">
+                <div class="obs-field">
+                    <label>Airway technique / Technique</label>
+                    <obs conceptId="0375a9d5-32d2-46aa-afd7-518bb7f66f28"
+                         style="radio"
+                         answerConceptIds="830186cd-e72a-4537-80b2-c2e9be1e3b9e,0f956919-d30f-4e42-88a0-7274cead8a09,f03d14e8-211d-4e91-ade5-9c24d02a9747"
+                         answerLabels="Mask / Masque,Oral tube / Tube oral,Nasal tube / Tube nasal"/>
+                </div>
+                <div class="obs-field">
+                    <label>Position</label>
+                    <obs conceptId="4080da65-d8dd-48a6-a90a-094866308d12"
+                         style="radio"
+                         answerConceptIds="2978d97a-8d63-4e6f-9ab3-9a775e497332,3b4807f8-ccd5-49ce-be05-d1d16621db9b,127c90b1-586f-4e1e-af4d-5c87aa6341dd"
+                         answerLabels="Supine / Dorsale,Prone / Ventrale,Lateral / Laterale"/>
+                </div>
+                <div class="full-width"><label>Post-operative diagnosis / Diagnostic post-operatoire</label><obs conceptId="1c811683-d7f1-45f8-ac51-e7bf01344390" rows="3"/></div>
+                <div class="full-width"><label>Remarks / Remarques</label><obs conceptId="8d3ea639-e9a4-43c7-b9bd-03556160b01d" rows="3"/></div>
+                <div><label>Aldrete score (0-10)</label><obs conceptId="c20d3924-d2ff-420b-b0e2-bb0b6d9d18b1"/></div>
+            </div>
+        </fieldset>
+    </div>
+    <submit/>
+</htmlform>

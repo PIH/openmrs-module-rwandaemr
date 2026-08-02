@@ -37,6 +37,8 @@ public class HtmlFormEntrySetup implements Setup {
 
     public static final String ICD11_DIAGNOSES_TAG = "icd11Diagnoses";
 
+    public static final String ANESTHESIA_CASE_ID_OBS_TAG = "anesthesiaCaseIdObs";
+
     public static final String FORM_ENGINE_RESOURCE_NAME = "formEngine";
 
     public static final String FORM_ENGINE_RESOURCE_VALUE = "htmlformentry";
@@ -58,6 +60,9 @@ public class HtmlFormEntrySetup implements Setup {
         icd11DiagnosesTagHandler.setUiUtils(uiUtils);
         htmlFormEntryService.addHandler(ICD11_DIAGNOSES_TAG, icd11DiagnosesTagHandler);
         log.warn("Registered " + ICD11_DIAGNOSES_TAG + " tag with htmlformentry");
+
+        htmlFormEntryService.addHandler(ANESTHESIA_CASE_ID_OBS_TAG, new AnesthesiaCaseIdObsTagHandler());
+        log.warn("Registered " + ANESTHESIA_CASE_ID_OBS_TAG + " tag with htmlformentry");
 
         // Add form engine resources
         int numResourcesSaved = 0;

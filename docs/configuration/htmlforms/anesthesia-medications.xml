@@ -1,0 +1,153 @@
+<htmlform formName="Anesthesia Medication Administration"
+          formUuid="74c8fdf1-957d-4cad-86b1-6d30d10d5998"
+          formEncounterType="Anesthesia Record"
+          formVersion="3.1">
+
+    <style>
+        .anesthesia-entry fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 12px; padding: 12px; }
+        .anesthesia-entry legend { color: #00473f; font-weight: bold; padding: 0 6px; }
+        .anesthesia-entry .grid { display: grid; gap: 12px 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .anesthesia-entry label { display: block; font-weight: bold; margin-bottom: 3px; }
+        .anesthesia-entry textarea { min-height: 54px; width: 94%; }
+        .anesthesia-entry .item-table { border-collapse: collapse; table-layout: fixed; width: 100%; }
+        .anesthesia-entry .item-table th { background: #00473f; color: #fff; padding: 8px; text-align: left; }
+        .anesthesia-entry .item-table td { border-bottom: 1px solid #ddd; padding: 8px; vertical-align: top; }
+        .anesthesia-entry .item-number { text-align: center; width: 44px; }
+        .anesthesia-entry .item-actions { text-align: center; width: 54px; }
+        .anesthesia-entry .anesthesia-item-row[data-row]:not([data-row="1"]) { display: none; }
+        .anesthesia-entry .add-item { margin-top: 12px; }
+        .anesthesia-entry .remove-item { min-width: 34px; padding: 5px 8px; }
+        .anesthesia-case-link { display: none; }
+        @media (max-width: 900px) {
+            .anesthesia-entry .grid { grid-template-columns: 1fr; }
+            .anesthesia-entry .item-table { table-layout: auto; }
+        }
+    </style>
+
+    <div class="anesthesia-entry">
+        <div class="anesthesia-case-link"><anesthesiaCaseIdObs/></div>
+        <h2>Medications &amp; Fluids / Medicaments et perfusion</h2>
+        <fieldset>
+            <legend>Encounter / Consultation</legend>
+            <div class="grid">
+                <div><label>Date / Time</label><encounterDate default="now" showTime="true"/></div>
+                <div><label>Location</label><encounterLocation/></div>
+                <div><label>Provider</label><encounterProvider/></div>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Administrations</legend>
+            <table class="item-table">
+                <thead>
+                <tr>
+                    <th class="item-number">#</th>
+                    <th>Medication administered / Medicament administre</th>
+                    <th>Fluids / Perfusion</th>
+                    <th>Transfusion</th>
+                    <th class="item-actions"></th>
+                </tr>
+                </thead>
+                <tbody>
+                <repeat>
+                    <template>
+                        <obsgroup groupingConceptId="975ecb87-fe23-40f1-97ac-ad5e85356e60">
+                            <tr class="anesthesia-item-row" data-row="{row}">
+                                <td class="item-number">{row}</td>
+                                <td class="item-value"><obs conceptId="e2a92af0-e3a8-48c7-b73f-1bf5fb1b63ef" rows="2"/></td>
+                                <td class="item-value"><obs conceptId="074c4f8b-2f73-41c3-9b9b-9ee8826d4016" rows="2"/></td>
+                                <td class="item-value"><obs conceptId="4e56e745-a912-4734-bca7-62d78070b64d" rows="2"/></td>
+                                <td class="item-actions">
+                                    <ifMode mode="VIEW" include="false">
+                                        <button type="button" class="remove-item" title="Remove administration">&#215;</button>
+                                    </ifMode>
+                                </td>
+                            </tr>
+                        </obsgroup>
+                    </template>
+                    <render row="1"/>
+                    <render row="2"/>
+                    <render row="3"/>
+                    <render row="4"/>
+                    <render row="5"/>
+                    <render row="6"/>
+                    <render row="7"/>
+                    <render row="8"/>
+                </repeat>
+                </tbody>
+            </table>
+            <ifMode mode="VIEW" include="false">
+                <button id="add-anesthesia-medication" type="button" class="add-item confirm"><i class="icon-plus"></i> Add another administration</button>
+            </ifMode>
+        </fieldset>
+    </div>
+
+    <script type="text/javascript">
+        $j(function() {
+            var rows = $j('.anesthesia-item-row');
+            var addButton = $j('#add-anesthesia-medication');
+
+            function rowHasValue(row) {
+                var hasControlValue = false;
+                row.find('input:not([type="hidden"]):not([type="button"]), textarea, select').each(function() {
+                    var input = $j(this);
+                    if ((input.is(':checkbox') || input.is(':radio')) ? input.is(':checked') : input.val()) {
+                        hasControlValue = true;
+                    }
+                });
+                return hasControlValue || $j.trim(row.find('.item-value').text()).length > 0;
+            }
+
+            function updateControls() {
+                var visibleRows = rows.filter(':visible');
+                visibleRows.find('.remove-item').prop('disabled', visibleRows.length === 1);
+                addButton.prop('disabled', rows.filter(':hidden').length === 0);
+            }
+
+            rows.each(function(index) {
+                var row = $j(this);
+                if (index === 0 || rowHasValue(row)) {
+                    row.show();
+                }
+            });
+
+            addButton.on('click', function() {
+                rows.filter(':hidden').first().show();
+                updateControls();
+            });
+
+            rows.on('click', '.remove-item', function() {
+                var row = $j(this).closest('.anesthesia-item-row');
+                row.find('input:not([type="hidden"]), textarea, select').each(function() {
+                    var input = $j(this);
+                    if (input.is(':checkbox') || input.is(':radio')) {
+                        input.prop('checked', false);
+                    }
+                    else {
+                        input.val('');
+                    }
+                    input.trigger('change');
+                });
+                row.hide();
+                updateControls();
+            });
+
+            if (typeof beforeSubmit !== 'undefined') {
+                beforeSubmit.push(function() {
+                    var hasAdministration = false;
+                    rows.filter(':visible').each(function() {
+                        hasAdministration = hasAdministration || rowHasValue($j(this));
+                    });
+                    if (!hasAdministration) {
+                        alert('Enter at least one medication, fluid, or transfusion item before saving.');
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            updateControls();
+        });
+    </script>
+
+    <submit/>
+</htmlform>
