@@ -45,6 +45,10 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
 
     private static final String LABORATORY_SERVICE_POINT_GP = "rwandaemr.queue.laboratoryServicePoint";
 
+    private static final String RADIOLOGY_SERVICE_POINT_GP = "rwandaemr.queue.radiologyServicePoint";
+
+    private static final String IMAGING_SERVICE_POINT_GP = "rwandaemr.queue.imagingServicePoint";
+
     private static final List<QueueStatus> ACTIVE_STATUSES = Arrays.asList(
             QueueStatus.WAITING,
             QueueStatus.CALLED,
@@ -89,6 +93,12 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
             Date now = new Date();
             QueueEntry activeEntry = getActiveQueueEntry(encounter.getPatient(), servicePoint, now);
             if (activeEntry != null) {
+                if (!serviceRequested.equals(activeEntry.getServiceRequestedConcept())) {
+                    activeEntry.setServiceRequestedConcept(serviceRequested);
+                    activeEntry.setChangedBy(getAuthenticatedUser());
+                    activeEntry.setDateChanged(now);
+                    dao.saveQueueEntry(activeEntry);
+                }
                 log.info("Skipping duplicate queue entry for patient " + encounter.getPatient().getUuid()
                         + ", service point " + servicePoint.getName() + ". Existing queue entry: "
                         + activeEntry.getUuid());
@@ -301,6 +311,10 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         if (queueEntry == null) {
             throw new IllegalArgumentException("Queue entry is required");
         }
+        reason = StringUtils.trimToNull(reason);
+        if (reason == null) {
+            throw new IllegalArgumentException("Transfer reason is required");
+        }
         if (destinationServicePoint == null) {
             throw new IllegalArgumentException("Destination service point location is required");
         }
@@ -311,27 +325,28 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
             throw new IllegalArgumentException("Destination service point must be different from the current service point");
         }
         Date now = new Date();
+        boolean diagnosticDestination = isDiagnosticServicePoint(destinationServicePoint);
         QueueEntry activeEntry = queueEntry.getPatient() == null ? null :
                 getActiveQueueEntry(queueEntry.getPatient(), destinationServicePoint, now);
         if (activeEntry != null) {
+            if (isReturnToActivePreviousServicePoint(queueEntry, destinationServicePoint, activeEntry)) {
+                queueEntry.setTransferReason(reason);
+                markPatientTransferred(queueEntry, reason);
+                return activeEntry;
+            }
+            if (diagnosticDestination) {
+                return activeEntry;
+            }
             throw new IllegalArgumentException("Patient already has an active queue entry at the destination service point");
+        }
+        if (diagnosticDestination) {
+            return transferToDiagnosticServicePoint(queueEntry, destinationServicePoint, reason, now);
         }
         queueEntry.setQueueNumber(generateQueueNumber(destinationServicePoint, now));
         queueEntry.setArrivalTime(now);
         queueEntry.setPreviousServicePoint(queueEntry.getServicePoint());
         queueEntry.setServicePoint(destinationServicePoint);
-        if (isLaboratoryServicePoint(destinationServicePoint)) {
-            if (queueEntry.getAssignedProvider() == null) {
-                queueEntry.setAssignedProvider(getCurrentProvider());
-            }
-            if (queueEntry.getCalledTime() == null) {
-                queueEntry.setCalledTime(now);
-            }
-            queueEntry.setServiceStartTime(now);
-            queueEntry.setServiceEndTime(null);
-            queueEntry.setCompletedTime(null);
-            return changeStatus(queueEntry, QueueStatus.IN_PROGRESS, reason);
-        }
+        queueEntry.setTransferReason(reason);
         queueEntry.setSessionLocation(destinationServicePoint);
         queueEntry.setAssignedProvider(null);
         queueEntry.setCalledTime(null);
@@ -339,6 +354,51 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         queueEntry.setServiceEndTime(null);
         queueEntry.setCompletedTime(null);
         return changeStatus(queueEntry, QueueStatus.WAITING, reason);
+    }
+
+    private QueueEntry transferToDiagnosticServicePoint(QueueEntry sourceEntry, Location destinationServicePoint,
+                                                         String reason, Date now) {
+        sourceEntry.setTransferReason(reason);
+        if (sourceEntry.getAssignedProvider() == null) {
+            sourceEntry.setAssignedProvider(getCurrentProvider());
+        }
+        if (sourceEntry.getCalledTime() == null) {
+            sourceEntry.setCalledTime(now);
+        }
+        if (sourceEntry.getServiceStartTime() == null) {
+            sourceEntry.setServiceStartTime(now);
+        }
+        sourceEntry.setServiceEndTime(null);
+        sourceEntry.setCompletedTime(null);
+        changeStatus(sourceEntry, QueueStatus.IN_PROGRESS, reason);
+
+        QueueEntry destinationEntry = new QueueEntry();
+        destinationEntry.setUuid(UUID.randomUUID().toString());
+        destinationEntry.setPatient(sourceEntry.getPatient());
+        destinationEntry.setVisit(sourceEntry.getVisit());
+        destinationEntry.setEncounter(sourceEntry.getEncounter());
+        destinationEntry.setEncounterLocation(sourceEntry.getEncounterLocation());
+        destinationEntry.setSessionLocation(destinationServicePoint);
+        destinationEntry.setServicePoint(destinationServicePoint);
+        destinationEntry.setPreviousServicePoint(sourceEntry.getServicePoint());
+        destinationEntry.setTransferReason(reason);
+        destinationEntry.setServiceRequestedConcept(sourceEntry.getServiceRequestedConcept());
+        destinationEntry.setPriority(sourceEntry.getPriority());
+        destinationEntry.setStatus(QueueStatus.WAITING);
+        destinationEntry.setArrivalTime(now);
+        destinationEntry.setQueueNumber(generateQueueNumber(destinationServicePoint, now));
+        setCreationMetadata(destinationEntry, now);
+        dao.saveQueueEntry(destinationEntry);
+        createQueueStatusHistory(destinationEntry, null, QueueStatus.WAITING, reason);
+        return destinationEntry;
+    }
+
+    private boolean isReturnToActivePreviousServicePoint(QueueEntry queueEntry, Location destinationServicePoint,
+                                                          QueueEntry activeDestinationEntry) {
+        return isDiagnosticServicePoint(queueEntry.getServicePoint())
+                && destinationServicePoint.equals(queueEntry.getPreviousServicePoint())
+                && queueEntry.getVisit() != null
+                && queueEntry.getVisit().equals(activeDestinationEntry.getVisit());
     }
 
     @Override
@@ -520,18 +580,37 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     }
 
     protected boolean isLaboratoryServicePoint(Location location) {
+        return matchesConfiguredServicePoint(location, LABORATORY_SERVICE_POINT_GP)
+                || location != null && (StringUtils.equalsIgnoreCase(location.getName(), "lab")
+                || StringUtils.containsIgnoreCase(location.getName(), "laboratory"));
+    }
+
+    protected boolean isRadiologyServicePoint(Location location) {
+        return matchesConfiguredServicePoint(location, RADIOLOGY_SERVICE_POINT_GP)
+                || location != null && StringUtils.containsIgnoreCase(location.getName(), "radiology");
+    }
+
+    protected boolean isImagingServicePoint(Location location) {
+        return matchesConfiguredServicePoint(location, IMAGING_SERVICE_POINT_GP)
+                || location != null && StringUtils.containsIgnoreCase(location.getName(), "imaging");
+    }
+
+    protected boolean isDiagnosticServicePoint(Location location) {
+        return isLaboratoryServicePoint(location)
+                || isRadiologyServicePoint(location)
+                || isImagingServicePoint(location);
+    }
+
+    private boolean matchesConfiguredServicePoint(Location location, String globalProperty) {
         if (location == null) {
             return false;
         }
-        String configuredLocation = Context.getAdministrationService().getGlobalProperty(LABORATORY_SERVICE_POINT_GP);
-        if (StringUtils.isNotBlank(configuredLocation)
+        String configuredLocation = StringUtils.trimToNull(
+                Context.getAdministrationService().getGlobalProperty(globalProperty));
+        return configuredLocation != null
                 && (configuredLocation.equalsIgnoreCase(location.getUuid())
                 || configuredLocation.equalsIgnoreCase(location.getName())
-                || configuredLocation.equals(String.valueOf(location.getId())))) {
-            return true;
-        }
-        return StringUtils.equalsIgnoreCase(location.getName(), "lab")
-                || StringUtils.containsIgnoreCase(location.getName(), "laboratory");
+                || configuredLocation.equals(String.valueOf(location.getId())));
     }
 
     protected LocationTagUtil getLocationTagUtil() {

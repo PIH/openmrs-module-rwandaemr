@@ -17,6 +17,12 @@
             button.find("i").attr("class", expanded ? "icon-chevron-right" : "icon-chevron-down");
             detail.toggle(!expanded);
         });
+
+        jq(".appointment-status-select").change(function() {
+            if (this.value) {
+                this.form.submit();
+            }
+        });
     });
 </script>
 
@@ -52,6 +58,12 @@
         box-sizing: border-box;
         min-height: 36px;
         width: 100%;
+    }
+
+    .appointment-filter-actions {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 8px;
     }
 
     .appointment-summary {
@@ -136,6 +148,12 @@
         color: #245a91;
     }
 
+    .appointment-status.present {
+        background: #e0f3f2;
+        border-color: #78b9b4;
+        color: #185f5a;
+    }
+
     .appointment-status.completed {
         background: #e5f5ec;
         border-color: #8bc4a5;
@@ -172,6 +190,21 @@
         max-width: 150px;
         min-height: 32px;
     }
+
+    .appointment-booking-actions {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .appointment-registration-link {
+        white-space: nowrap;
+    }
+
+    .appointment-registration-form {
+        margin: 0;
+    }
 </style>
 
 <% if (!authorized) { %>
@@ -201,9 +234,14 @@
             <input id="appointment-dashboard-end" type="date" name="endDate"
                    value="${ ui.escapeAttribute(selectedEndDate) }"/>
         </div>
-        <button type="submit" class="button">
-            <i class="icon-filter" aria-hidden="true"></i> Filter
-        </button>
+        <div class="appointment-filter-actions">
+            <button type="submit" class="button">
+                <i class="icon-filter" aria-hidden="true"></i> Filter
+            </button>
+            <button type="submit" name="export" value="excel" class="button">
+                <i class="icon-download" aria-hidden="true"></i> Export Excel
+            </button>
+        </div>
     </form>
 
     <% if (dateRangeError) { %>
@@ -295,8 +333,20 @@
                                     def statusName = booking.status?.name() ?: ""
                                     def statusClass = statusName.toLowerCase().replace("_", "-")
                                     def nextStatuses = []
-                                    if (statusName == "REQUESTED" || statusName == "CONFIRMED") {
+                                    if (statusName == "REQUESTED" || statusName == "CONFIRMED" ||
+                                            statusName == "PRESENT") {
                                         nextStatuses = ["COMPLETED", "CANCELLED"]
+                                    }
+                                    def canRegisterToday = statusName != "CANCELLED" &&
+                                            booking.patient?.id && todayScheduleIds.contains(schedule.id)
+                                    def registrationEncounterId = null
+                                    def registrationActionLabel = "Register"
+                                    if (canRegisterToday) {
+                                        registrationEncounterId =
+                                                registrationEncounterIdsByPatientId[booking.patient.id]
+                                        if (registrationEncounterId) {
+                                            registrationActionLabel = "Edit registration"
+                                        }
                                     }
                                 %>
                                     <tr>
@@ -312,23 +362,42 @@
                                         <td>${ ui.format(booking.requestedAt) }</td>
                                         <td>${ ui.encodeHtmlContent(booking.notes ?: "") }</td>
                                         <td>
-                                            <% if (canManageAppointments && !nextStatuses.isEmpty()) { %>
-                                                <form class="appointment-status-form" method="post"
-                                                      action="${ ui.pageLink("rwandaemr", "appointment/appointmentDashboard") }">
-                                                    <input type="hidden" name="bookingId" value="${ booking.id }"/>
-                                                    <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
-                                                    <input type="hidden" name="startDate" value="${ ui.escapeAttribute(selectedStartDate) }"/>
-                                                    <input type="hidden" name="endDate" value="${ ui.escapeAttribute(selectedEndDate) }"/>
-                                                    <select name="appointmentStatus" required="required">
-                                                        <option value="">Change status</option>
-                                                        <% nextStatuses.each { nextStatus -> %>
-                                                            <option value="${ nextStatus }">${ nextStatus.toLowerCase().replace("_", " ").capitalize() }</option>
-                                                        <% } %>
-                                                    </select>
-                                                    <button type="submit" class="button" title="Update appointment status">
-                                                        <i class="icon-save" aria-hidden="true"></i>
-                                                    </button>
-                                                </form>
+                                            <% if (canRegisterToday || (canManageAppointments && !nextStatuses.isEmpty())) { %>
+                                                <div class="appointment-booking-actions">
+                                                    <% if (canRegisterToday) { %>
+                                                        <form class="appointment-registration-form" method="post"
+                                                              action="${ ui.pageLink("rwandaemr", "appointment/appointmentDashboard") }">
+                                                            <input type="hidden" name="action" value="register"/>
+                                                            <input type="hidden" name="bookingId" value="${ booking.id }"/>
+                                                            <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
+                                                            <input type="hidden" name="startDate" value="${ ui.escapeAttribute(selectedStartDate) }"/>
+                                                            <input type="hidden" name="endDate" value="${ ui.escapeAttribute(selectedEndDate) }"/>
+                                                            <button type="submit"
+                                                                    class="button appointment-registration-link"
+                                                                    title="${ ui.escapeAttribute(registrationActionLabel) }">
+                                                                <i class="${ registrationEncounterId ? "icon-pencil" : "icon-user" }"
+                                                                   aria-hidden="true"></i>
+                                                                ${ ui.encodeHtmlContent(registrationActionLabel) }
+                                                            </button>
+                                                        </form>
+                                                    <% } %>
+                                                    <% if (canManageAppointments && !nextStatuses.isEmpty()) { %>
+                                                        <form class="appointment-status-form" method="post"
+                                                              action="${ ui.pageLink("rwandaemr", "appointment/appointmentDashboard") }">
+                                                            <input type="hidden" name="bookingId" value="${ booking.id }"/>
+                                                            <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
+                                                            <input type="hidden" name="startDate" value="${ ui.escapeAttribute(selectedStartDate) }"/>
+                                                            <input type="hidden" name="endDate" value="${ ui.escapeAttribute(selectedEndDate) }"/>
+                                                            <select class="appointment-status-select"
+                                                                    name="appointmentStatus" required="required">
+                                                                <option value="">Change status</option>
+                                                                <% nextStatuses.each { nextStatus -> %>
+                                                                    <option value="${ nextStatus }">${ nextStatus.toLowerCase().replace("_", " ").capitalize() }</option>
+                                                                <% } %>
+                                                            </select>
+                                                        </form>
+                                                    <% } %>
+                                                </div>
                                             <% } %>
                                         </td>
                                     </tr>

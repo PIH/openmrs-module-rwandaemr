@@ -22,11 +22,12 @@ final class QueueReportExcel {
     static final String CONTENT_TYPE = "application/vnd.ms-excel";
 
     private static final String[] HEADERS = {
-            "Queue #", "Patient", "Service point", "Priority", "Status", "Waiting time", "Arrival", "Completed"
+            "Queue #", "Patient", "Service point", "Reason for transfer", "Priority", "Status",
+            "Waiting time", "Arrival", "Completed"
     };
 
     private static final int[] COLUMN_WIDTHS = {
-            22, 30, 28, 16, 18, 18, 20, 20
+            22, 30, 28, 40, 16, 18, 18, 20, 20
     };
 
     private QueueReportExcel() {
@@ -54,11 +55,12 @@ final class QueueReportExcel {
             setText(row, 0, entry.getQueueNumber());
             setText(row, 1, patientName(entry));
             setText(row, 2, entry.getServicePoint() == null ? null : entry.getServicePoint().getName());
-            setText(row, 3, label(entry.getPriority()));
-            setText(row, 4, label(entry.getStatus()));
-            setText(row, 5, waitingTimes.get(entry.getId()));
-            setDate(row, 6, entry.getArrivalTime(), dateStyle);
-            setDate(row, 7, entry.getCompletedTime(), dateStyle);
+            setText(row, 3, entry.getTransferReason());
+            setText(row, 4, entry.getPriority() == null ? null : entry.getPriority().getDisplayName());
+            setText(row, 5, label(entry.getStatus()));
+            setText(row, 6, waitingTimes.get(entry.getId()));
+            setDate(row, 7, entry.getArrivalTime(), dateStyle);
+            setDate(row, 8, entry.getCompletedTime(), dateStyle);
         }
 
         sheet.createFreezePane(0, 1);

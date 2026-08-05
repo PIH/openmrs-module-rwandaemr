@@ -20,6 +20,10 @@
             filterForm.get(0).submit();
         });
 
+        jq("#queue-page-size").change(function() {
+            filterForm.get(0).submit();
+        });
+
         jq(document).on("click.queueDashboard", "#session-location ul.select li", function() {
             pendingSessionLocationId = jq(this).attr("locationId") || null;
         });
@@ -30,18 +34,66 @@
             }
 
             var status = jq("#queue-status-filter").val() || "ALL";
+            var pageSize = jq("#queue-page-size").val() || "10";
             var selectedLocationId = pendingSessionLocationId
                     || jq("#session-location ul.select li.selected").first().attr("locationId");
             if (!selectedLocationId && typeof sessionLocationModel !== "undefined" && sessionLocationModel.id) {
                 selectedLocationId = sessionLocationModel.id();
             }
 
-            var query = "?status=" + encodeURIComponent(status);
+            var query = "?status=" + encodeURIComponent(status)
+                    + "&pageSize=" + encodeURIComponent(pageSize);
             if (selectedLocationId) {
                 query += "&locationId=" + encodeURIComponent(selectedLocationId);
             }
             locationRefreshStarted = true;
             window.location.replace("${ ui.pageLink("rwandaemr", "queue/queueDashboard") }" + query);
+        });
+
+        var queueLiveRegion = jq("#queue-live-region");
+        var queueCount = jq("#queue-patient-count");
+        var queueRefreshInProgress = false;
+
+        function queueInteractionInProgress() {
+            var vitalsFrameSource = jq("#queue-vitals-frame").attr("src");
+            return document.hidden
+                    || jq(document.activeElement).closest("#queue-live-region").length > 0
+                    || jq("#queue-transfer-reason-dialog:visible").length > 0
+                    || (vitalsFrameSource && vitalsFrameSource !== "about:blank");
+        }
+
+        function refreshQueueLiveRegion() {
+            if (!queueLiveRegion.length || queueRefreshInProgress || queueInteractionInProgress()) {
+                return;
+            }
+
+            queueRefreshInProgress = true;
+            jq.ajax({
+                url: queueLiveRegion.attr("data-refresh-url"),
+                type: "GET",
+                dataType: "html",
+                cache: false,
+                global: false
+            }).done(function(responseHtml) {
+                var responseDocument = new window.DOMParser().parseFromString(responseHtml, "text/html");
+                var refreshedRegion = responseDocument.getElementById("queue-live-region");
+                var refreshedCount = responseDocument.getElementById("queue-patient-count");
+                if (!refreshedRegion || !refreshedCount) {
+                    return;
+                }
+
+                if (queueLiveRegion.html() !== refreshedRegion.innerHTML) {
+                    queueLiveRegion.html(refreshedRegion.innerHTML);
+                }
+                queueCount.text(refreshedCount.textContent || refreshedCount.innerText);
+            }).always(function() {
+                queueRefreshInProgress = false;
+            });
+        }
+
+        var queueRefreshTimer = window.setInterval(refreshQueueLiveRegion, 10000);
+        jq(window).one("beforeunload.queueDashboard", function() {
+            window.clearInterval(queueRefreshTimer);
         });
 
         var vitalsDialogElement = jq("#queue-vitals-dialog");
@@ -141,7 +193,7 @@
                 }
             });
 
-            jq(".queue-vitals-link").click(function(event) {
+            jq(document).on("click.queueDashboardVitals", ".queue-vitals-link", function(event) {
                 event.preventDefault();
                 var link = jq(this);
                 var patientName = link.attr("data-patient-name");
@@ -251,22 +303,95 @@
         margin: 0;
     }
 
+    .queue-pagination {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        justify-content: space-between;
+        margin-top: 12px;
+    }
+
+    .queue-page-summary {
+        color: #526060;
+        font-size: 0.9em;
+    }
+
+    .queue-page-links {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .queue-page-link {
+        align-items: center;
+        background: #fff;
+        border: 1px solid #c7d0d0;
+        border-radius: 3px;
+        box-sizing: border-box;
+        color: #176b70;
+        display: inline-flex;
+        font-weight: bold;
+        height: 34px;
+        justify-content: center;
+        min-width: 34px;
+        padding: 0 8px;
+        text-decoration: none;
+    }
+
+    .queue-page-link:hover,
+    .queue-page-link:focus {
+        background: #eef7f7;
+        border-color: #6aa7aa;
+        color: #104f53;
+    }
+
+    .queue-page-link.current {
+        background: #176b70;
+        border-color: #176b70;
+        color: #fff;
+    }
+
+    .queue-page-link.disabled {
+        background: #f1f4f4;
+        border-color: #d7dddd;
+        color: #99a3a3;
+    }
+
+    .queue-page-ellipsis {
+        color: #667272;
+        padding: 0 2px;
+    }
+
     .queue-table-wrap {
         background: #fff;
         border: 1px solid #d7dddd;
         border-radius: 4px;
         box-sizing: border-box;
-        overflow-x: auto;
+        overflow: hidden;
         width: 100%;
     }
 
     .queue-table {
         border-collapse: collapse;
         margin: 0;
-        min-width: 1160px;
-        table-layout: auto;
+        table-layout: fixed;
         width: 100%;
     }
+
+    .queue-column-number { width: 16%; }
+    .queue-column-patient { width: 25%; }
+    .queue-column-service { width: 29%; }
+    .queue-column-state { width: 14%; }
+    .queue-column-timing { width: 16%; }
+
+    .queue-table-has-actions .queue-column-number { width: 12%; }
+    .queue-table-has-actions .queue-column-patient { width: 18%; }
+    .queue-table-has-actions .queue-column-service { width: 24%; }
+    .queue-table-has-actions .queue-column-state { width: 12%; }
+    .queue-table-has-actions .queue-column-timing { width: 13%; }
+    .queue-table-has-actions .queue-column-actions { width: 21%; }
 
     .queue-table th,
     .queue-table td {
@@ -302,12 +427,11 @@
     .queue-number-cell {
         color: #253333;
         font-weight: bold;
-        min-width: 125px;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
     }
 
     .queue-patient-cell {
-        min-width: 185px;
+        min-width: 0;
     }
 
     .queue-patient-name {
@@ -316,8 +440,40 @@
         margin-top: 2px;
     }
 
-    .queue-service-cell {
-        min-width: 135px;
+    .queue-service-current {
+        color: #253333;
+        display: block;
+        font-weight: bold;
+        margin-bottom: 7px;
+        overflow-wrap: anywhere;
+    }
+
+    .queue-detail-list {
+        display: grid;
+        gap: 5px 8px;
+        grid-template-columns: minmax(66px, auto) minmax(0, 1fr);
+        margin: 0;
+    }
+
+    .queue-detail-list dt {
+        color: #667272;
+        font-size: 0.78em;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .queue-detail-list dd {
+        margin: 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .queue-state-list {
+        grid-template-columns: 1fr;
+    }
+
+    .queue-state-list dd {
+        margin-bottom: 3px;
     }
 
     .queue-muted {
@@ -326,8 +482,7 @@
     }
 
     .queue-time {
-        min-width: 135px;
-        white-space: nowrap;
+        white-space: normal;
     }
 
     .queue-badge {
@@ -520,8 +675,8 @@
     }
 
     .queue-actions {
-        min-width: 250px;
-        width: 250px;
+        min-width: 0;
+        width: auto;
     }
 
     .queue-actions .queue-select-action {
@@ -554,8 +709,70 @@
 
     .queue-actions .queue-select-action .button {
         margin: 0;
-        min-width: 82px;
+        min-width: 76px;
         white-space: nowrap;
+    }
+
+    @media (max-width: 1100px) {
+        .queue-table-wrap {
+            background: transparent;
+            border: 0;
+            overflow: visible;
+        }
+
+        .queue-table,
+        .queue-table tbody,
+        .queue-table tr,
+        .queue-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .queue-table thead {
+            clip: rect(0 0 0 0);
+            clip-path: inset(50%);
+            height: 1px;
+            overflow: hidden;
+            position: absolute;
+            white-space: nowrap;
+            width: 1px;
+        }
+
+        .queue-table tbody tr {
+            background: #fff;
+            border: 1px solid #d7dddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 12px;
+            padding: 3px 12px;
+        }
+
+        .queue-table td,
+        .queue-table tbody tr:last-child td {
+            border-bottom: 1px solid #e1e6e6;
+            padding: 9px 0;
+        }
+
+        .queue-table td:last-child {
+            border-bottom: 0;
+        }
+
+        .queue-table td::before {
+            color: #667272;
+            content: attr(data-label);
+            display: block;
+            font-size: 0.78em;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .queue-table tbody tr:hover td {
+            background: transparent;
+        }
+
+        .queue-actions .queue-select-action {
+            max-width: 480px;
+        }
     }
 
     @media (max-width: 640px) {
@@ -568,6 +785,11 @@
         .queue-toolbar select,
         .queue-toolbar .button {
             width: 100%;
+        }
+
+        .queue-pagination {
+            align-items: flex-start;
+            flex-direction: column;
         }
 
         .queue-vitals-dialog.dialog {
@@ -583,12 +805,14 @@
     <%
         def queueReturnUrl = ui.pageLink("rwandaemr", "queue/queueDashboard", [
                 locationId: selectedLocation?.id,
-                status: selectedStatus
+                status: selectedStatus,
+                page: currentPage,
+                pageSize: pageSize
         ])
     %>
     <div class="queue-page-header">
         <h3>Queue Dashboard</h3>
-        <span class="queue-count">${ entries.size() } ${ entries.size() == 1 ? "patient" : "patients" }</span>
+        <span id="queue-patient-count" class="queue-count">${ totalEntries } ${ totalEntries == 1 ? "patient" : "patients" }</span>
     </div>
     <form id="queue-dashboard-filters" class="queue-toolbar" method="get" action="${ ui.pageLink("rwandaemr", "queue/queueDashboard") }">
         <% if (canViewAllLocations) { %>
@@ -612,39 +836,50 @@
                 <% } %>
             </select>
         </div>
+        <div class="queue-filter-field">
+            <label for="queue-page-size">Patients per page</label>
+            <select id="queue-page-size" name="pageSize">
+                <% pageSizeOptions.each { option -> %>
+                    <option value="${ option }" ${ pageSize == option ? "selected=\"selected\"" : "" }>${ option }</option>
+                <% } %>
+            </select>
+        </div>
         <button type="submit" class="button"><i class="icon-filter"></i> Filter</button>
     </form>
 
-    <% if (entries.isEmpty()) { %>
-        <div class="note-container"><div class="note">No queue entries found.</div></div>
-    <% } else { %>
-        <div class="queue-table-wrap">
-            <table class="queue-table">
+    <div id="queue-live-region" data-refresh-url="${ ui.escapeAttribute(queueReturnUrl) }">
+        <% if (entries.isEmpty()) { %>
+            <div class="note-container"><div class="note">No queue entries found.</div></div>
+        <% } else { %>
+            <div class="queue-table-wrap">
+                <table class="queue-table${ (canTransferPatient || canManageQueue) ? ' queue-table-has-actions' : '' }">
                 <thead>
                     <tr>
-                        <th>Queue #</th>
-                        <th>Patient</th>
-                        <th>Service point</th>
-                        <th>Previous service point</th>
-                        <th>Priority</th>
-                        <th>Status</th>
-                        <th>Waiting time</th>
-                        <th>Arrival</th>
+                        <th class="queue-column-number">Queue #</th>
+                        <th class="queue-column-patient">Patient</th>
+                        <th class="queue-column-service">Service details</th>
+                        <th class="queue-column-state">Queue state</th>
+                        <th class="queue-column-timing">Timing</th>
                         <% if (canTransferPatient || canManageQueue) { %>
-                            <th>Actions</th>
+                            <th class="queue-column-actions">Actions</th>
                         <% } %>
                     </tr>
                 </thead>
                 <tbody>
                     <% entries.each { entry ->
                         def patient = entry.patient
-                        def destinationServicePoints = servicePoints.findAll { sp -> entry.servicePoint?.id != sp.id }
                         def priorityName = entry.priority?.name() ?: ""
                         def priorityClass = priorityName.toLowerCase().replace('_', '-')
-                        def priorityLabel = priorityName.toLowerCase().replace('_', ' ').capitalize()
+                        def priorityLabel = entry.priority?.displayName ?: ""
                         def statusName = entry.status?.name() ?: ""
                         def statusClass = statusName.toLowerCase().replace('_', '-')
                         def statusLabel = statusName.toLowerCase().replace('_', ' ').capitalize()
+                        def concurrentServicePoints = concurrentServicePointsByEntryId[entry.id] ?: []
+                        def concurrentServicePointIds = concurrentServicePoints.collect { it.id }.findAll { it != null }
+                        def destinationServicePoints = servicePoints.findAll { sp ->
+                            entry.servicePoint?.id != sp.id && !concurrentServicePointIds.contains(sp.id)
+                        }
+                        def concurrentServicePointNames = concurrentServicePoints.collect { it.name }.findAll { it }.join(", ")
                         def vitalsUrl = patient?.uuid && entry.visit?.uuid ? ui.pageLink(
                                 "htmlformentryui",
                                 "htmlform/enterHtmlFormWithSimpleUi",
@@ -656,8 +891,8 @@
                                 ]) : null
                     %>
                         <tr>
-                            <td class="queue-number-cell">${ ui.encodeHtmlContent(entry.queueNumber) }</td>
-                            <td class="queue-patient-cell">
+                            <td class="queue-number-cell" data-label="Queue #">${ ui.encodeHtmlContent(entry.queueNumber) }</td>
+                            <td class="queue-patient-cell" data-label="Patient">
                                 ${ ui.encodeHtmlContent(patient?.patientIdentifier?.identifier ?: "") }
                                 <div class="queue-patient-name">${ ui.encodeHtmlContent(patient?.personName?.fullName ?: "") }</div>
                                 <div class="queue-muted">${ ui.encodeHtmlContent(patient?.gender ?: "") } / ${ patient?.age ?: "" }</div>
@@ -684,42 +919,75 @@
                                     </div>
                                 <% } %>
                             </td>
-                            <td class="queue-service-cell">${ ui.encodeHtmlContent(entry.servicePoint?.name ?: "") }</td>
-                            <td class="queue-service-cell">${ ui.encodeHtmlContent(entry.previousServicePoint?.name ?: "") }</td>
-                            <td><span class="queue-badge queue-priority-${ priorityClass }">${ ui.encodeHtmlContent(priorityLabel) }</span></td>
-                            <td><span class="queue-badge queue-status-${ statusClass }">${ ui.encodeHtmlContent(statusLabel) }</span></td>
-                            <td class="queue-time">${ ui.encodeHtmlContent(waitingTimeByEntryId[entry.id] ?: "-") }</td>
-                            <td class="queue-time">${ entry.arrivalTime ? entry.arrivalTime.format("yyyy-MM-dd HH:mm") : "" }</td>
+                            <td data-label="Service details">
+                                <strong class="queue-service-current">${ ui.encodeHtmlContent(entry.servicePoint?.name ?: "-") }</strong>
+                                <dl class="queue-detail-list">
+                                    <dt>Requested</dt>
+                                    <dd>${ ui.encodeHtmlContent(entry.serviceRequestedConcept?.name?.name ?: entry.serviceRequestedConcept?.uuid ?: "-") }</dd>
+                                    <dt>Previous</dt>
+                                    <dd>${ ui.encodeHtmlContent(entry.previousServicePoint?.name ?: "-") }</dd>
+                                    <dt>Transfer reason</dt>
+                                    <dd>${ ui.encodeHtmlContent(entry.transferReason ?: "-") }</dd>
+                                    <% if (concurrentServicePointNames) { %>
+                                        <dt>Also queued at</dt>
+                                        <dd>${ ui.encodeHtmlContent(concurrentServicePointNames) }</dd>
+                                    <% } %>
+                                </dl>
+                            </td>
+                            <td data-label="Queue state">
+                                <dl class="queue-detail-list queue-state-list">
+                                    <dt>Priority</dt>
+                                    <dd><span class="queue-badge queue-priority-${ priorityClass }">${ ui.encodeHtmlContent(priorityLabel) }</span></dd>
+                                    <dt>Status</dt>
+                                    <dd><span class="queue-badge queue-status-${ statusClass }">${ ui.encodeHtmlContent(statusLabel) }</span></dd>
+                                </dl>
+                            </td>
+                            <td class="queue-time" data-label="Timing">
+                                <dl class="queue-detail-list">
+                                    <dt>Waiting</dt>
+                                    <dd>${ ui.encodeHtmlContent(waitingTimeByEntryId[entry.id] ?: "-") }</dd>
+                                    <dt>Arrival</dt>
+                                    <dd>${ entry.arrivalTime ? entry.arrivalTime.format("yyyy-MM-dd HH:mm") : "-" }</dd>
+                                </dl>
+                            </td>
                             <% if (canTransferPatient || canManageQueue) { %>
-                                <td class="queue-actions">
+                                <td class="queue-actions" data-label="Actions">
                                     <% if (canManageQueue) { %>
-                                        <form class="queue-select-action" method="post" action="${ ui.pageLink("rwandaemr", "queue/queueDashboard") }">
+                                        <form class="queue-select-action" method="post"
+                                              action="${ ui.pageLink("rwandaemr", "queue/queueDashboard") }">
                                             <input type="hidden" name="action" value="updatePriority" />
                                             <input type="hidden" name="entryId" value="${ entry.id }" />
                                             <input type="hidden" name="locationId" value="${ selectedLocation?.id ?: "" }" />
                                             <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
+                                            <input type="hidden" name="page" value="${ currentPage }" />
+                                            <input type="hidden" name="pageSize" value="${ pageSize }" />
                                             <label for="priority-${ entry.id }">Priority</label>
                                             <select id="priority-${ entry.id }" name="priority">
                                                 <% priorities.each { priority -> %>
-                                                    <option value="${ priority.name() }" ${ entry.priority == priority ? "selected=\"selected\"" : "" }>${ priority.name().toLowerCase().replace('_', ' ').capitalize() }</option>
+                                                    <option value="${ priority.name() }" ${ entry.priority == priority ? "selected=\"selected\"" : "" }>${ ui.encodeHtmlContent(priority.displayName) }</option>
                                                 <% } %>
                                             </select>
                                             <button type="submit" class="button"><i class="icon-save"></i> Update</button>
                                         </form>
                                     <% } %>
                                     <% if (canTransferPatient && !destinationServicePoints.isEmpty()) { %>
-                                        <form class="queue-select-action" method="post" action="${ ui.pageLink("rwandaemr", "queue/queueDashboard") }">
+                                        <form class="queue-select-action queue-transfer-form" method="post"
+                                              action="${ ui.pageLink("rwandaemr", "queue/queueDashboard") }"
+                                              data-patient-name="${ ui.escapeAttribute(patient?.personName?.fullName ?: "Patient") }"
+                                              data-current-service-point="${ ui.escapeAttribute(entry.servicePoint?.name ?: "") }">
                                             <input type="hidden" name="action" value="transfer" />
                                             <input type="hidden" name="entryId" value="${ entry.id }" />
                                             <input type="hidden" name="locationId" value="${ selectedLocation?.id ?: "" }" />
                                             <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
+                                            <input type="hidden" name="page" value="${ currentPage }" />
+                                            <input type="hidden" name="pageSize" value="${ pageSize }" />
                                             <label for="destination-${ entry.id }">Send to</label>
                                             <select id="destination-${ entry.id }" name="destinationServicePointId">
                                                 <% destinationServicePoints.each { sp -> %>
                                                     <option value="${ sp.id }">${ ui.encodeHtmlContent(sp.name) }</option>
                                                 <% } %>
                                             </select>
-                                            <input type="hidden" name="reason" value="Transferred from queue dashboard" />
+                                            <input type="hidden" name="reason" value="" />
                                             <button type="submit" class="button"><i class="icon-share-alt"></i> Send</button>
                                         </form>
                                     <% } %>
@@ -728,34 +996,78 @@
                         </tr>
                     <% } %>
                 </tbody>
-            </table>
-        </div>
-    <% } %>
+                </table>
+            </div>
+        <% } %>
 
-    <% latestVitalsByEntryId.each { entryId, summary -> %>
-        <div id="queue-vitals-summary-${ entryId }" style="display: none">
-            <section class="queue-latest-vitals" aria-label="Most recent vitals for this visit">
-                <div class="queue-latest-vitals-header">
-                    <span class="queue-latest-vitals-title"><i class="icon-heart"></i> Most recent vitals</span>
-                    <% if (summary.recordedAt) { %>
-                        <time class="queue-latest-vitals-time" datetime="${ summary.recordedAt.format("yyyy-MM-dd'T'HH:mm:ss") }">
-                            <i class="icon-time"></i> ${ summary.recordedAt.format("dd MMM yyyy, HH:mm") }
-                        </time>
-                    <% } %>
-                </div>
-                <div class="queue-latest-vitals-values">
-                    <% summary.values.each { vital -> %>
-                        <div class="queue-latest-vital">
-                            <span class="queue-latest-vital-label">${ ui.encodeHtmlContent(vital.label) }</span>
-                            <strong class="queue-latest-vital-value">
-                                ${ ui.encodeHtmlContent(vital.value) }<% if (vital.unit) { %><span class="queue-latest-vital-unit">${ ui.encodeHtmlContent(vital.unit) }</span><% } %>
-                            </strong>
-                        </div>
-                    <% } %>
-                </div>
-            </section>
-        </div>
-    <% } %>
+        <% if (totalEntries > 0) { %>
+            <div class="queue-pagination">
+                <span class="queue-page-summary">Showing ${ pageStart }-${ pageEnd } of ${ totalEntries } patients</span>
+                <% if (totalPages > 1) { %>
+                    <nav class="queue-page-links" aria-label="Queue pages">
+                        <% if (currentPage > 1) { %>
+                            <a class="queue-page-link" aria-label="Previous page" title="Previous page"
+                               href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, page: currentPage - 1, pageSize: pageSize]) }">
+                                <i class="icon-chevron-left" aria-hidden="true"></i>
+                            </a>
+                        <% } else { %>
+                            <span class="queue-page-link disabled" aria-disabled="true"><i class="icon-chevron-left" aria-hidden="true"></i></span>
+                        <% } %>
+
+                        <% if (pageNumbers[0] > 1) { %>
+                            <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, page: 1, pageSize: pageSize]) }">1</a>
+                            <% if (pageNumbers[0] > 2) { %><span class="queue-page-ellipsis">...</span><% } %>
+                        <% } %>
+                        <% pageNumbers.each { pageNumber -> %>
+                            <% if (pageNumber == currentPage) { %>
+                                <span class="queue-page-link current" aria-current="page">${ pageNumber }</span>
+                            <% } else { %>
+                                <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, page: pageNumber, pageSize: pageSize]) }">${ pageNumber }</a>
+                            <% } %>
+                        <% } %>
+                        <% if (pageNumbers[pageNumbers.size() - 1] < totalPages) { %>
+                            <% if (pageNumbers[pageNumbers.size() - 1] < totalPages - 1) { %><span class="queue-page-ellipsis">...</span><% } %>
+                            <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, page: totalPages, pageSize: pageSize]) }">${ totalPages }</a>
+                        <% } %>
+
+                        <% if (currentPage < totalPages) { %>
+                            <a class="queue-page-link" aria-label="Next page" title="Next page"
+                               href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, page: currentPage + 1, pageSize: pageSize]) }">
+                                <i class="icon-chevron-right" aria-hidden="true"></i>
+                            </a>
+                        <% } else { %>
+                            <span class="queue-page-link disabled" aria-disabled="true"><i class="icon-chevron-right" aria-hidden="true"></i></span>
+                        <% } %>
+                    </nav>
+                <% } %>
+            </div>
+        <% } %>
+
+        <% latestVitalsByEntryId.each { entryId, summary -> %>
+            <div id="queue-vitals-summary-${ entryId }" style="display: none">
+                <section class="queue-latest-vitals" aria-label="Most recent vitals for this visit">
+                    <div class="queue-latest-vitals-header">
+                        <span class="queue-latest-vitals-title"><i class="icon-heart"></i> Most recent vitals</span>
+                        <% if (summary.recordedAt) { %>
+                            <time class="queue-latest-vitals-time" datetime="${ summary.recordedAt.format("yyyy-MM-dd'T'HH:mm:ss") }">
+                                <i class="icon-time"></i> ${ summary.recordedAt.format("dd MMM yyyy, HH:mm") }
+                            </time>
+                        <% } %>
+                    </div>
+                    <div class="queue-latest-vitals-values">
+                        <% summary.values.each { vital -> %>
+                            <div class="queue-latest-vital">
+                                <span class="queue-latest-vital-label">${ ui.encodeHtmlContent(vital.label) }</span>
+                                <strong class="queue-latest-vital-value">
+                                    ${ ui.encodeHtmlContent(vital.value) }<% if (vital.unit) { %><span class="queue-latest-vital-unit">${ ui.encodeHtmlContent(vital.unit) }</span><% } %>
+                                </strong>
+                            </div>
+                        <% } %>
+                    </div>
+                </section>
+            </div>
+        <% } %>
+    </div>
 
     <div id="queue-vitals-dialog" class="dialog queue-vitals-dialog" role="dialog"
          aria-modal="true" aria-labelledby="queue-vitals-title" style="display: none">
@@ -782,5 +1094,8 @@
         <input type="hidden" name="encounterId" value="" />
         <input type="hidden" name="locationId" value="${ selectedLocation?.id ?: "" }" />
         <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
+        <input type="hidden" name="page" value="${ currentPage }" />
+        <input type="hidden" name="pageSize" value="${ pageSize }" />
     </form>
+    <%= ui.includeFragment("rwandaemr", "queue/transferReasonDialog") %>
 <% } %>

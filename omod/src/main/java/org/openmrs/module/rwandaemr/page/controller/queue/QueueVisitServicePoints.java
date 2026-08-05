@@ -2,32 +2,32 @@ package org.openmrs.module.rwandaemr.page.controller.queue;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.Location;
 import org.openmrs.Visit;
+import org.openmrs.module.rwandaemr.queue.QueueStatus;
 import org.openmrs.module.rwandaemr.queue.model.QueueEntry;
 
 final class QueueVisitServicePoints {
+
+    private static final Set<QueueStatus> ACTIVE_STATUSES = EnumSet.of(
+            QueueStatus.WAITING,
+            QueueStatus.CALLED,
+            QueueStatus.IN_PROGRESS,
+            QueueStatus.ON_HOLD);
 
     private QueueVisitServicePoints() {
     }
 
     static Map<Integer, List<Location>> mapByEntryId(List<QueueEntry> reportEntries,
                                                      List<QueueEntry> visitEntries) {
-        Map<String, List<QueueEntry>> entriesByVisit = new LinkedHashMap<String, List<QueueEntry>>();
-        for (QueueEntry entry : nullSafe(visitEntries)) {
-            String visitKey = visitKey(entry.getVisit());
-            if (visitKey != null) {
-                if (!entriesByVisit.containsKey(visitKey)) {
-                    entriesByVisit.put(visitKey, new ArrayList<QueueEntry>());
-                }
-                entriesByVisit.get(visitKey).add(entry);
-            }
-        }
+        Map<String, List<QueueEntry>> entriesByVisit = groupByVisit(visitEntries);
 
         Map<Integer, List<Location>> servicePointsByEntryId =
                 new LinkedHashMap<Integer, List<Location>>();
@@ -48,6 +48,49 @@ final class QueueVisitServicePoints {
                     new ArrayList<Location>(servicePoints.values()));
         }
         return servicePointsByEntryId;
+    }
+
+    static Map<Integer, List<Location>> mapConcurrentDestinationsByEntryId(List<QueueEntry> displayedEntries,
+                                                                           List<QueueEntry> visitEntries) {
+        Map<String, List<QueueEntry>> entriesByVisit = groupByVisit(visitEntries);
+        Map<Integer, List<Location>> destinationsByEntryId = new LinkedHashMap<Integer, List<Location>>();
+        for (QueueEntry displayedEntry : nullSafe(displayedEntries)) {
+            if (displayedEntry.getId() == null) {
+                continue;
+            }
+            LinkedHashMap<String, Location> destinations = new LinkedHashMap<String, Location>();
+            String sourceServicePointKey = locationKey(displayedEntry.getServicePoint());
+            List<QueueEntry> relatedEntries = entriesByVisit.get(visitKey(displayedEntry.getVisit()));
+            if (sourceServicePointKey != null && relatedEntries != null) {
+                for (QueueEntry relatedEntry : relatedEntries) {
+                    if (!isSameEntry(displayedEntry, relatedEntry)
+                            && ACTIVE_STATUSES.contains(relatedEntry.getStatus())
+                            && sourceServicePointKey.equals(locationKey(relatedEntry.getPreviousServicePoint()))) {
+                        add(destinations, relatedEntry.getServicePoint());
+                    }
+                }
+            }
+            destinationsByEntryId.put(displayedEntry.getId(), new ArrayList<Location>(destinations.values()));
+        }
+        return destinationsByEntryId;
+    }
+
+    private static Map<String, List<QueueEntry>> groupByVisit(List<QueueEntry> entries) {
+        Map<String, List<QueueEntry>> entriesByVisit = new LinkedHashMap<String, List<QueueEntry>>();
+        for (QueueEntry entry : nullSafe(entries)) {
+            String visitKey = visitKey(entry.getVisit());
+            if (visitKey != null) {
+                if (!entriesByVisit.containsKey(visitKey)) {
+                    entriesByVisit.put(visitKey, new ArrayList<QueueEntry>());
+                }
+                entriesByVisit.get(visitKey).add(entry);
+            }
+        }
+        return entriesByVisit;
+    }
+
+    private static boolean isSameEntry(QueueEntry first, QueueEntry second) {
+        return first == second || first.getId() != null && first.getId().equals(second.getId());
     }
 
     private static List<QueueEntry> nullSafe(List<QueueEntry> entries) {

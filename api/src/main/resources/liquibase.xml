@@ -737,4 +737,62 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="20260729-add-provider-to-appointment-schedule" author="jberchmas">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="rwandaemr_appointment_schedule"/>
+                <not><columnExists tableName="rwandaemr_appointment_schedule" columnName="provider_id"/></not>
+            </and>
+        </preConditions>
+        <addColumn tableName="rwandaemr_appointment_schedule">
+            <column name="provider_id" type="int"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_appointment_schedule_provider"
+                                 baseTableName="rwandaemr_appointment_schedule" baseColumnNames="provider_id"
+                                 referencedTableName="provider" referencedColumnNames="provider_id"/>
+        <createIndex tableName="rwandaemr_appointment_schedule" indexName="idx_appointment_schedule_provider">
+            <column name="provider_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20260729-add-appointment-schedule-provider-constraint" author="jberchmas">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="rwandaemr_appointment_schedule"/>
+                <columnExists tableName="rwandaemr_appointment_schedule" columnName="provider_id"/>
+                <not>
+                    <indexExists tableName="rwandaemr_appointment_schedule"
+                                 indexName="uq_appointment_schedule_service_date_provider"/>
+                </not>
+            </and>
+        </preConditions>
+        <addUniqueConstraint tableName="rwandaemr_appointment_schedule"
+                             columnNames="service_point_location_id,schedule_date,provider_id"
+                             constraintName="uq_appointment_schedule_service_date_provider"/>
+    </changeSet>
+
+    <changeSet id="20260729-drop-appointment-schedule-service-date-constraint" author="jberchmas">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="rwandaemr_appointment_schedule"/>
+                <indexExists tableName="rwandaemr_appointment_schedule"
+                             indexName="uq_appointment_schedule_service_date"/>
+            </and>
+        </preConditions>
+        <dropUniqueConstraint tableName="rwandaemr_appointment_schedule"
+                              constraintName="uq_appointment_schedule_service_date"/>
+    </changeSet>
+
+    <changeSet id="20260730-add-queue-entry-transfer-reason" author="rwandaemr">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="rwandaemr_queue_entry"/>
+                <not><columnExists tableName="rwandaemr_queue_entry" columnName="transfer_reason"/></not>
+            </and>
+        </preConditions>
+        <addColumn tableName="rwandaemr_queue_entry">
+            <column name="transfer_reason" type="varchar(1024)"/>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

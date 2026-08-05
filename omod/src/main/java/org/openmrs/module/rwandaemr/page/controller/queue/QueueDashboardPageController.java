@@ -1,12 +1,15 @@
 package org.openmrs.module.rwandaemr.page.controller.queue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.Encounter;
@@ -30,12 +33,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 @Controller
 public class QueueDashboardPageController extends QueuePageSupport {
 
+    static final int DEFAULT_PAGE_SIZE = 10;
+
+    static final List<Integer> PAGE_SIZE_OPTIONS = Collections.unmodifiableList(
+            Arrays.asList(10, 20, 40, 60, 80, 100));
+
     public void get(PageModel model,
                     UiSessionContext sessionContext,
                     @SpringBean QueueService queueService,
                     @SpringBean("encounterService") EncounterService encounterService,
                     @RequestParam(value = "locationId", required = false) Integer locationId,
-                    @RequestParam(value = "status", required = false) String status) {
+                    @RequestParam(value = "status", required = false) String status,
+                    @RequestParam(value = "page", required = false) Integer page,
+                    @RequestParam(value = "pageSize", required = false) Integer pageSize) {
         if (!canViewQueue()) {
             model.addAttribute("authorized", false);
             return;
@@ -54,7 +64,15 @@ public class QueueDashboardPageController extends QueuePageSupport {
         }
         QueueStatus selectedStatus = parseStatus(status);
         Date referenceTime = new Date();
-        List<QueueEntry> entries = getEntriesForLocation(queueService, location, selectedStatus, referenceTime);
+        List<QueueEntry> allEntries = getEntriesForLocation(queueService, location, selectedStatus, referenceTime);
+        int selectedPageSize = normalizePageSize(pageSize);
+        int totalEntries = allEntries.size();
+        int totalPages = calculateTotalPages(totalEntries, selectedPageSize);
+        int currentPage = normalizePage(page, totalPages);
+        int firstEntryIndex = (currentPage - 1) * selectedPageSize;
+        int lastEntryIndex = Math.min(firstEntryIndex + selectedPageSize, totalEntries);
+        List<QueueEntry> entries = new ArrayList<QueueEntry>(
+                allEntries.subList(firstEntryIndex, lastEntryIndex));
         model.addAttribute("authorized", true);
         model.addAttribute("canViewAllLocations", viewAllLocations);
         model.addAttribute("canManageQueue", canManageQueue());
@@ -66,8 +84,25 @@ public class QueueDashboardPageController extends QueuePageSupport {
         model.addAttribute("priorities", QueuePriority.values());
         model.addAttribute("servicePoints", loginLocations);
         model.addAttribute("entries", entries);
+        model.addAttribute("totalEntries", totalEntries);
+        model.addAttribute("pageStart", totalEntries == 0 ? 0 : firstEntryIndex + 1);
+        model.addAttribute("pageEnd", lastEntryIndex);
+        model.addAttribute("currentPage", currentPage);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("pageSize", selectedPageSize);
+        model.addAttribute("pageSizeOptions", PAGE_SIZE_OPTIONS);
+        model.addAttribute("pageNumbers", buildPageNumbers(currentPage, totalPages));
         model.addAttribute("waitingTimeByEntryId", QueueWaitingTime.formatByEntryId(entries, referenceTime));
         model.addAttribute("latestVitalsByEntryId", getLatestVitalsByEntryId(entries, encounterService));
+        Set<Visit> displayedVisits = new LinkedHashSet<Visit>();
+        for (QueueEntry entry : entries) {
+            if (entry.getVisit() != null) {
+                displayedVisits.add(entry.getVisit());
+            }
+        }
+        model.addAttribute("concurrentServicePointsByEntryId",
+                QueueVisitServicePoints.mapConcurrentDestinationsByEntryId(
+                        entries, queueService.getQueueEntriesByVisits(displayedVisits)));
     }
 
     private Location findLoginLocation(List<Location> loginLocations, Integer locationId) {
@@ -90,7 +125,9 @@ public class QueueDashboardPageController extends QueuePageSupport {
                        @RequestParam(value = "destinationServicePointId", required = false) Integer destinationServicePointId,
                        @RequestParam(value = "priority", required = false) String priority,
                        @RequestParam(value = "reason", required = false) String reason,
-                       @RequestParam(value = "status", required = false) String status) {
+                       @RequestParam(value = "status", required = false) String status,
+                       @RequestParam(value = "page", required = false) Integer page,
+                       @RequestParam(value = "pageSize", required = false) Integer pageSize) {
         try {
             if ("openDashboard".equals(action)) {
                 return openPatientDashboard(ui, queueService, entryId);
@@ -102,7 +139,7 @@ public class QueueDashboardPageController extends QueuePageSupport {
                 }
                 queueService.callPatientAfterVitals(queueService.getQueueEntry(entryId), vitalsEncounter);
                 setToast(sessionContext, "Vitals saved. Patient status changed to Called");
-                return redirect(ui, "queue/queueDashboard", "locationId", locationId, "status", status);
+                return dashboardRedirect(ui, locationId, status, page, pageSize);
             }
             if (!"transfer".equals(action) && !"updatePriority".equals(action)) {
                 throw new IllegalArgumentException("Unsupported queue action: " + action);
@@ -113,7 +150,38 @@ public class QueueDashboardPageController extends QueuePageSupport {
         catch (Exception e) {
             setError(sessionContext, e.getMessage());
         }
-        return redirect(ui, "queue/queueDashboard", "locationId", locationId, "status", status);
+        return dashboardRedirect(ui, locationId, status, page, pageSize);
+    }
+
+    private String dashboardRedirect(UiUtils ui, Integer locationId, String status,
+                                     Integer page, Integer pageSize) {
+        return redirect(ui, "queue/queueDashboard", "locationId", locationId, "status", status,
+                "page", page, "pageSize", normalizePageSize(pageSize));
+    }
+
+    static int normalizePageSize(Integer requestedPageSize) {
+        return requestedPageSize != null && PAGE_SIZE_OPTIONS.contains(requestedPageSize)
+                ? requestedPageSize : DEFAULT_PAGE_SIZE;
+    }
+
+    static int calculateTotalPages(int totalEntries, int pageSize) {
+        return Math.max(1, (totalEntries + pageSize - 1) / pageSize);
+    }
+
+    static int normalizePage(Integer requestedPage, int totalPages) {
+        int page = requestedPage == null ? 1 : requestedPage;
+        return Math.max(1, Math.min(page, totalPages));
+    }
+
+    static List<Integer> buildPageNumbers(int currentPage, int totalPages) {
+        int firstPage = Math.max(1, currentPage - 2);
+        int lastPage = Math.min(totalPages, firstPage + 4);
+        firstPage = Math.max(1, lastPage - 4);
+        List<Integer> pageNumbers = new ArrayList<Integer>();
+        for (int page = firstPage; page <= lastPage; page++) {
+            pageNumbers.add(page);
+        }
+        return pageNumbers;
     }
 
     private Encounter getEncounter(EncounterService encounterService, String encounterId) {

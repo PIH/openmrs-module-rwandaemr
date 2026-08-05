@@ -136,6 +136,22 @@
 		</description>
 	</globalProperty>
 
+	<globalProperty>
+		<property>rwandaemr.queue.radiologyServicePoint</property>
+		<defaultValue></defaultValue>
+		<description>
+			Location UUID, ID, or name of the Radiology login-location service point. When blank, locations containing Radiology are treated as Radiology.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.queue.imagingServicePoint</property>
+		<defaultValue></defaultValue>
+		<description>
+			Location UUID, ID, or name of the Imaging login-location service point. When blank, locations containing Imaging are treated as Imaging.
+		</description>
+	</globalProperty>
+
 
 
 	<globalProperty>

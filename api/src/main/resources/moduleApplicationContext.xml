@@ -109,6 +109,7 @@
 			<bean class="org.openmrs.module.rwandaemr.appointment.FacilityAppointmentServiceImpl">
 				<property name="dao"><ref bean="appointmentDao"/></property>
 				<property name="locationTagUtil"><ref bean="locationTagUtil"/></property>
+				<property name="providerService"><ref bean="providerService"/></property>
 			</bean>
 		</property>
 		<property name="preInterceptors">
