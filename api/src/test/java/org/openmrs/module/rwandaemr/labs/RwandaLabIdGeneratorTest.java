@@ -1,17 +1,11 @@
 package org.openmrs.module.rwandaemr.labs;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openmrs.Location;
-import org.openmrs.api.context.Context;
-import org.openmrs.api.context.UserContext;
-import org.openmrs.messagesource.MessageSourceService;
 import org.openmrs.module.rwandaemr.LabIdSequenceValue;
 import org.openmrs.module.rwandaemr.RwandaEmrService;
 import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
-
-import java.util.Locale;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -26,27 +20,16 @@ public class RwandaLabIdGeneratorTest {
 
     IntegrationConfig integrationConfig;
     RwandaEmrService rwandaEmrService;
-    MessageSourceService messageSourceService;
     RwandaLabIdGenerator generator;
     Location location;
 
     @BeforeEach
     public void setup() {
-        UserContext userContext = mock(UserContext.class);
-        when(userContext.getLocale()).thenReturn(Locale.ENGLISH);
-        Context.setUserContext(userContext);
-
         integrationConfig = mock(IntegrationConfig.class);
         rwandaEmrService = mock(RwandaEmrService.class);
-        messageSourceService = mock(MessageSourceService.class);
-        generator = new RwandaLabIdGenerator(integrationConfig, rwandaEmrService, messageSourceService);
+        generator = new RwandaLabIdGenerator(integrationConfig, rwandaEmrService);
         location = mock(Location.class);
         when(location.getName()).thenReturn("Kibogora Hospital");
-    }
-
-    @AfterEach
-    public void tearDown() {
-        Context.clearUserContext();
     }
 
     @Test
@@ -71,10 +54,8 @@ public class RwandaLabIdGeneratorTest {
     }
 
     @Test
-    public void generateLabId_shouldThrowWithLocalizedMessageWhenNoFosaIdConfigured() {
+    public void generateLabId_shouldThrowWhenNoFosaIdConfigured() {
         when(integrationConfig.getFosaId(location)).thenReturn(null);
-        when(messageSourceService.getMessage("rwandaemr.labId.noFosaId", new Object[]{ "Kibogora Hospital" }, Locale.ENGLISH))
-            .thenReturn("Unable to generate Lab ID: no FOSA ID is configured for location Kibogora Hospital");
 
         Exception e = assertThrows(IllegalStateException.class, () -> generator.generateLabId(location));
 

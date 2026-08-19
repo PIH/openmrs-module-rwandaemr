@@ -73,16 +73,12 @@ public class RwandaEmrServiceImpl extends BaseOpenmrsService implements RwandaEm
 
 	public static final String GP_LAB_ID_NEXT_SEQUENCE_VALUE = "rwandaemr.labs.labIdNextSequenceValue";
 
-	// No @Authorized annotation: this is an internal sequence-generation primitive with no
-	// sensitive data, called only from the authenticated generateLabId REST endpoint upstream.
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public synchronized LabIdSequenceValue getNextLabIdSequenceValueForToday() {
 		String todayStr = new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH).format(new Date());
 		Session session = sessionFactory.getHibernateSessionFactory().getCurrentSession();
-		GlobalProperty gp = (GlobalProperty) session.get(GlobalProperty.class, GP_LAB_ID_NEXT_SEQUENCE_VALUE, LockOptions.UPGRADE);
+		GlobalProperty gp = session.get(GlobalProperty.class, GP_LAB_ID_NEXT_SEQUENCE_VALUE, LockOptions.UPGRADE);
 		if (gp == null) {
-			// config.xml seeds this global property with an empty default value on module
-			// startup, so this branch is expected only if that row is deleted after the fact
 			gp = new GlobalProperty(GP_LAB_ID_NEXT_SEQUENCE_VALUE, "");
 		}
 		String storedValue = gp.getPropertyValue();

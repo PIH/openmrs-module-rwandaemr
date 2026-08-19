@@ -2,8 +2,6 @@ package org.openmrs.module.rwandaemr.labs;
 
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.Location;
-import org.openmrs.api.context.Context;
-import org.openmrs.messagesource.MessageSourceService;
 import org.openmrs.module.pihapps.labs.LabIdGenerator;
 import org.openmrs.module.rwandaemr.LabIdSequenceValue;
 import org.openmrs.module.rwandaemr.RwandaEmrService;
@@ -12,8 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Generates Lab IDs of the form &lt;FOSA_ID&gt;-&lt;YYYYMMDD&gt;-&lt;N&gt;, where N is a
- * sequence that resets daily (shared globally, not per-facility - see the design spec).
+ * Generates Lab IDs of the form FOSA_ID-YYYYMMDD-N, where N is a sequence that resets daily
  */
 @Component
 public class RwandaLabIdGenerator implements LabIdGenerator {
@@ -22,14 +19,10 @@ public class RwandaLabIdGenerator implements LabIdGenerator {
 
     private final RwandaEmrService rwandaEmrService;
 
-    private final MessageSourceService messageSourceService;
-
     public RwandaLabIdGenerator(@Autowired IntegrationConfig integrationConfig,
-                                 @Autowired RwandaEmrService rwandaEmrService,
-                                 @Autowired MessageSourceService messageSourceService) {
+                                 @Autowired RwandaEmrService rwandaEmrService) {
         this.integrationConfig = integrationConfig;
         this.rwandaEmrService = rwandaEmrService;
-        this.messageSourceService = messageSourceService;
     }
 
     @Override
@@ -42,8 +35,7 @@ public class RwandaLabIdGenerator implements LabIdGenerator {
         String fosaId = integrationConfig.getFosaId(sessionLocation);
         if (StringUtils.isBlank(fosaId)) {
             String locationName = sessionLocation != null ? sessionLocation.getName() : "?";
-            String message = messageSourceService.getMessage("rwandaemr.labId.noFosaId", new Object[]{ locationName }, Context.getLocale());
-            throw new IllegalStateException(message);
+            throw new IllegalStateException("Unable to generate Lab ID: no FOSA ID is configured for location " + locationName);
         }
         LabIdSequenceValue sequence = rwandaEmrService.getNextLabIdSequenceValueForToday();
         return fosaId.trim() + "-" + sequence.getDateString() + "-" + pad(sequence.getSequenceValue());
