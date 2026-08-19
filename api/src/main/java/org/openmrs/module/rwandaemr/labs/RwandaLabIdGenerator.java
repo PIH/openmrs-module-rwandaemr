@@ -5,13 +5,11 @@ import org.openmrs.Location;
 import org.openmrs.api.context.Context;
 import org.openmrs.messagesource.MessageSourceService;
 import org.openmrs.module.pihapps.labs.LabIdGenerator;
+import org.openmrs.module.rwandaemr.LabIdSequenceValue;
 import org.openmrs.module.rwandaemr.RwandaEmrService;
 import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 /**
  * Generates Lab IDs of the form &lt;FOSA_ID&gt;-&lt;YYYYMMDD&gt;-&lt;N&gt;, where N is a
@@ -43,13 +41,12 @@ public class RwandaLabIdGenerator implements LabIdGenerator {
     public String generateLabId(Location sessionLocation) {
         String fosaId = integrationConfig.getFosaId(sessionLocation);
         if (StringUtils.isBlank(fosaId)) {
-            String locationName = sessionLocation != null ? sessionLocation.getName() : "(no location)";
+            String locationName = sessionLocation != null ? sessionLocation.getName() : "?";
             String message = messageSourceService.getMessage("rwandaemr.labId.noFosaId", new Object[]{ locationName }, Context.getLocale());
             throw new IllegalStateException(message);
         }
-        String dateStr = new SimpleDateFormat("yyyyMMdd").format(new Date());
-        int sequenceValue = rwandaEmrService.getNextLabIdSequenceValueForToday();
-        return fosaId + "-" + dateStr + "-" + pad(sequenceValue);
+        LabIdSequenceValue sequence = rwandaEmrService.getNextLabIdSequenceValueForToday();
+        return fosaId.trim() + "-" + sequence.getDateString() + "-" + pad(sequence.getSequenceValue());
     }
 
     static String pad(int sequenceValue) {

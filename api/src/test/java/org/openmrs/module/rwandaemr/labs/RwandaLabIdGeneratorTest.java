@@ -7,14 +7,19 @@ import org.openmrs.Location;
 import org.openmrs.api.context.Context;
 import org.openmrs.api.context.UserContext;
 import org.openmrs.messagesource.MessageSourceService;
+import org.openmrs.module.rwandaemr.LabIdSequenceValue;
 import org.openmrs.module.rwandaemr.RwandaEmrService;
 import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
+
+import java.util.Locale;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class RwandaLabIdGeneratorTest {
@@ -27,7 +32,9 @@ public class RwandaLabIdGeneratorTest {
 
     @BeforeEach
     public void setup() {
-        Context.setUserContext(mock(UserContext.class));
+        UserContext userContext = mock(UserContext.class);
+        when(userContext.getLocale()).thenReturn(Locale.ENGLISH);
+        Context.setUserContext(userContext);
 
         integrationConfig = mock(IntegrationConfig.class);
         rwandaEmrService = mock(RwandaEmrService.class);
@@ -66,23 +73,33 @@ public class RwandaLabIdGeneratorTest {
     @Test
     public void generateLabId_shouldThrowWithLocalizedMessageWhenNoFosaIdConfigured() {
         when(integrationConfig.getFosaId(location)).thenReturn(null);
-        when(messageSourceService.getMessage("rwandaemr.labId.noFosaId", new Object[]{ "Kibogora Hospital" }, Context.getLocale()))
+        when(messageSourceService.getMessage("rwandaemr.labId.noFosaId", new Object[]{ "Kibogora Hospital" }, Locale.ENGLISH))
             .thenReturn("Unable to generate Lab ID: no FOSA ID is configured for location Kibogora Hospital");
 
         Exception e = assertThrows(IllegalStateException.class, () -> generator.generateLabId(location));
 
         assertThat(e.getMessage(), containsString("Kibogora Hospital"));
+        verify(rwandaEmrService, never()).getNextLabIdSequenceValueForToday();
     }
 
     @Test
     public void generateLabId_shouldCombineFosaIdDateAndPaddedSequence() {
         when(integrationConfig.getFosaId(location)).thenReturn("KIB");
-        when(rwandaEmrService.getNextLabIdSequenceValueForToday()).thenReturn(7);
+        when(rwandaEmrService.getNextLabIdSequenceValueForToday()).thenReturn(new LabIdSequenceValue("20260819", 7));
 
         String labId = generator.generateLabId(location);
 
-        assertThat(labId, containsString("KIB-"));
-        assertThat(labId, containsString("-0007"));
+        assertThat(labId, equalTo("KIB-20260819-0007"));
+    }
+
+    @Test
+    public void generateLabId_shouldTrimFosaId() {
+        when(integrationConfig.getFosaId(location)).thenReturn("  KIB  ");
+        when(rwandaEmrService.getNextLabIdSequenceValueForToday()).thenReturn(new LabIdSequenceValue("20260819", 1));
+
+        String labId = generator.generateLabId(location);
+
+        assertThat(labId, equalTo("KIB-20260819-0001"));
     }
 
     @Test

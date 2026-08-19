@@ -38,5 +38,14 @@ public interface RwandaEmrService extends OpenmrsService {
 
 	List<String> triggerSyncForPatient(Patient patient);
 
-	int getNextLabIdSequenceValueForToday();
+	/**
+	 * Returns the next Lab ID sequence value for the current day, paired with the date it was
+	 * scoped to, as a single atomic operation - see {@link LabIdSequenceValue}.
+	 * <p>
+	 * The returned sequence value starts at 1 for the first call of a given day and increments
+	 * by 1 on every subsequent call within that same day; it resets to 1 again on the first call
+	 * of a new day. Runs in its own transaction that commits immediately, independent of the
+	 * caller's transaction, so the increment is never rolled back by the caller.
+	 */
+	LabIdSequenceValue getNextLabIdSequenceValueForToday();
 }
