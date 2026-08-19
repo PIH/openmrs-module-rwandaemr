@@ -150,6 +150,16 @@
 	</globalProperty>
 
 	<globalProperty>
+		<property>rwandaemr.labs.labIdNextSequenceValue</property>
+		<defaultValue></defaultValue>
+		<description>
+			Internal tracking value used to auto-generate Lab IDs. Stores the last date a Lab ID
+			was generated and the next sequence value to use, in the format yyyy-MM-dd:N. Not
+			meant to be edited manually.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
 		<property>rwandaemr.autoExpireLabOrdersOlderThanDays</property>
 		<defaultValue>30</defaultValue>
 		<description>
