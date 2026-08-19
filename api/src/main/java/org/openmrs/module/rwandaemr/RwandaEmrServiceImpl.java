@@ -34,6 +34,7 @@ import org.openmrs.PersonName;
 import org.openmrs.Relationship;
 import org.openmrs.Visit;
 import org.openmrs.annotation.Authorized;
+import org.openmrs.api.APIException;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.context.Context;
 import org.openmrs.api.db.OrderDAO;
@@ -84,7 +85,12 @@ public class RwandaEmrServiceImpl extends BaseOpenmrsService implements RwandaEm
 		if (storedValue != null && storedValue.contains(":")) {
 			String[] parts = storedValue.split(":", 2);
 			if (parts[0].equals(todayStr)) {
-				nextValue = Integer.parseInt(parts[1]);
+				try {
+					nextValue = Integer.parseInt(parts[1]);
+				}
+				catch (NumberFormatException ex) {
+					throw new APIException("Invalid value for global property named: " + GP_LAB_ID_NEXT_SEQUENCE_VALUE);
+				}
 			}
 		}
 		gp.setPropertyValue(todayStr + ":" + (nextValue + 1));
