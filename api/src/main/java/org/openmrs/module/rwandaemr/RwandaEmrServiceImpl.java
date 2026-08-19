@@ -16,10 +16,12 @@ package org.openmrs.module.rwandaemr;
 import lombok.Setter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hibernate.LockOptions;
 import org.hibernate.Session;
 import org.hibernate.query.NativeQuery;
 import org.openmrs.Encounter;
 import org.openmrs.EncounterProvider;
+import org.openmrs.GlobalProperty;
 import org.openmrs.Obs;
 import org.openmrs.Order;
 import org.openmrs.Patient;
@@ -41,8 +43,10 @@ import org.openmrs.api.impl.BaseOpenmrsService;
 import org.openmrs.util.ConfigUtil;
 import org.openmrs.util.PrivilegeConstants;
 import org.openmrs.validator.ValidateUtil;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -64,6 +68,29 @@ public class RwandaEmrServiceImpl extends BaseOpenmrsService implements RwandaEm
 
 	@Setter
 	private OrderDAO orderDAO;
+
+	public static final String GP_LAB_ID_NEXT_SEQUENCE_VALUE = "rwandaemr.labs.labIdNextSequenceValue";
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public synchronized int getNextLabIdSequenceValueForToday() {
+		String todayStr = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+		Session session = sessionFactory.getHibernateSessionFactory().getCurrentSession();
+		GlobalProperty gp = (GlobalProperty) session.get(GlobalProperty.class, GP_LAB_ID_NEXT_SEQUENCE_VALUE, LockOptions.UPGRADE);
+		if (gp == null) {
+			gp = new GlobalProperty(GP_LAB_ID_NEXT_SEQUENCE_VALUE, "");
+		}
+		String storedValue = gp.getPropertyValue();
+		int nextValue = 1;
+		if (storedValue != null && storedValue.contains(":")) {
+			String[] parts = storedValue.split(":", 2);
+			if (parts[0].equals(todayStr)) {
+				nextValue = Integer.parseInt(parts[1]);
+			}
+		}
+		gp.setPropertyValue(todayStr + ":" + (nextValue + 1));
+		session.saveOrUpdate(gp);
+		return nextValue;
+	}
 
 	@Transactional(readOnly = true)
 	@Authorized(PrivilegeConstants.GET_OBS)

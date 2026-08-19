@@ -37,4 +37,6 @@ public interface RwandaEmrService extends OpenmrsService {
 	int markLabOrdersAsExpired();
 
 	List<String> triggerSyncForPatient(Patient patient);
+
+	int getNextLabIdSequenceValueForToday();
 }
