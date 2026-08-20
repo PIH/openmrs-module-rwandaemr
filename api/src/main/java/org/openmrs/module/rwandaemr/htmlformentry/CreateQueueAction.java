@@ -135,6 +135,8 @@ public class CreateQueueAction implements CustomFormSubmissionAction {
         }
         return "uuid=" + queueEntry.getUuid()
                 + ", queueNumber=" + queueEntry.getQueueNumber()
-                + ", status=" + queueEntry.getStatus();
+                + ", status=" + queueEntry.getStatus()
+                + ", serviceRequested=" + (queueEntry.getServiceRequestedConcept() == null
+                        ? null : queueEntry.getServiceRequestedConcept().getUuid());
     }
 }

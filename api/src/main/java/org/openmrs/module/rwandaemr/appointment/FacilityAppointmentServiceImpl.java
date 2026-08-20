@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -14,8 +16,10 @@ import org.openmrs.BaseOpenmrsData;
 import org.openmrs.Location;
 import org.openmrs.Patient;
 import org.openmrs.Program;
+import org.openmrs.Provider;
 import org.openmrs.User;
 import org.openmrs.annotation.Authorized;
+import org.openmrs.api.ProviderService;
 import org.openmrs.api.context.Context;
 import org.openmrs.api.impl.BaseOpenmrsService;
 import org.openmrs.module.rwandaemr.LocationTagUtil;
@@ -30,6 +34,7 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
     private static final List<String> CAPACITY_STATUSES = Arrays.asList(
             AppointmentStatus.REQUESTED.name(),
             AppointmentStatus.CONFIRMED.name(),
+            AppointmentStatus.PRESENT.name(),
             AppointmentStatus.COMPLETED.name());
 
     @Setter
@@ -38,11 +43,22 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
     @Setter
     private LocationTagUtil locationTagUtil;
 
+    @Setter
+    private ProviderService providerService;
+
     @Override
     @Authorized(AppointmentPrivileges.MANAGE_SCHEDULES)
     public AppointmentSchedule saveSchedule(Location servicePoint, Date scheduleDate, int maximumPatients,
                                             String notes) {
+        return saveSchedule(servicePoint, scheduleDate, maximumPatients, null, notes);
+    }
+
+    @Override
+    @Authorized(AppointmentPrivileges.MANAGE_SCHEDULES)
+    public AppointmentSchedule saveSchedule(Location servicePoint, Date scheduleDate, int maximumPatients,
+                                            Provider provider, String notes) {
         validateServicePoint(servicePoint);
+        Provider selectedProvider = requireLicensedProvider(provider);
         Date normalizedDate = normalizeDate(scheduleDate);
         if (normalizedDate.before(today())) {
             throw new IllegalArgumentException("Appointment schedule date cannot be in the past");
@@ -50,7 +66,8 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
         if (maximumPatients < 1) {
             throw new IllegalArgumentException("Maximum patients must be at least 1");
         }
-        AppointmentSchedule schedule = dao.getScheduleByServicePointAndDate(servicePoint, normalizedDate);
+        AppointmentSchedule schedule = dao.getScheduleByServicePointDateAndProvider(
+                servicePoint, normalizedDate, selectedProvider);
         if (schedule != null) {
             schedule = dao.getScheduleForUpdate(schedule.getId());
             if (!normalizedDate.after(today())
@@ -72,6 +89,7 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
             setCreationMetadata(schedule, new Date());
         }
         schedule.setMaximumPatients(maximumPatients);
+        schedule.setProvider(selectedProvider);
         schedule.setNotes(StringUtils.trimToNull(notes));
         setChangeMetadataIfPersisted(schedule);
         return dao.saveSchedule(schedule);
@@ -208,7 +226,7 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
         AppointmentBooking booking = requireBookingForUpdate(bookingId);
         if (!AppointmentStatus.REQUESTED.equals(booking.getStatus())
                 && !AppointmentStatus.CONFIRMED.equals(booking.getStatus())) {
-            throw new IllegalStateException("This appointment can no longer be postponed");
+            throw new IllegalStateException("This appointment can no longer be rescheduled");
         }
 
         AppointmentSchedule currentSchedule = booking.getSchedule();
@@ -219,15 +237,11 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
         if (!Boolean.TRUE.equals(newSchedule.getActive())) {
             throw new IllegalStateException("The selected appointment date is not available");
         }
-        if (!normalizeDate(newSchedule.getScheduleDate()).after(
-                normalizeDate(currentSchedule.getScheduleDate()))) {
-            throw new IllegalArgumentException("The postponed appointment date must be later than the current date");
-        }
-        if (!normalizeDate(newSchedule.getScheduleDate()).after(today())) {
-            throw new IllegalArgumentException("The postponed appointment date must be in the future");
+        if (normalizeDate(newSchedule.getScheduleDate()).before(today())) {
+            throw new IllegalArgumentException("The new appointment date cannot be in the past");
         }
         if (!currentSchedule.getServicePoint().equals(newSchedule.getServicePoint())) {
-            throw new IllegalArgumentException("The postponed appointment must use the same service point");
+            throw new IllegalArgumentException("The rescheduled appointment must use the same service point");
         }
         AppointmentBooking existing = dao.getBooking(booking.getPatient(), newSchedule);
         if (existing != null) {
@@ -260,6 +274,24 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
             throw new IllegalStateException("This appointment can no longer be cancelled");
         }
         return booking;
+    }
+
+    @Override
+    @Authorized(AppointmentPrivileges.VIEW)
+    public AppointmentBooking markBookingPresent(Integer bookingId) {
+        AppointmentBooking booking = requireBookingForUpdate(bookingId);
+        AppointmentSchedule schedule = booking.getSchedule();
+        if (schedule == null || !normalizeDate(schedule.getScheduleDate()).equals(today())) {
+            throw new IllegalStateException("Only today's appointments can be marked present");
+        }
+        AppointmentStatus current = booking.getStatus();
+        if (AppointmentStatus.PRESENT.equals(current) || AppointmentStatus.COMPLETED.equals(current)) {
+            return booking;
+        }
+        validateTransition(current, AppointmentStatus.PRESENT);
+        booking.setStatus(AppointmentStatus.PRESENT);
+        setChangeMetadata(booking, new Date());
+        return dao.saveBooking(booking);
     }
 
     @Override
@@ -314,6 +346,26 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
         return locationTagUtil.getLoginLocations();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(AppointmentPrivileges.MANAGE_SCHEDULES)
+    public List<Provider> getLicensedProviders() {
+        List<Provider> licensedProviders = new ArrayList<Provider>();
+        for (Provider provider : providerService.getAllProviders(false)) {
+            if (isLicensedProvider(provider)) {
+                licensedProviders.add(provider);
+            }
+        }
+        Collections.sort(licensedProviders, new Comparator<Provider>() {
+            @Override
+            public int compare(Provider left, Provider right) {
+                return StringUtils.defaultString(left.getName())
+                        .compareToIgnoreCase(StringUtils.defaultString(right.getName()));
+            }
+        });
+        return licensedProviders;
+    }
+
     protected User getAuthenticatedUser() {
         return Context.getAuthenticatedUser();
     }
@@ -356,13 +408,37 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
         }
     }
 
+    private Provider requireLicensedProvider(Provider provider) {
+        if (provider == null) {
+            return null;
+        }
+        Provider storedProvider = provider.getId() == null ? null : providerService.getProvider(provider.getId());
+        if (!isLicensedProvider(storedProvider)) {
+            throw new IllegalArgumentException("Provider must be active and have a Provider License");
+        }
+        return storedProvider;
+    }
+
+    private boolean isLicensedProvider(Provider provider) {
+        if (provider == null || Boolean.TRUE.equals(provider.getRetired())
+                || provider.getPerson() == null || Boolean.TRUE.equals(provider.getPerson().getVoided())) {
+            return false;
+        }
+        return ProviderLicenseUtil.getLicense(provider) != null;
+    }
+
     private void validateTransition(AppointmentStatus current, AppointmentStatus next) {
         if (current == next) {
             return;
         }
-        boolean allowed = (AppointmentStatus.REQUESTED.equals(current)
+        boolean awaitingArrival = (AppointmentStatus.REQUESTED.equals(current)
                 || AppointmentStatus.CONFIRMED.equals(current))
+                && (AppointmentStatus.PRESENT.equals(next)
+                || AppointmentStatus.COMPLETED.equals(next)
+                || AppointmentStatus.CANCELLED.equals(next));
+        boolean arrived = AppointmentStatus.PRESENT.equals(current)
                 && (AppointmentStatus.COMPLETED.equals(next) || AppointmentStatus.CANCELLED.equals(next));
+        boolean allowed = awaitingArrival || arrived;
         if (!allowed) {
             throw new IllegalStateException("Appointment cannot change from " + current + " to " + next);
         }

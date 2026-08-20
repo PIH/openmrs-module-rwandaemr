@@ -73,6 +73,8 @@
                     <th>Queue #</th>
                     <th>Patient</th>
                     <th>Service point</th>
+                    <th>Service requested</th>
+                    <th>Reason for transfer</th>
                     <th>Priority</th>
                     <th>Status</th>
                     <th>Waiting</th>
@@ -104,7 +106,9 @@
                             <% } %>
                         </td>
                         <td>${ ui.encodeHtmlContent(entry.servicePoint?.name ?: "") }</td>
-                        <td>${ ui.encodeHtmlContent(entry.priority?.name() ?: "") }</td>
+                        <td>${ ui.encodeHtmlContent(entry.serviceRequestedConcept?.name?.name ?: entry.serviceRequestedConcept?.uuid ?: "-") }</td>
+                        <td>${ ui.encodeHtmlContent(entry.transferReason ?: "-") }</td>
+                        <td>${ ui.encodeHtmlContent(entry.priority?.displayName ?: "") }</td>
                         <td>${ ui.encodeHtmlContent(entry.status?.name() ?: "") }</td>
                         <td>${ waitMinutes } min</td>
                         <td>${ entry.arrivalTime ? entry.arrivalTime.format("HH:mm") : "" }</td>
@@ -119,7 +123,7 @@
                                     <label for="priority-${ entry.id }">Priority</label>
                                     <select id="priority-${ entry.id }" name="priority">
                                         <% priorities.each { priority -> %>
-                                            <option value="${ priority.name() }" ${ entry.priority == priority ? "selected=\"selected\"" : "" }>${ priority.name() }</option>
+                                            <option value="${ priority.name() }" ${ entry.priority == priority ? "selected=\"selected\"" : "" }>${ ui.encodeHtmlContent(priority.displayName) }</option>
                                         <% } %>
                                     </select>
                                     <button type="submit" class="button"><i class="icon-save"></i> Update</button>
@@ -161,7 +165,10 @@
                             <% } %>
                             <% if (canTransferPatient) { %>
                                 <% if (!destinationServicePoints.isEmpty()) { %>
-                                    <form class="queue-select-action" method="post" action="${ ui.pageLink("rwandaemr", "queue/providerQueue") }">
+                                    <form class="queue-select-action queue-transfer-form" method="post"
+                                          action="${ ui.pageLink("rwandaemr", "queue/providerQueue") }"
+                                          data-patient-name="${ ui.escapeAttribute(patient?.personName?.fullName ?: "Patient") }"
+                                          data-current-service-point="${ ui.escapeAttribute(entry.servicePoint?.name ?: "") }">
                                         <input type="hidden" name="action" value="transfer" />
                                         <input type="hidden" name="entryId" value="${ entry.id }" />
                                         <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }" />
@@ -172,7 +179,7 @@
                                                 <option value="${ sp.id }">${ ui.encodeHtmlContent(sp.name) }</option>
                                             <% } %>
                                         </select>
-                                        <input type="hidden" name="reason" value="Transferred from provider queue" />
+                                        <input type="hidden" name="reason" value="" />
                                         <button type="submit" class="button">Send</button>
                                     </form>
                                 <% } %>
@@ -183,4 +190,5 @@
             </tbody>
         </table>
     <% } %>
+    <%= ui.includeFragment("rwandaemr", "queue/transferReasonDialog") %>
 <% } %>

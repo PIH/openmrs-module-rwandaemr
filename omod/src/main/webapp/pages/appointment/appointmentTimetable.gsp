@@ -107,28 +107,56 @@
         color: #5d6666;
     }
 
+    .appointment-actions {
+        align-items: center;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        justify-content: space-between;
+        min-width: 370px;
+        width: 100%;
+    }
+
+    .appointment-actions-cell {
+        box-sizing: border-box;
+        min-width: 400px;
+        width: 400px;
+        white-space: nowrap;
+    }
+
     .appointment-inline-form {
-        display: inline;
-        margin: 0;
+        display: inline-flex;
+        flex: 0 0 auto;
+        margin: 0 0 0 auto;
     }
 
     .appointment-capacity-form {
         align-items: center;
         display: inline-flex;
+        flex: 0 0 auto;
         gap: 5px;
-        margin: 0 6px 0 0;
+        margin: 0;
     }
 
-    .appointment-capacity-form input {
+    .appointment-capacity-form input.appointment-capacity-input {
         box-sizing: border-box;
+        flex: 0 0 70px;
         height: 34px;
-        width: 72px;
+        max-width: 70px !important;
+        min-width: 70px !important;
+        width: 70px !important;
     }
 
-    .appointment-capacity-form button {
+    .appointment-capacity-form .appointment-update-button {
+        box-sizing: border-box;
+        flex: 0 0 160px;
         height: 34px;
-        min-width: 36px;
-        padding: 0 10px;
+        max-width: 160px;
+        min-width: 160px;
+        overflow: visible;
+        padding: 0 12px;
+        white-space: nowrap;
+        width: 160px;
     }
 </style>
 
@@ -161,6 +189,18 @@
             <label for="appointment-editor-capacity">Maximum patients</label>
             <input id="appointment-editor-capacity" type="number" name="maximumPatients"
                    min="1" step="1" required="required"/>
+        </div>
+        <div class="appointment-field">
+            <label for="appointment-editor-provider">Provider</label>
+            <select id="appointment-editor-provider" name="providerId">
+                <option value="">No provider</option>
+                <% licensedProviders.each { provider ->
+                    def providerName = provider.name ?: "Unnamed provider"
+                    def providerLabel = providerName + " - License: " + providerLicenses[provider.id]
+                %>
+                    <option value="${ provider.id }">${ ui.encodeHtmlContent(providerLabel) }</option>
+                <% } %>
+            </select>
         </div>
         <div class="appointment-field notes">
             <label for="appointment-editor-notes">Notes</label>
@@ -208,6 +248,7 @@
             <tr>
                 <th>Date</th>
                 <th>Service point</th>
+                <th>Provider</th>
                 <th>Capacity</th>
                 <th>Remaining</th>
                 <th>Status</th>
@@ -217,7 +258,7 @@
             </thead>
             <tbody>
             <% if (scheduleSummaries.isEmpty()) { %>
-                <tr><td colspan="7">No appointment schedules match these filters.</td></tr>
+                <tr><td colspan="8">No appointment schedules match these filters.</td></tr>
             <% } %>
             <% scheduleSummaries.each { summary ->
                 def schedule = summary.schedule
@@ -229,6 +270,7 @@
                 <tr>
                     <td>${ ui.format(schedule.scheduleDate) }</td>
                     <td>${ ui.encodeHtmlContent(schedule.servicePoint?.name ?: "") }</td>
+                    <td>${ ui.encodeHtmlContent(schedule.provider?.name ?: "") }</td>
                     <td class="appointment-capacity">
                         <div class="appointment-capacity-label">
                             <span>${ summary.bookedPatients } booked</span>
@@ -245,37 +287,41 @@
                         </span>
                     </td>
                     <td>${ ui.encodeHtmlContent(schedule.notes ?: "") }</td>
-                    <td>
-                        <% if (schedule.scheduleDate?.after(todayDate)) { %>
-                            <form class="appointment-capacity-form" method="post"
+                    <td class="appointment-actions-cell">
+                        <div class="appointment-actions">
+                            <% if (schedule.scheduleDate?.after(todayDate)) { %>
+                                <form class="appointment-capacity-form" method="post"
+                                      action="${ ui.pageLink("rwandaemr", "appointment/appointmentTimetable") }">
+                                    <input type="hidden" name="action" value="capacity"/>
+                                    <input type="hidden" name="scheduleId" value="${ schedule.id }"/>
+                                    <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
+                                    <input type="hidden" name="startDate" value="${ ui.escapeAttribute(selectedStartDate) }"/>
+                                    <input type="hidden" name="endDate" value="${ ui.escapeAttribute(selectedEndDate) }"/>
+                                    <input type="number" name="maximumPatients" value="${ maximumPatients }"
+                                           class="appointment-capacity-input"
+                                           min="${ Math.max(1, summary.bookedPatients) }" step="1"
+                                           aria-label="Maximum patients" required="required"/>
+                                    <button type="submit" class="button appointment-update-button"
+                                            title="Update capacity" aria-label="Update capacity">
+                                        <i class="icon-save" aria-hidden="true"></i>
+                                        Update Capacity
+                                    </button>
+                                </form>
+                            <% } %>
+                            <form class="appointment-inline-form" method="post"
                                   action="${ ui.pageLink("rwandaemr", "appointment/appointmentTimetable") }">
-                                <input type="hidden" name="action" value="capacity"/>
+                                <input type="hidden" name="action" value="toggle"/>
                                 <input type="hidden" name="scheduleId" value="${ schedule.id }"/>
                                 <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
                                 <input type="hidden" name="startDate" value="${ ui.escapeAttribute(selectedStartDate) }"/>
                                 <input type="hidden" name="endDate" value="${ ui.escapeAttribute(selectedEndDate) }"/>
-                                <input type="number" name="maximumPatients" value="${ maximumPatients }"
-                                       min="${ Math.max(1, summary.bookedPatients) }" step="1"
-                                       aria-label="Maximum patients" required="required"/>
-                                <button type="submit" class="button" title="Update capacity"
-                                        aria-label="Update capacity">
-                                    <i class="icon-save" aria-hidden="true"></i>
+                                <input type="hidden" name="active" value="${ schedule.active ? "false" : "true" }"/>
+                                <button type="submit" class="button">
+                                    <i class="${ schedule.active ? "icon-lock" : "icon-unlock" }" aria-hidden="true"></i>
+                                    ${ schedule.active ? "Close" : "Open" }
                                 </button>
                             </form>
-                        <% } %>
-                        <form class="appointment-inline-form" method="post"
-                              action="${ ui.pageLink("rwandaemr", "appointment/appointmentTimetable") }">
-                            <input type="hidden" name="action" value="toggle"/>
-                            <input type="hidden" name="scheduleId" value="${ schedule.id }"/>
-                            <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
-                            <input type="hidden" name="startDate" value="${ ui.escapeAttribute(selectedStartDate) }"/>
-                            <input type="hidden" name="endDate" value="${ ui.escapeAttribute(selectedEndDate) }"/>
-                            <input type="hidden" name="active" value="${ schedule.active ? "false" : "true" }"/>
-                            <button type="submit" class="button">
-                                <i class="${ schedule.active ? "icon-lock" : "icon-unlock" }" aria-hidden="true"></i>
-                                ${ schedule.active ? "Close" : "Open" }
-                            </button>
-                        </form>
+                        </div>
                     </td>
                 </tr>
             <% } %>

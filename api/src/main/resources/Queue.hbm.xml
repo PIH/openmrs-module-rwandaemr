@@ -35,6 +35,7 @@
 		<many-to-one name="sessionLocation" class="org.openmrs.Location" column="session_location_id"/>
 		<many-to-one name="servicePoint" class="org.openmrs.Location" column="service_point_location_id" not-null="true"/>
 		<many-to-one name="previousServicePoint" class="org.openmrs.Location" column="previous_service_point_location_id"/>
+		<property name="transferReason" type="java.lang.String" column="transfer_reason" length="1024"/>
 		<many-to-one name="serviceRequestedConcept" class="org.openmrs.Concept" column="service_requested_concept_id"/>
 		<many-to-one name="assignedProvider" class="org.openmrs.Provider" column="assigned_provider_id"/>
 		<property name="priorityName" type="java.lang.String" column="priority" length="50" not-null="true"/>

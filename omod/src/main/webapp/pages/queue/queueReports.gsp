@@ -272,12 +272,12 @@
     <% } %>
     <h4>Total entries: ${ entries.size() }</h4>
     <table>
-        <thead><tr><th>Queue #</th><th>Patient</th><th>Service point</th><th>Priority</th><th>Status</th><th>Waiting time</th><th>Arrival</th><th>Completed</th></tr></thead>
+        <thead><tr><th>Queue #</th><th>Patient</th><th>Service point</th><th>Reason for transfer</th><th>Priority</th><th>Status</th><th>Waiting time</th><th>Arrival</th><th>Completed</th></tr></thead>
         <tbody>
             <% entries.each { entry ->
                 def priorityName = entry.priority?.name() ?: ""
                 def priorityClass = priorityName.toLowerCase().replace('_', '-')
-                def priorityLabel = priorityName.toLowerCase().replace('_', ' ').capitalize()
+                def priorityLabel = entry.priority?.displayName ?: ""
                 def statusName = entry.status?.name() ?: ""
                 def statusClass = statusName.toLowerCase().replace('_', '-')
                 def statusLabel = statusName.toLowerCase().replace('_', ' ').capitalize()
@@ -297,6 +297,7 @@
                         </button>
                     </td>
                     <td>${ ui.encodeHtmlContent(entry.servicePoint?.name ?: "") }</td>
+                    <td>${ ui.encodeHtmlContent(entry.transferReason ?: "-") }</td>
                     <td><span class="queue-report-badge queue-priority-${ priorityClass }">${ ui.encodeHtmlContent(priorityLabel) }</span></td>
                     <td><span class="queue-report-badge queue-status-${ statusClass }">${ ui.encodeHtmlContent(statusLabel) }</span></td>
                     <td class="queue-report-wait-time">${ ui.encodeHtmlContent(waitingTimeByEntryId[entry.id] ?: "-") }</td>
@@ -304,7 +305,7 @@
                     <td>${ entry.completedTime ? entry.completedTime.format("yyyy-MM-dd HH:mm") : "" }</td>
                 </tr>
                 <tr id="${ detailId }" class="queue-report-detail" hidden="hidden">
-                    <td colspan="8">
+                    <td colspan="9">
                         <div class="queue-report-journey">
                             <strong class="queue-report-journey-title">Visited service points</strong>
                             <ol class="queue-report-service-points">

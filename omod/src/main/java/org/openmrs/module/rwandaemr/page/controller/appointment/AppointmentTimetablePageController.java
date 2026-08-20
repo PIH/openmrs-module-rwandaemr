@@ -2,14 +2,18 @@ package org.openmrs.module.rwandaemr.page.controller.appointment;
 
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.openmrs.Location;
+import org.openmrs.Provider;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.appui.UiSessionContext;
 import org.openmrs.module.rwandaemr.appointment.AppointmentPrivileges;
 import org.openmrs.module.rwandaemr.appointment.AppointmentScheduleSummary;
 import org.openmrs.module.rwandaemr.appointment.FacilityAppointmentService;
+import org.openmrs.module.rwandaemr.appointment.ProviderLicenseUtil;
 import org.openmrs.ui.framework.UiUtils;
 import org.openmrs.ui.framework.annotation.SpringBean;
 import org.openmrs.ui.framework.page.PageModel;
@@ -32,6 +36,11 @@ public class AppointmentTimetablePageController extends AppointmentPageSupport {
         String selectedStartDate = startDate == null ? today.toString() : startDate;
         String selectedEndDate = endDate == null ? today.plusDays(30).toString() : endDate;
         List<Location> servicePoints = appointmentService.getServicePointLocations();
+        List<Provider> licensedProviders = appointmentService.getLicensedProviders();
+        Map<Integer, String> providerLicenses = new LinkedHashMap<Integer, String>();
+        for (Provider provider : licensedProviders) {
+            providerLicenses.put(provider.getId(), ProviderLicenseUtil.getLicense(provider));
+        }
         Location selectedServicePoint = findServicePoint(servicePoints, servicePointId);
         List<AppointmentScheduleSummary> summaries = Collections.emptyList();
         String dateRangeError = null;
@@ -49,6 +58,8 @@ public class AppointmentTimetablePageController extends AppointmentPageSupport {
         }
         model.addAttribute("authorized", true);
         model.addAttribute("servicePoints", servicePoints);
+        model.addAttribute("licensedProviders", licensedProviders);
+        model.addAttribute("providerLicenses", providerLicenses);
         model.addAttribute("selectedServicePoint", selectedServicePoint);
         model.addAttribute("selectedStartDate", selectedStartDate);
         model.addAttribute("selectedEndDate", selectedEndDate);
@@ -66,6 +77,7 @@ public class AppointmentTimetablePageController extends AppointmentPageSupport {
                        @RequestParam(value = "servicePointId", required = false) Integer servicePointId,
                        @RequestParam(value = "scheduleDate", required = false) String scheduleDate,
                        @RequestParam(value = "maximumPatients", required = false) Integer maximumPatients,
+                       @RequestParam(value = "providerId", required = false) Integer providerId,
                        @RequestParam(value = "notes", required = false) String notes,
                        @RequestParam(value = "active", required = false) Boolean active,
                        @RequestParam(value = "startDate", required = false) String startDate,
@@ -83,11 +95,16 @@ public class AppointmentTimetablePageController extends AppointmentPageSupport {
                 setToast(sessionContext, "Appointment capacity updated");
             } else if ("save".equals(action)) {
                 Location servicePoint = Context.getLocationService().getLocation(servicePointId);
+                Provider provider = providerId == null
+                        ? null : Context.getProviderService().getProvider(providerId);
+                if (providerId != null && provider == null) {
+                    throw new IllegalArgumentException("Selected provider was not found");
+                }
                 if (maximumPatients == null) {
                     throw new IllegalArgumentException("Maximum patients is required");
                 }
                 appointmentService.saveSchedule(
-                        servicePoint, toDate(parseDate(scheduleDate, null)), maximumPatients, notes);
+                        servicePoint, toDate(parseDate(scheduleDate, null)), maximumPatients, provider, notes);
                 setToast(sessionContext, "Appointment timetable saved");
             } else {
                 throw new IllegalArgumentException("Unsupported timetable action");

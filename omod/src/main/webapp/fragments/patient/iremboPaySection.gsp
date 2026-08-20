@@ -1,6 +1,10 @@
 <%
 ui.includeJavascript("rwandaemr", "custom/hie.js")
 ui.includeCss("rwandaemr", "hie/hie.css")
+def batchPaymentLink = bills?.findResult { b ->
+    def link = b?.getPaymentLinkUrl()
+    (link != null && !link.toString().trim().isEmpty()) ? link.toString().trim() : null
+}
 %>
 
 <div id="payment-view-dialog" class="dialog" style="display: none">
@@ -85,10 +89,19 @@ ui.includeCss("rwandaemr", "hie/hie.css")
                     ${ payButtonLabel }
                 </a>
                 <% } else { %>
-                <span class="irembo-pay-total-btn disabled"
-                      title="Batch payment is unavailable once an invoice number exists.">
+                <span class="irembo-pay-total-btn irembo-pay-total-btn--inactive"
+                      aria-disabled="true">
                     ${ payButtonLabel }
                 </span>
+                <% } %>
+                <% if (batchPaymentLink) { %>
+                <a class="irembo-payment-link-btn irembo-payment-link-btn--compact"
+                   href="${ ui.encodeHtmlAttribute(batchPaymentLink) }"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   title="${ ui.encodeHtmlAttribute(ui.message('rwandaemr.billing.openPaymentLinkTitle')) }">
+                    <i class="icon-external-link"></i> ${ ui.message('rwandaemr.billing.openPaymentLink') }
+                </a>
                 <% } %>
             </div>
             <div class="irembo-bills-table-wrapper">

@@ -60,6 +60,11 @@
         min-width: 0;
     }
 
+    .appointment-field.appointment-schedule-field {
+        flex-basis: 320px;
+        max-width: 520px;
+    }
+
     .appointment-field label {
         color: #344343;
         display: block;
@@ -94,6 +99,12 @@
         background: #e3f0ff;
         border-color: #8ab6e8;
         color: #245a91;
+    }
+
+    .appointment-status.present {
+        background: #e0f3f2;
+        border-color: #78b9b4;
+        color: #185f5a;
     }
 
     .appointment-status.completed {
@@ -134,7 +145,7 @@
     }
 
     .appointment-table {
-        min-width: 1040px;
+        min-width: 1120px;
         width: 100%;
     }
 </style>
@@ -199,13 +210,15 @@
                     <input type="hidden" name="action" value="request"/>
                     <input type="hidden" name="patientId" value="${ ui.escapeAttribute(patient.uuid) }"/>
                     <input type="hidden" name="servicePointId" value="${ selectedServicePoint.id }"/>
-                    <div class="appointment-field">
+                    <div class="appointment-field appointment-schedule-field">
                         <label for="appointment-available-date">Available date</label>
                         <select id="appointment-available-date" name="scheduleId" required="required">
                             <option value="">Select available date</option>
-                            <% availableSchedules.each { summary -> %>
+                            <% availableSchedules.each { summary ->
+                                def providerName = summary.schedule.provider?.name
+                            %>
                                 <option value="${ summary.schedule.id }">
-                                    ${ ui.format(summary.schedule.scheduleDate) } - ${ summary.remainingCapacity } places remaining
+                                    ${ ui.format(summary.schedule.scheduleDate) }${ providerName ? " - Provider: " + ui.encodeHtmlContent(providerName) : "" } - ${ summary.remainingCapacity } places remaining
                                 </option>
                             <% } %>
                         </select>
@@ -246,6 +259,7 @@
                 <tr>
                     <th>Date</th>
                     <th>Service point</th>
+                    <th>Provider</th>
                     <th>Program</th>
                     <th>Visit type</th>
                     <th>Status</th>
@@ -255,7 +269,7 @@
                 </thead>
                 <tbody>
                 <% if (patientBookings.isEmpty()) { %>
-                    <tr><td colspan="7">This patient has no upcoming appointments.</td></tr>
+                    <tr><td colspan="8">This patient has no upcoming appointments.</td></tr>
                 <% } %>
                 <% patientBookings.each { booking ->
                     def statusName = booking.status?.name() ?: ""
@@ -266,6 +280,7 @@
                     <tr>
                         <td>${ ui.format(booking.schedule?.scheduleDate) }</td>
                         <td>${ ui.encodeHtmlContent(booking.schedule?.servicePoint?.name ?: "") }</td>
+                        <td>${ ui.encodeHtmlContent(booking.schedule?.provider?.name ?: "") }</td>
                         <td>${ ui.encodeHtmlContent(booking.program?.name ?: "") }</td>
                         <td>${ ui.encodeHtmlContent(booking.visitType?.displayName ?: "") }</td>
                         <td>
@@ -280,20 +295,22 @@
                                     <% if (!postponeSchedules.isEmpty()) { %>
                                         <form class="appointment-postpone-form" method="post"
                                               action="${ ui.pageLink("rwandaemr", "appointment/requestAppointment") }">
-                                            <input type="hidden" name="action" value="postpone"/>
+                                            <input type="hidden" name="action" value="reschedule"/>
                                             <input type="hidden" name="bookingId" value="${ booking.id }"/>
                                             <input type="hidden" name="patientId" value="${ ui.escapeAttribute(patient.uuid) }"/>
                                             <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
                                             <select name="newScheduleId" required="required" title="New appointment date">
-                                                <option value="">Postpone to...</option>
-                                                <% postponeSchedules.each { summary -> %>
+                                                <option value="">Reschedule to...</option>
+                                                <% postponeSchedules.each { summary ->
+                                                    def providerName = summary.schedule.provider?.name
+                                                %>
                                                     <option value="${ summary.schedule.id }">
-                                                        ${ ui.format(summary.schedule.scheduleDate) } - ${ summary.remainingCapacity } places
+                                                        ${ ui.format(summary.schedule.scheduleDate) }${ providerName ? " - Provider: " + ui.encodeHtmlContent(providerName) : "" } - ${ summary.remainingCapacity } places
                                                     </option>
                                                 <% } %>
                                             </select>
-                                            <button type="submit" class="button" title="Postpone appointment">
-                                                <i class="icon-calendar" aria-hidden="true"></i> Postpone
+                                            <button type="submit" class="button" title="Reschedule appointment">
+                                                <i class="icon-calendar" aria-hidden="true"></i> Reschedule
                                             </button>
                                         </form>
                                     <% } %>
