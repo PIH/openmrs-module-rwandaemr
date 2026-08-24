@@ -154,4 +154,20 @@
 		</property>
 	</bean>
 
+	<bean id="labNotificationConfig" class="org.openmrs.module.rwandaemr.labnotification.LabNotificationConfig"/>
+
+	<bean id="intouchSmsClient" class="org.openmrs.module.rwandaemr.labnotification.IntouchSmsClient">
+		<constructor-arg ref="labNotificationConfig"/>
+	</bean>
+
+	<bean id="paymentClearanceLogRepository" class="org.openmrs.module.rwandaemr.paymentclearance.PaymentClearanceLogRepository">
+		<constructor-arg ref="dbSessionFactory"/>
+	</bean>
+
+	<bean id="paymentClearanceService" class="org.openmrs.module.rwandaemr.paymentclearance.PaymentClearanceService">
+		<constructor-arg ref="labNotificationConfig"/>
+		<constructor-arg ref="intouchSmsClient"/>
+		<constructor-arg ref="paymentClearanceLogRepository"/>
+	</bean>
+
 </beans>
