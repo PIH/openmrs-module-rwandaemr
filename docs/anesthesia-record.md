@@ -4,7 +4,7 @@ This module includes an MVP anesthesia monitoring dashboard at:
 
 `/openmrs/rwandaemr/patient/anesthesiaRecord.page?patientId=<patientId>`
 
-It follows the existing RwandaEMR pattern used by the Labour Care Guide:
+It follows the RwandaEMR patient-page pattern:
 
 - One `Anesthesia Record` encounter per saved section batch.
 - A UUID operation identifier stored on every section encounter, keeping separate operations isolated.
