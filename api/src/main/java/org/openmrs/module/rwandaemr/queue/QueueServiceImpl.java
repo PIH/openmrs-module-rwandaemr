@@ -49,6 +49,8 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
 
     private static final String IMAGING_SERVICE_POINT_GP = "rwandaemr.queue.imagingServicePoint";
 
+    private static final int ACTIVE_QUEUE_DURATION_HOURS = 24;
+
     private static final List<QueueStatus> ACTIVE_STATUSES = Arrays.asList(
             QueueStatus.WAITING,
             QueueStatus.CALLED,
@@ -151,13 +153,17 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     @Override
     @Transactional(readOnly = true)
     public QueueEntry getActiveQueueEntry(Patient patient, Location servicePoint, Date date) {
-        return dao.getActiveQueueEntry(patient, servicePoint, startOfDay(date), endOfDay(date), ACTIVE_STATUSES);
+        Date referenceDate = defaultDate(date);
+        return dao.getActiveQueueEntry(patient, servicePoint, activeQueueStart(referenceDate),
+                endOfDay(referenceDate), ACTIVE_STATUSES);
     }
 
     @Override
     @Transactional(readOnly = true)
     public QueueEntry getActiveQueueEntry(Patient patient, Date date) {
-        return dao.getActiveQueueEntry(patient, startOfDay(date), endOfDay(date), ACTIVE_STATUSES);
+        Date referenceDate = defaultDate(date);
+        return dao.getActiveQueueEntry(patient, activeQueueStart(referenceDate), endOfDay(referenceDate),
+                ACTIVE_STATUSES);
     }
 
     @Override
@@ -206,7 +212,36 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     @Transactional(readOnly = true)
     @Authorized(QueuePrivileges.VIEW)
     public List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date date) {
-        return getQueueEntriesByLocation(location, status, date, date);
+        Date referenceDate = defaultDate(date);
+        Date dayStart = startOfDay(referenceDate);
+        Date rangeStart = isActiveStatus(status) || status == null ? activeQueueStart(referenceDate) : dayStart;
+        List<QueueEntry> entries = dao.getQueueEntries(location, status, rangeStart, endOfDay(referenceDate));
+        return sortQueueEntries(filterLiveQueueEntries(entries, status, dayStart));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(QueuePrivileges.VIEW)
+    public int countQueueEntriesByLocation(Location location, QueueStatus status, Date date) {
+        Date referenceDate = defaultDate(date);
+        Date dayStart = startOfDay(referenceDate);
+        Date rangeStart = isActiveStatus(status) || status == null ? activeQueueStart(referenceDate) : dayStart;
+        return dao.countQueueEntries(location, status, rangeStart, endOfDay(referenceDate),
+                status == null ? dayStart : null, status == null ? ACTIVE_STATUSES : null, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(QueuePrivileges.VIEW)
+    public List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date date,
+                                                       int firstResult, int maxResults) {
+        validatePage(firstResult, maxResults);
+        Date referenceDate = defaultDate(date);
+        Date dayStart = startOfDay(referenceDate);
+        Date rangeStart = isActiveStatus(status) || status == null ? activeQueueStart(referenceDate) : dayStart;
+        return dao.getQueueEntries(location, status, rangeStart, endOfDay(referenceDate),
+                status == null ? dayStart : null, status == null ? ACTIVE_STATUSES : null,
+                null, firstResult, maxResults);
     }
 
     @Override
@@ -214,14 +249,8 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     @Authorized(QueuePrivileges.VIEW)
     public List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date startDate,
                                                        Date endDate) {
-        if (startDate == null || endDate == null) {
-            throw new IllegalArgumentException("Queue report start and end dates are required");
-        }
+        validateDateRange(startDate, endDate);
         Date rangeStart = startOfDay(startDate);
-        Date lastDayStart = startOfDay(endDate);
-        if (rangeStart.after(lastDayStart)) {
-            throw new IllegalArgumentException("Queue report end date must be on or after the start date");
-        }
         List<QueueEntry> entries = dao.getQueueEntries(location, status, rangeStart, endOfDay(endDate));
         return sortQueueEntries(entries);
     }
@@ -229,11 +258,51 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     @Override
     @Transactional(readOnly = true)
     @Authorized(QueuePrivileges.VIEW)
+    public int countQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate) {
+        return countQueueEntriesByLocation(location, status, startDate, endDate, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(QueuePrivileges.VIEW)
+    public int countQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate,
+                                           String patientName) {
+        validateDateRange(startDate, endDate);
+        return dao.countQueueEntries(location, status, startOfDay(startDate), endOfDay(endDate),
+                null, null, normalizePatientName(patientName));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(QueuePrivileges.VIEW)
+    public List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date startDate,
+                                                       Date endDate, int firstResult, int maxResults) {
+        return getQueueEntriesByLocation(location, status, startDate, endDate, null, firstResult, maxResults);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(QueuePrivileges.VIEW)
+    public List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date startDate,
+                                                       Date endDate, String patientName,
+                                                       int firstResult, int maxResults) {
+        validatePage(firstResult, maxResults);
+        validateDateRange(startDate, endDate);
+        return dao.getQueueEntries(location, status, startOfDay(startDate), endOfDay(endDate),
+                null, null, normalizePatientName(patientName), firstResult, maxResults);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(QueuePrivileges.VIEW)
     public List<QueueEntry> getQueueEntriesByServicePoint(Location servicePoint, Location visibleLocation,
                                                           QueueStatus status, Date date) {
+        Date referenceDate = defaultDate(date);
+        Date dayStart = startOfDay(referenceDate);
+        Date rangeStart = isActiveStatus(status) || status == null ? activeQueueStart(referenceDate) : dayStart;
         List<QueueEntry> entries = dao.getQueueEntriesByServicePoint(servicePoint, visibleLocation, status,
-                startOfDay(date), endOfDay(date));
-        return sortQueueEntries(entries);
+                rangeStart, endOfDay(referenceDate));
+        return sortQueueEntries(filterLiveQueueEntries(entries, status, dayStart));
     }
 
     @Override
@@ -308,6 +377,14 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     @Transactional
     @Authorized(QueuePrivileges.TRANSFER_PATIENT)
     public QueueEntry transferPatient(QueueEntry queueEntry, Location destinationServicePoint, String reason) {
+        return transferPatient(queueEntry, destinationServicePoint, reason, null);
+    }
+
+    @Override
+    @Transactional
+    @Authorized(QueuePrivileges.TRANSFER_PATIENT)
+    public QueueEntry transferPatient(QueueEntry queueEntry, Location destinationServicePoint, String reason,
+                                      Provider assignedProvider) {
         if (queueEntry == null) {
             throw new IllegalArgumentException("Queue entry is required");
         }
@@ -324,7 +401,11 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         if (destinationServicePoint.equals(queueEntry.getServicePoint())) {
             throw new IllegalArgumentException("Destination service point must be different from the current service point");
         }
+        if (assignedProvider != null && Boolean.TRUE.equals(assignedProvider.getRetired())) {
+            throw new IllegalArgumentException("Assigned provider must be active");
+        }
         Date now = new Date();
+        boolean diagnosticSource = isDiagnosticServicePoint(queueEntry.getServicePoint());
         boolean diagnosticDestination = isDiagnosticServicePoint(destinationServicePoint);
         QueueEntry activeEntry = queueEntry.getPatient() == null ? null :
                 getActiveQueueEntry(queueEntry.getPatient(), destinationServicePoint, now);
@@ -332,15 +413,22 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
             if (isReturnToActivePreviousServicePoint(queueEntry, destinationServicePoint, activeEntry)) {
                 queueEntry.setTransferReason(reason);
                 markPatientTransferred(queueEntry, reason);
+                assignProvider(activeEntry, assignedProvider);
                 return activeEntry;
             }
             if (diagnosticDestination) {
+                if (diagnosticSource) {
+                    queueEntry.setTransferReason(reason);
+                    markPatientTransferred(queueEntry, reason);
+                }
+                assignProvider(activeEntry, assignedProvider);
                 return activeEntry;
             }
             throw new IllegalArgumentException("Patient already has an active queue entry at the destination service point");
         }
         if (diagnosticDestination) {
-            return transferToDiagnosticServicePoint(queueEntry, destinationServicePoint, reason, now);
+            return transferToDiagnosticServicePoint(
+                    queueEntry, destinationServicePoint, reason, assignedProvider, now);
         }
         queueEntry.setQueueNumber(generateQueueNumber(destinationServicePoint, now));
         queueEntry.setArrivalTime(now);
@@ -348,7 +436,7 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         queueEntry.setServicePoint(destinationServicePoint);
         queueEntry.setTransferReason(reason);
         queueEntry.setSessionLocation(destinationServicePoint);
-        queueEntry.setAssignedProvider(null);
+        queueEntry.setAssignedProvider(assignedProvider);
         queueEntry.setCalledTime(null);
         queueEntry.setServiceStartTime(null);
         queueEntry.setServiceEndTime(null);
@@ -357,20 +445,25 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     }
 
     private QueueEntry transferToDiagnosticServicePoint(QueueEntry sourceEntry, Location destinationServicePoint,
-                                                         String reason, Date now) {
+                                                         String reason, Provider assignedProvider, Date now) {
         sourceEntry.setTransferReason(reason);
-        if (sourceEntry.getAssignedProvider() == null) {
-            sourceEntry.setAssignedProvider(getCurrentProvider());
+        if (isDiagnosticServicePoint(sourceEntry.getServicePoint())) {
+            markPatientTransferred(sourceEntry, reason);
         }
-        if (sourceEntry.getCalledTime() == null) {
-            sourceEntry.setCalledTime(now);
+        else {
+            if (sourceEntry.getAssignedProvider() == null) {
+                sourceEntry.setAssignedProvider(getCurrentProvider());
+            }
+            if (sourceEntry.getCalledTime() == null) {
+                sourceEntry.setCalledTime(now);
+            }
+            if (sourceEntry.getServiceStartTime() == null) {
+                sourceEntry.setServiceStartTime(now);
+            }
+            sourceEntry.setServiceEndTime(null);
+            sourceEntry.setCompletedTime(null);
+            changeStatus(sourceEntry, QueueStatus.IN_PROGRESS, reason);
         }
-        if (sourceEntry.getServiceStartTime() == null) {
-            sourceEntry.setServiceStartTime(now);
-        }
-        sourceEntry.setServiceEndTime(null);
-        sourceEntry.setCompletedTime(null);
-        changeStatus(sourceEntry, QueueStatus.IN_PROGRESS, reason);
 
         QueueEntry destinationEntry = new QueueEntry();
         destinationEntry.setUuid(UUID.randomUUID().toString());
@@ -383,6 +476,7 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         destinationEntry.setPreviousServicePoint(sourceEntry.getServicePoint());
         destinationEntry.setTransferReason(reason);
         destinationEntry.setServiceRequestedConcept(sourceEntry.getServiceRequestedConcept());
+        destinationEntry.setAssignedProvider(assignedProvider);
         destinationEntry.setPriority(sourceEntry.getPriority());
         destinationEntry.setStatus(QueueStatus.WAITING);
         destinationEntry.setArrivalTime(now);
@@ -391,6 +485,16 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         dao.saveQueueEntry(destinationEntry);
         createQueueStatusHistory(destinationEntry, null, QueueStatus.WAITING, reason);
         return destinationEntry;
+    }
+
+    private void assignProvider(QueueEntry queueEntry, Provider assignedProvider) {
+        if (assignedProvider == null || assignedProvider.equals(queueEntry.getAssignedProvider())) {
+            return;
+        }
+        queueEntry.setAssignedProvider(assignedProvider);
+        queueEntry.setChangedBy(getAuthenticatedUser());
+        queueEntry.setDateChanged(new Date());
+        dao.saveQueueEntry(queueEntry);
     }
 
     private boolean isReturnToActivePreviousServicePoint(QueueEntry queueEntry, Location destinationServicePoint,
@@ -579,7 +683,10 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         return location != null && getLocationTagUtil().isLoginLocation(location);
     }
 
-    protected boolean isLaboratoryServicePoint(Location location) {
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(QueuePrivileges.VIEW)
+    public boolean isLaboratoryServicePoint(Location location) {
         return matchesConfiguredServicePoint(location, LABORATORY_SERVICE_POINT_GP)
                 || location != null && (StringUtils.equalsIgnoreCase(location.getName(), "lab")
                 || StringUtils.containsIgnoreCase(location.getName(), "laboratory"));
@@ -687,6 +794,46 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         return sorted;
     }
 
+    private List<QueueEntry> filterLiveQueueEntries(List<QueueEntry> entries, QueueStatus status, Date dayStart) {
+        if (status != null) {
+            return entries;
+        }
+        List<QueueEntry> filtered = new ArrayList<QueueEntry>();
+        for (QueueEntry entry : entries) {
+            if (isActiveStatus(entry.getStatus())
+                    || entry.getArrivalTime() != null && !entry.getArrivalTime().before(dayStart)) {
+                filtered.add(entry);
+            }
+        }
+        return filtered;
+    }
+
+    private boolean isActiveStatus(QueueStatus status) {
+        return ACTIVE_STATUSES.contains(status);
+    }
+
+    private String normalizePatientName(String patientName) {
+        return StringUtils.trimToNull(patientName);
+    }
+
+    private void validatePage(int firstResult, int maxResults) {
+        if (firstResult < 0) {
+            throw new IllegalArgumentException("Queue page offset must not be negative");
+        }
+        if (maxResults < 1) {
+            throw new IllegalArgumentException("Queue page size must be positive");
+        }
+    }
+
+    private void validateDateRange(Date startDate, Date endDate) {
+        if (startDate == null || endDate == null) {
+            throw new IllegalArgumentException("Queue report start and end dates are required");
+        }
+        if (startOfDay(startDate).after(startOfDay(endDate))) {
+            throw new IllegalArgumentException("Queue report end date must be on or after the start date");
+        }
+    }
+
     protected Provider getCurrentProvider() {
         User user = getAuthenticatedUser();
         if (user == null || user.getPerson() == null) {
@@ -698,12 +845,23 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
 
     private Date startOfDay(Date date) {
         Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date == null ? new Date() : date);
+        calendar.setTime(defaultDate(date));
         calendar.set(Calendar.HOUR_OF_DAY, 0);
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
         return calendar.getTime();
+    }
+
+    private Date activeQueueStart(Date date) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(defaultDate(date));
+        calendar.add(Calendar.HOUR_OF_DAY, -ACTIVE_QUEUE_DURATION_HOURS);
+        return calendar.getTime();
+    }
+
+    private Date defaultDate(Date date) {
+        return date == null ? new Date() : date;
     }
 
     private Date endOfDay(Date date) {

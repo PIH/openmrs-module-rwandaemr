@@ -34,6 +34,8 @@
             }
 
             var status = jq("#queue-status-filter").val() || "ALL";
+            var arrivalDay = jq("#queue-arrival-day-filter").val() || "TODAY";
+            var patientName = jq("#queue-patient-name-filter").val() || "";
             var pageSize = jq("#queue-page-size").val() || "10";
             var selectedLocationId = pendingSessionLocationId
                     || jq("#session-location ul.select li.selected").first().attr("locationId");
@@ -42,12 +44,70 @@
             }
 
             var query = "?status=" + encodeURIComponent(status)
+                    + "&arrivalDay=" + encodeURIComponent(arrivalDay)
+                    + "&patientName=" + encodeURIComponent(patientName)
                     + "&pageSize=" + encodeURIComponent(pageSize);
             if (selectedLocationId) {
                 query += "&locationId=" + encodeURIComponent(selectedLocationId);
             }
             locationRefreshStarted = true;
             window.location.replace("${ ui.pageLink("rwandaemr", "queue/queueDashboard") }" + query);
+        });
+
+        jq(document).on("submit.queueDashboardStatus", ".queue-status-action", function(event) {
+            var form = jq(this);
+            var statusLabel = form.find("select[name='action'] option:selected").text();
+            var patientName = form.attr("data-patient-name") || "this patient";
+            if (!window.confirm("Change " + patientName + " status to " + statusLabel + "?")) {
+                event.preventDefault();
+            }
+        });
+
+        function copyPatientIdentifier(identifier) {
+            var textArea = document.createElement("textarea");
+            textArea.value = identifier;
+            textArea.setAttribute("readonly", "readonly");
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            try {
+                textArea.focus();
+                textArea.select();
+                textArea.setSelectionRange(0, textArea.value.length);
+                document.execCommand("copy");
+            } finally {
+                document.body.removeChild(textArea);
+            }
+        }
+
+        jq(document).on("click.queueDashboardLabOrders", ".queue-lab-orders-link", function(event) {
+            event.preventDefault();
+            var link = jq(this);
+            var form = link.closest("form").get(0);
+            var identifier = link.attr("data-patient-identifier") || "";
+            if (!form || link.data("opening")) {
+                return;
+            }
+            link.data("opening", true);
+
+            var openLabOrders = function() {
+                form.submit();
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+                navigator.clipboard.writeText(identifier).then(openLabOrders, function() {
+                    try {
+                        copyPatientIdentifier(identifier);
+                    } finally {
+                        openLabOrders();
+                    }
+                });
+            } else {
+                try {
+                    copyPatientIdentifier(identifier);
+                } finally {
+                    openLabOrders();
+                }
+            }
         });
 
         var queueLiveRegion = jq("#queue-live-region");
@@ -293,7 +353,8 @@
         margin-bottom: 4px;
     }
 
-    .queue-toolbar select {
+    .queue-toolbar select,
+    .queue-toolbar input[type="search"] {
         box-sizing: border-box;
         max-width: 100%;
         min-width: 190px;
@@ -438,6 +499,22 @@
         color: #253333;
         font-weight: bold;
         margin-top: 2px;
+    }
+
+    .queue-row-assigned-to-me .queue-patient-cell {
+        box-shadow: inset 4px 0 0 #2f8a48;
+    }
+
+    .queue-assigned-to-me {
+        background: #e8f5eb;
+        border: 1px solid #95cba2;
+        border-radius: 3px;
+        color: #237a3b;
+        display: inline-block;
+        font-size: 0.8em;
+        font-weight: bold;
+        margin-top: 5px;
+        padding: 2px 6px;
     }
 
     .queue-service-current {
@@ -783,6 +860,7 @@
 
         .queue-filter-field,
         .queue-toolbar select,
+        .queue-toolbar input[type="search"],
         .queue-toolbar .button {
             width: 100%;
         }
@@ -806,6 +884,8 @@
         def queueReturnUrl = ui.pageLink("rwandaemr", "queue/queueDashboard", [
                 locationId: selectedLocation?.id,
                 status: selectedStatus,
+                arrivalDay: selectedArrivalDay,
+                patientName: patientName,
                 page: currentPage,
                 pageSize: pageSize
         ])
@@ -828,12 +908,24 @@
             </div>
         <% } %>
         <div class="queue-filter-field">
+            <label for="queue-patient-name-filter">Patient name</label>
+            <input id="queue-patient-name-filter" type="search" name="patientName"
+                   value="${ ui.escapeAttribute(patientName) }" />
+        </div>
+        <div class="queue-filter-field">
             <label for="queue-status-filter">Status</label>
             <select id="queue-status-filter" name="status">
                 <option value="ALL" ${ selectedStatus == "ALL" ? "selected=\"selected\"" : "" }>All</option>
                 <% statuses.each { s -> %>
                     <option value="${ s.name() }" ${ selectedStatus == s.name() ? "selected=\"selected\"" : "" }>${ s.name().toLowerCase().replace('_', ' ').capitalize() }</option>
                 <% } %>
+            </select>
+        </div>
+        <div class="queue-filter-field">
+            <label for="queue-arrival-day-filter">Arrival date</label>
+            <select id="queue-arrival-day-filter" name="arrivalDay">
+                <option value="TODAY" ${ selectedArrivalDay == "TODAY" ? "selected=\"selected\"" : "" }>Today</option>
+                <option value="YESTERDAY" ${ selectedArrivalDay == "YESTERDAY" ? "selected=\"selected\"" : "" }>Yesterday</option>
             </select>
         </div>
         <div class="queue-filter-field">
@@ -852,7 +944,7 @@
             <div class="note-container"><div class="note">No queue entries found.</div></div>
         <% } else { %>
             <div class="queue-table-wrap">
-                <table class="queue-table${ (canTransferPatient || canManageQueue) ? ' queue-table-has-actions' : '' }">
+                <table class="queue-table${ (canTransferPatient || canManageQueue || canCallPatient) ? ' queue-table-has-actions' : '' }">
                 <thead>
                     <tr>
                         <th class="queue-column-number">Queue #</th>
@@ -860,7 +952,7 @@
                         <th class="queue-column-service">Service details</th>
                         <th class="queue-column-state">Queue state</th>
                         <th class="queue-column-timing">Timing</th>
-                        <% if (canTransferPatient || canManageQueue) { %>
+                        <% if (canTransferPatient || canManageQueue || canCallPatient) { %>
                             <th class="queue-column-actions">Actions</th>
                         <% } %>
                     </tr>
@@ -868,17 +960,19 @@
                 <tbody>
                     <% entries.each { entry ->
                         def patient = entry.patient
+                        def patientIdentifier = patient?.patientIdentifier?.identifier ?: ""
+                        def phoneNumber = phoneNumberByPatientId[patient?.id]
+                        def assignedToCurrentProvider = entry.assignedProvider?.id != null &&
+                                currentProviderIds.contains(entry.assignedProvider.id)
                         def priorityName = entry.priority?.name() ?: ""
                         def priorityClass = priorityName.toLowerCase().replace('_', '-')
                         def priorityLabel = entry.priority?.displayName ?: ""
                         def statusName = entry.status?.name() ?: ""
                         def statusClass = statusName.toLowerCase().replace('_', '-')
                         def statusLabel = statusName.toLowerCase().replace('_', ' ').capitalize()
+                        def activeStatus = ["WAITING", "CALLED", "IN_PROGRESS", "ON_HOLD"].contains(statusName)
                         def concurrentServicePoints = concurrentServicePointsByEntryId[entry.id] ?: []
-                        def concurrentServicePointIds = concurrentServicePoints.collect { it.id }.findAll { it != null }
-                        def destinationServicePoints = servicePoints.findAll { sp ->
-                            entry.servicePoint?.id != sp.id && !concurrentServicePointIds.contains(sp.id)
-                        }
+                        def destinationServicePoints = transferServicePointsByEntryId[entry.id] ?: []
                         def concurrentServicePointNames = concurrentServicePoints.collect { it.name }.findAll { it }.join(", ")
                         def vitalsUrl = patient?.uuid && entry.visit?.uuid ? ui.pageLink(
                                 "htmlformentryui",
@@ -890,20 +984,38 @@
                                         returnUrl: queueReturnUrl
                                 ]) : null
                     %>
-                        <tr>
+                        <tr class="${ assignedToCurrentProvider ? 'queue-row-assigned-to-me' : '' }">
                             <td class="queue-number-cell" data-label="Queue #">${ ui.encodeHtmlContent(entry.queueNumber) }</td>
                             <td class="queue-patient-cell" data-label="Patient">
-                                ${ ui.encodeHtmlContent(patient?.patientIdentifier?.identifier ?: "") }
+                                ${ ui.encodeHtmlContent(patientIdentifier) }
                                 <div class="queue-patient-name">${ ui.encodeHtmlContent(patient?.personName?.fullName ?: "") }</div>
                                 <div class="queue-muted">${ ui.encodeHtmlContent(patient?.gender ?: "") } / ${ patient?.age ?: "" }</div>
-                                <% if (patient?.id || vitalsUrl) { %>
+                                <% if (phoneNumber) { %>
+                                    <div class="queue-muted"><i class="icon-phone" aria-hidden="true"></i> Phone: ${ ui.encodeHtmlContent(phoneNumber) }</div>
+                                <% } %>
+                                <% if (assignedToCurrentProvider) { %>
+                                    <span class="queue-assigned-to-me">Assigned to me</span>
+                                <% } %>
+                                <% if ((!laboratoryLocation && patient?.id) || (laboratoryLocation && patient?.id && patientIdentifier) || vitalsUrl) { %>
                                     <div class="queue-patient-actions">
-                                        <% if (patient?.id) { %>
+                                        <% if (laboratoryLocation && patient?.id && patientIdentifier) { %>
+                                            <form class="queue-patient-link-form" method="post" action="${ ui.pageLink("rwandaemr", "queue/queueDashboard") }">
+                                                <input type="hidden" name="action" value="openLabOrders" />
+                                                <input type="hidden" name="entryId" value="${ entry.id }" />
+                                                <a class="queue-patient-link queue-lab-orders-link"
+                                                   href="${ ui.pageLink("pihapps", "labs/labOrderList") }"
+                                                   data-patient-identifier="${ ui.escapeAttribute(patientIdentifier) }">
+                                                    <i class="icon-beaker"></i> Lab orders
+                                                </a>
+                                            </form>
+                                        <% } else if (!laboratoryLocation && patient?.id) { %>
                                             <form class="queue-patient-link-form" method="post" action="${ ui.pageLink("rwandaemr", "queue/queueDashboard") }">
                                                 <input type="hidden" name="action" value="openDashboard" />
                                                 <input type="hidden" name="entryId" value="${ entry.id }" />
                                                 <input type="hidden" name="locationId" value="${ selectedLocation?.id ?: "" }" />
                                                 <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
+                                                <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
+                                                <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
                                                 <button type="submit" class="queue-patient-link"><i class="icon-user"></i> Dashboard</button>
                                             </form>
                                         <% } %>
@@ -924,6 +1036,8 @@
                                 <dl class="queue-detail-list">
                                     <dt>Requested</dt>
                                     <dd>${ ui.encodeHtmlContent(entry.serviceRequestedConcept?.name?.name ?: entry.serviceRequestedConcept?.uuid ?: "-") }</dd>
+                                    <dt>Provider</dt>
+                                    <dd>${ ui.encodeHtmlContent(entry.assignedProvider?.name ?: entry.assignedProvider?.identifier ?: "Unassigned") }</dd>
                                     <dt>Previous</dt>
                                     <dd>${ ui.encodeHtmlContent(entry.previousServicePoint?.name ?: "-") }</dd>
                                     <dt>Transfer reason</dt>
@@ -950,8 +1064,33 @@
                                     <dd>${ entry.arrivalTime ? entry.arrivalTime.format("yyyy-MM-dd HH:mm") : "-" }</dd>
                                 </dl>
                             </td>
-                            <% if (canTransferPatient || canManageQueue) { %>
+                            <% if (canTransferPatient || canManageQueue || canCallPatient) { %>
                                 <td class="queue-actions" data-label="Actions">
+                                    <% if (activeStatus && (canCallPatient || canManageQueue)) { %>
+                                        <form class="queue-select-action queue-status-action" method="post"
+                                              action="${ ui.pageLink("rwandaemr", "queue/queueDashboard") }"
+                                              data-patient-name="${ ui.escapeAttribute(patient?.personName?.fullName ?: "Patient") }">
+                                            <input type="hidden" name="entryId" value="${ entry.id }" />
+                                            <input type="hidden" name="locationId" value="${ selectedLocation?.id ?: "" }" />
+                                            <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
+                                            <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
+                                            <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
+                                            <input type="hidden" name="page" value="${ currentPage }" />
+                                            <input type="hidden" name="pageSize" value="${ pageSize }" />
+                                            <input type="hidden" name="reason" value="Cancelled from queue dashboard" />
+                                            <label for="queue-status-action-${ entry.id }">Status</label>
+                                            <select id="queue-status-action-${ entry.id }" name="action" required="required">
+                                                <option value="" selected="selected" disabled="disabled">Choose status</option>
+                                                <% if (canCallPatient) { %>
+                                                    <option value="complete">Completed</option>
+                                                <% } %>
+                                                <% if (canManageQueue) { %>
+                                                    <option value="cancel">Cancelled</option>
+                                                <% } %>
+                                            </select>
+                                            <button type="submit" class="button"><i class="icon-save"></i> Update</button>
+                                        </form>
+                                    <% } %>
                                     <% if (canManageQueue) { %>
                                         <form class="queue-select-action" method="post"
                                               action="${ ui.pageLink("rwandaemr", "queue/queueDashboard") }">
@@ -959,6 +1098,8 @@
                                             <input type="hidden" name="entryId" value="${ entry.id }" />
                                             <input type="hidden" name="locationId" value="${ selectedLocation?.id ?: "" }" />
                                             <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
+                                            <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
+                                            <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
                                             <input type="hidden" name="page" value="${ currentPage }" />
                                             <input type="hidden" name="pageSize" value="${ pageSize }" />
                                             <label for="priority-${ entry.id }">Priority</label>
@@ -979,15 +1120,18 @@
                                             <input type="hidden" name="entryId" value="${ entry.id }" />
                                             <input type="hidden" name="locationId" value="${ selectedLocation?.id ?: "" }" />
                                             <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
+                                            <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
+                                            <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
                                             <input type="hidden" name="page" value="${ currentPage }" />
                                             <input type="hidden" name="pageSize" value="${ pageSize }" />
                                             <label for="destination-${ entry.id }">Send to</label>
                                             <select id="destination-${ entry.id }" name="destinationServicePointId">
                                                 <% destinationServicePoints.each { sp -> %>
-                                                    <option value="${ sp.id }">${ ui.encodeHtmlContent(sp.name) }</option>
+                                                    <option value="${ sp.id }">${ ui.encodeHtmlContent(sp.name + (entry.previousServicePoint?.id == sp.id ? " (previous)" : "")) }</option>
                                                 <% } %>
                                             </select>
                                             <input type="hidden" name="reason" value="" />
+                                            <input type="hidden" name="assignedProviderId" value="" />
                                             <button type="submit" class="button"><i class="icon-share-alt"></i> Send</button>
                                         </form>
                                     <% } %>
@@ -1007,7 +1151,7 @@
                     <nav class="queue-page-links" aria-label="Queue pages">
                         <% if (currentPage > 1) { %>
                             <a class="queue-page-link" aria-label="Previous page" title="Previous page"
-                               href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, page: currentPage - 1, pageSize: pageSize]) }">
+                               href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, page: currentPage - 1, pageSize: pageSize]) }">
                                 <i class="icon-chevron-left" aria-hidden="true"></i>
                             </a>
                         <% } else { %>
@@ -1015,24 +1159,24 @@
                         <% } %>
 
                         <% if (pageNumbers[0] > 1) { %>
-                            <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, page: 1, pageSize: pageSize]) }">1</a>
+                            <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, page: 1, pageSize: pageSize]) }">1</a>
                             <% if (pageNumbers[0] > 2) { %><span class="queue-page-ellipsis">...</span><% } %>
                         <% } %>
                         <% pageNumbers.each { pageNumber -> %>
                             <% if (pageNumber == currentPage) { %>
                                 <span class="queue-page-link current" aria-current="page">${ pageNumber }</span>
                             <% } else { %>
-                                <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, page: pageNumber, pageSize: pageSize]) }">${ pageNumber }</a>
+                                <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, page: pageNumber, pageSize: pageSize]) }">${ pageNumber }</a>
                             <% } %>
                         <% } %>
                         <% if (pageNumbers[pageNumbers.size() - 1] < totalPages) { %>
                             <% if (pageNumbers[pageNumbers.size() - 1] < totalPages - 1) { %><span class="queue-page-ellipsis">...</span><% } %>
-                            <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, page: totalPages, pageSize: pageSize]) }">${ totalPages }</a>
+                            <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, page: totalPages, pageSize: pageSize]) }">${ totalPages }</a>
                         <% } %>
 
                         <% if (currentPage < totalPages) { %>
                             <a class="queue-page-link" aria-label="Next page" title="Next page"
-                               href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, page: currentPage + 1, pageSize: pageSize]) }">
+                               href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, page: currentPage + 1, pageSize: pageSize]) }">
                                 <i class="icon-chevron-right" aria-hidden="true"></i>
                             </a>
                         <% } else { %>
@@ -1094,6 +1238,8 @@
         <input type="hidden" name="encounterId" value="" />
         <input type="hidden" name="locationId" value="${ selectedLocation?.id ?: "" }" />
         <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
+        <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
+        <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
         <input type="hidden" name="page" value="${ currentPage }" />
         <input type="hidden" name="pageSize" value="${ pageSize }" />
     </form>

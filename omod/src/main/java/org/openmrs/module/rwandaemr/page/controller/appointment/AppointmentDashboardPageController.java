@@ -16,6 +16,8 @@ import org.openmrs.Encounter;
 import org.openmrs.EncounterType;
 import org.openmrs.Location;
 import org.openmrs.Patient;
+import org.openmrs.PersonAttribute;
+import org.openmrs.PersonAttributeType;
 import org.openmrs.Visit;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.VisitService;
@@ -61,7 +63,9 @@ public class AppointmentDashboardPageController extends AppointmentPageSupport {
         List<AppointmentScheduleSummary> summaries = Collections.emptyList();
         Map<Integer, List<AppointmentBooking>> bookingsByScheduleId =
                 new LinkedHashMap<Integer, List<AppointmentBooking>>();
+        Map<Integer, Patient> displayedPatientsById = new LinkedHashMap<Integer, Patient>();
         Map<Integer, Patient> bookedPatientsById = new LinkedHashMap<Integer, Patient>();
+        Map<Integer, String> phoneNumberByPatientId = Collections.emptyMap();
         Map<Integer, Integer> registrationEncounterIdsByPatientId =
                 Collections.emptyMap();
         Set<Integer> todayScheduleIds = new HashSet<Integer>();
@@ -96,10 +100,15 @@ public class AppointmentDashboardPageController extends AppointmentPageSupport {
                     bookingsByScheduleId.get(scheduleId).add(booking);
                 }
                 Patient patient = booking.getPatient();
-                if (todayScheduleIds.contains(scheduleId) && patient != null && patient.getId() != null) {
-                    bookedPatientsById.put(patient.getId(), patient);
+                if (patient != null && patient.getId() != null) {
+                    displayedPatientsById.put(patient.getId(), patient);
+                    if (todayScheduleIds.contains(scheduleId)) {
+                        bookedPatientsById.put(patient.getId(), patient);
+                    }
                 }
             }
+            phoneNumberByPatientId = phoneNumbersByPatientId(
+                    displayedPatientsById.values(), rwandaEmrConfig);
             registrationEncounterIdsByPatientId = findEditableRegistrationEncounterIds(
                     encounterService, visitService, rwandaEmrConfig.getRegistrationEncounterType(),
                     bookedPatientsById.values(), todayStart, tomorrowStart);
@@ -117,6 +126,7 @@ public class AppointmentDashboardPageController extends AppointmentPageSupport {
         model.addAttribute("scheduleSummaries", summaries);
         model.addAttribute("bookingsByScheduleId", bookingsByScheduleId);
         model.addAttribute("todayScheduleIds", todayScheduleIds);
+        model.addAttribute("phoneNumberByPatientId", phoneNumberByPatientId);
         model.addAttribute("registrationEncounterIdsByPatientId", registrationEncounterIdsByPatientId);
         model.addAttribute("totalCapacity", totalCapacity);
         model.addAttribute("totalBooked", totalBooked);
@@ -252,6 +262,27 @@ public class AppointmentDashboardPageController extends AppointmentPageSupport {
             encounterIdsByPatient.put(entry.getKey(), entry.getValue().getId());
         }
         return encounterIdsByPatient;
+    }
+
+    static Map<Integer, String> phoneNumbersByPatientId(
+            Collection<Patient> patients, RwandaEmrConfig rwandaEmrConfig) {
+        Map<Integer, String> phoneNumbers = new LinkedHashMap<Integer, String>();
+        PersonAttributeType telephoneNumberType = rwandaEmrConfig == null
+                ? null : rwandaEmrConfig.getTelephoneNumber();
+        if (telephoneNumberType == null) {
+            return phoneNumbers;
+        }
+        for (Patient patient : patients) {
+            if (patient == null || patient.getId() == null) {
+                continue;
+            }
+            PersonAttribute phoneNumber = patient.getAttribute(telephoneNumberType);
+            String value = phoneNumber == null ? null : StringUtils.trimToNull(phoneNumber.getValue());
+            if (value != null) {
+                phoneNumbers.put(patient.getId(), value);
+            }
+        }
+        return phoneNumbers;
     }
 
     private static boolean isLaterEncounter(Encounter candidate, Encounter current) {
