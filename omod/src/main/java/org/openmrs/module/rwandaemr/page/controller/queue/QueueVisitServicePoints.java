@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -75,6 +76,42 @@ final class QueueVisitServicePoints {
         return destinationsByEntryId;
     }
 
+    static Map<Integer, List<Location>> mapTransferDestinationsByEntryId(
+            List<QueueEntry> displayedEntries, List<Location> servicePoints,
+            Map<Integer, List<Location>> concurrentDestinationsByEntryId) {
+        Map<Integer, List<Location>> destinationsByEntryId = new LinkedHashMap<Integer, List<Location>>();
+        for (QueueEntry displayedEntry : nullSafe(displayedEntries)) {
+            if (displayedEntry.getId() == null) {
+                continue;
+            }
+            String currentServicePointKey = locationKey(displayedEntry.getServicePoint());
+            String previousServicePointKey = locationKey(displayedEntry.getPreviousServicePoint());
+            Set<String> concurrentDestinationKeys = locationKeys(
+                    concurrentDestinationsByEntryId == null
+                            ? null : concurrentDestinationsByEntryId.get(displayedEntry.getId()));
+            LinkedHashMap<String, Location> destinations = new LinkedHashMap<String, Location>();
+
+            for (Location servicePoint : nullSafeLocations(servicePoints)) {
+                String servicePointKey = locationKey(servicePoint);
+                if (servicePointKey != null && servicePointKey.equals(previousServicePointKey)
+                        && !servicePointKey.equals(currentServicePointKey)) {
+                    add(destinations, servicePoint);
+                    break;
+                }
+            }
+            for (Location servicePoint : nullSafeLocations(servicePoints)) {
+                String servicePointKey = locationKey(servicePoint);
+                if (servicePointKey == null || servicePointKey.equals(currentServicePointKey)
+                        || concurrentDestinationKeys.contains(servicePointKey)) {
+                    continue;
+                }
+                add(destinations, servicePoint);
+            }
+            destinationsByEntryId.put(displayedEntry.getId(), new ArrayList<Location>(destinations.values()));
+        }
+        return destinationsByEntryId;
+    }
+
     private static Map<String, List<QueueEntry>> groupByVisit(List<QueueEntry> entries) {
         Map<String, List<QueueEntry>> entriesByVisit = new LinkedHashMap<String, List<QueueEntry>>();
         for (QueueEntry entry : nullSafe(entries)) {
@@ -95,6 +132,21 @@ final class QueueVisitServicePoints {
 
     private static List<QueueEntry> nullSafe(List<QueueEntry> entries) {
         return entries == null ? Collections.<QueueEntry>emptyList() : entries;
+    }
+
+    private static List<Location> nullSafeLocations(List<Location> locations) {
+        return locations == null ? Collections.<Location>emptyList() : locations;
+    }
+
+    private static Set<String> locationKeys(List<Location> locations) {
+        Set<String> keys = new LinkedHashSet<String>();
+        for (Location location : nullSafeLocations(locations)) {
+            String key = locationKey(location);
+            if (key != null) {
+                keys.add(key);
+            }
+        }
+        return keys;
     }
 
     private static void add(Map<String, Location> servicePoints, Location location) {

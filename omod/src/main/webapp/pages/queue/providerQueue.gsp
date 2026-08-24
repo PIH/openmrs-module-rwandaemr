@@ -180,6 +180,7 @@
                                             <% } %>
                                         </select>
                                         <input type="hidden" name="reason" value="" />
+                                        <input type="hidden" name="assignedProviderId" value="" />
                                         <button type="submit" class="button">Send</button>
                                     </form>
                                 <% } %>

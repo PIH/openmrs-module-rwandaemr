@@ -65,6 +65,24 @@ public class QueueVisitServicePointsTest {
         assertThat(names(result.get(22)), is(Collections.<String>emptyList()));
     }
 
+    @Test
+    public void shouldKeepPreviousServicePointFirstWhenItIsAlsoActive() {
+        Location laboratory = location(1, "Laboratory");
+        Location outpatient = location(2, "Outpatient Clinic");
+        Location radiology = location(3, "Radiology");
+        Location pharmacy = location(4, "Pharmacy");
+        QueueEntry laboratoryEntry = entry(
+                21, visit(11), outpatient, laboratory, QueueStatus.WAITING);
+        Map<Integer, List<Location>> concurrentDestinations = Collections.singletonMap(
+                laboratoryEntry.getId(), Arrays.asList(outpatient, radiology));
+
+        Map<Integer, List<Location>> result = QueueVisitServicePoints.mapTransferDestinationsByEntryId(
+                Collections.singletonList(laboratoryEntry),
+                Arrays.asList(laboratory, pharmacy, radiology, outpatient), concurrentDestinations);
+
+        assertThat(names(result.get(21)), contains("Outpatient Clinic", "Pharmacy"));
+    }
+
     private QueueEntry entry(int id, Visit visit, Location previous, Location current) {
         return entry(id, visit, previous, current, QueueStatus.WAITING);
     }

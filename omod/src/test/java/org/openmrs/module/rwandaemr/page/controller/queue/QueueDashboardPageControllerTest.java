@@ -1,13 +1,44 @@
 package org.openmrs.module.rwandaemr.page.controller.queue;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.servlet.http.HttpSession;
 
 import groovy.text.SimpleTemplateEngine;
 import org.junit.jupiter.api.Test;
+import org.openmrs.Location;
+import org.openmrs.Patient;
+import org.openmrs.PatientIdentifier;
+import org.openmrs.PersonAttribute;
+import org.openmrs.PersonAttributeType;
+import org.openmrs.Provider;
+import org.openmrs.api.EncounterService;
+import org.openmrs.api.ProviderService;
+import org.openmrs.module.appui.UiSessionContext;
+import org.openmrs.module.rwandaemr.RwandaEmrConfig;
+import org.openmrs.module.rwandaemr.queue.QueueService;
+import org.openmrs.module.rwandaemr.queue.QueueStatus;
+import org.openmrs.module.rwandaemr.queue.model.QueueEntry;
+import org.openmrs.module.uicommons.UiCommonsConstants;
+import org.openmrs.ui.framework.UiUtils;
+import org.openmrs.ui.framework.page.PageModel;
 
 public class QueueDashboardPageControllerTest {
 
@@ -39,10 +70,219 @@ public class QueueDashboardPageControllerTest {
     }
 
     @Test
-    public void shouldParseQueueDashboardTemplate() throws Exception {
-        File template = new File("src/main/webapp/pages/queue/queueDashboard.gsp");
+    public void shouldNormalizeAndResolveArrivalDay() {
+        Calendar reference = Calendar.getInstance();
+        reference.set(2026, Calendar.AUGUST, 19, 10, 15, 0);
 
-        assertTrue(template.isFile());
-        new SimpleTemplateEngine().createTemplate(template);
+        Calendar yesterday = Calendar.getInstance();
+        yesterday.setTime(QueueDashboardPageController.getArrivalDate("yesterday", reference.getTime()));
+
+        assertEquals("TODAY", QueueDashboardPageController.normalizeArrivalDay(null));
+        assertEquals("TODAY", QueueDashboardPageController.normalizeArrivalDay("unsupported"));
+        assertEquals("YESTERDAY", QueueDashboardPageController.normalizeArrivalDay("yesterday"));
+        assertEquals(2026, yesterday.get(Calendar.YEAR));
+        assertEquals(Calendar.AUGUST, yesterday.get(Calendar.MONTH));
+        assertEquals(18, yesterday.get(Calendar.DAY_OF_MONTH));
+    }
+
+    @Test
+    public void shouldMapConfiguredPhoneNumbersForDisplayedPatients() {
+        PersonAttributeType phoneNumberType = new PersonAttributeType();
+        phoneNumberType.setId(7);
+        Patient patient = new Patient(23);
+        patient.addAttribute(new PersonAttribute(phoneNumberType, " 0788123456 "));
+        QueueEntry entry = new QueueEntry();
+        entry.setPatient(patient);
+        RwandaEmrConfig rwandaEmrConfig = mock(RwandaEmrConfig.class);
+        when(rwandaEmrConfig.getTelephoneNumber()).thenReturn(phoneNumberType);
+
+        Map<Integer, String> phoneNumbers = QueueDashboardPageController.getPhoneNumberByPatientId(
+                Collections.singletonList(entry), rwandaEmrConfig);
+
+        assertEquals(Collections.singletonMap(23, "0788123456"), phoneNumbers);
+    }
+
+    @Test
+    public void shouldUseLiveQueueWindowForDashboardLocation() {
+        QueueService queueService = mock(QueueService.class);
+        Location reception = new Location();
+        Date referenceTime = new Date();
+        List<QueueEntry> expectedEntries = Collections.singletonList(new QueueEntry());
+        when(queueService.getQueueEntriesByLocation(reception, QueueStatus.WAITING, referenceTime))
+                .thenReturn(expectedEntries);
+        QueuePageSupport pageSupport = new QueuePageSupport() {
+            @Override
+            protected boolean canViewAllLocations() {
+                return false;
+            }
+        };
+
+        List<QueueEntry> entries = pageSupport.getEntriesForLocation(
+                queueService, reception, QueueStatus.WAITING, referenceTime);
+
+        assertSame(expectedEntries, entries);
+        verify(queueService).getQueueEntriesByLocation(reception, QueueStatus.WAITING, referenceTime);
+        verify(queueService, never()).getQueueEntriesByLocation(
+                reception, QueueStatus.WAITING, referenceTime, referenceTime);
+    }
+
+    @Test
+    public void shouldLoadOnlyTheRequestedDashboardPageFromTheQueueService() {
+        final Location reception = new Location(5);
+        QueueDashboardPageController controller = new QueueDashboardPageController() {
+            @Override
+            protected boolean canViewQueue() {
+                return true;
+            }
+
+            @Override
+            protected boolean canViewAllLocations() {
+                return false;
+            }
+
+            @Override
+            protected boolean canManageQueue() {
+                return false;
+            }
+
+            @Override
+            protected boolean canCallPatient() {
+                return false;
+            }
+
+            @Override
+            protected boolean canTransferPatient() {
+                return false;
+            }
+
+            @Override
+            protected Set<Integer> getCurrentProviderIds(ProviderService providerService) {
+                return Collections.emptySet();
+            }
+        };
+        QueueService queueService = mock(QueueService.class);
+        PageModel model = mock(PageModel.class);
+        UiSessionContext sessionContext = mock(UiSessionContext.class);
+        RwandaEmrConfig rwandaEmrConfig = mock(RwandaEmrConfig.class);
+        EncounterService encounterService = mock(EncounterService.class);
+        ProviderService providerService = mock(ProviderService.class);
+        QueueEntry displayedEntry = new QueueEntry();
+        when(sessionContext.getSessionLocation()).thenReturn(reception);
+        when(queueService.getServicePointLocations()).thenReturn(Collections.singletonList(reception));
+        when(queueService.isLaboratoryServicePoint(reception)).thenReturn(true);
+        when(queueService.countQueueEntriesByLocation(
+                eq(reception), eq(QueueStatus.WAITING), any(Date.class), any(Date.class), eq("Aline Uwase")))
+                .thenReturn(21);
+        when(queueService.getQueueEntriesByLocation(
+                eq(reception), eq(QueueStatus.WAITING), any(Date.class), any(Date.class), eq("Aline Uwase"),
+                eq(10), eq(10)))
+                .thenReturn(Collections.singletonList(displayedEntry));
+        when(queueService.getQueueEntriesByVisits(Collections.emptySet())).thenReturn(Collections.<QueueEntry>emptyList());
+
+        controller.get(model, sessionContext, queueService, rwandaEmrConfig, encounterService, providerService,
+                null, "WAITING", "YESTERDAY", "  Aline Uwase  ", 2, 10);
+
+        verify(queueService).countQueueEntriesByLocation(
+                eq(reception), eq(QueueStatus.WAITING), any(Date.class), any(Date.class), eq("Aline Uwase"));
+        verify(queueService).getQueueEntriesByLocation(
+                eq(reception), eq(QueueStatus.WAITING), any(Date.class), any(Date.class), eq("Aline Uwase"),
+                eq(10), eq(10));
+        verify(queueService, never()).getQueueEntriesByLocation(
+                eq(reception), eq(QueueStatus.WAITING), any(Date.class));
+        verify(model).addAttribute("selectedArrivalDay", "YESTERDAY");
+        verify(model).addAttribute("patientName", "Aline Uwase");
+        verify(model).addAttribute("laboratoryLocation", true);
+        verify(providerService, never()).getAllProviders(false);
+    }
+
+    @Test
+    public void shouldCallPatientAndOpenLabOrderList() {
+        QueueDashboardPageController controller = new QueueDashboardPageController();
+        QueueService queueService = mock(QueueService.class);
+        UiUtils ui = mock(UiUtils.class);
+        UiSessionContext sessionContext = mock(UiSessionContext.class);
+        EncounterService encounterService = mock(EncounterService.class);
+        ProviderService providerService = mock(ProviderService.class);
+        Patient patient = new Patient(23);
+        patient.addIdentifier(new PatientIdentifier("RW-00123", null, null));
+        QueueEntry entry = new QueueEntry();
+        entry.setPatient(patient);
+        when(queueService.getQueueEntry(45)).thenReturn(entry);
+        when(ui.pageLink("pihapps", "labs/labOrderList")).thenReturn("/pihapps/labs/labOrderList.page");
+
+        String redirect = controller.post(ui, sessionContext, queueService, encounterService, providerService,
+                "openLabOrders", 45, null, null, null, null, null, null,
+                "ALL", "TODAY", "", 1, 10);
+
+        assertEquals("redirect:/pihapps/labs/labOrderList.page", redirect);
+        verify(queueService).callPatient(entry);
+    }
+
+    @Test
+    public void shouldCompleteOrCancelAnEntryFromTheDashboard() {
+        QueueDashboardPageController controller = new QueueDashboardPageController();
+        QueueService queueService = mock(QueueService.class);
+        UiUtils ui = mock(UiUtils.class);
+        UiSessionContext sessionContext = mock(UiSessionContext.class);
+        HttpSession session = mock(HttpSession.class);
+        EncounterService encounterService = mock(EncounterService.class);
+        ProviderService providerService = mock(ProviderService.class);
+        QueueEntry completedEntry = new QueueEntry();
+        QueueEntry cancelledEntry = new QueueEntry();
+        when(sessionContext.getSession()).thenReturn(session);
+        when(ui.pageLink("rwandaemr", "queue/queueDashboard")).thenReturn("/queue-dashboard");
+        when(queueService.getQueueEntry(41)).thenReturn(completedEntry);
+        when(queueService.getQueueEntry(42)).thenReturn(cancelledEntry);
+
+        controller.post(ui, sessionContext, queueService, encounterService, providerService, "complete", 41,
+                null, 1, null, null, null, null, "ALL", "TODAY", "Aline", 1, 10);
+        controller.post(ui, sessionContext, queueService, encounterService, providerService, "cancel", 42,
+                null, 1, null, null, null, "Cancelled from queue dashboard", "ALL", "TODAY", "Aline", 1, 10);
+
+        verify(queueService).completeService(completedEntry);
+        verify(queueService).cancelQueueEntry(cancelledEntry, "Cancelled from queue dashboard");
+        verify(session, org.mockito.Mockito.times(2)).setAttribute(
+                UiCommonsConstants.SESSION_ATTRIBUTE_TOAST_MESSAGE, "Queue updated");
+    }
+
+    @Test
+    public void shouldSendSelectedProviderWithTransferredPatient() {
+        Location destination = new Location(8);
+        QueueDashboardPageController controller = new QueueDashboardPageController() {
+            @Override
+            protected Location getLocation(Integer locationId) {
+                return destination;
+            }
+        };
+        QueueService queueService = mock(QueueService.class);
+        UiUtils ui = mock(UiUtils.class);
+        UiSessionContext sessionContext = mock(UiSessionContext.class);
+        HttpSession session = mock(HttpSession.class);
+        EncounterService encounterService = mock(EncounterService.class);
+        ProviderService providerService = mock(ProviderService.class);
+        QueueEntry entry = new QueueEntry();
+        Provider provider = new Provider(19);
+        when(sessionContext.getSession()).thenReturn(session);
+        when(ui.pageLink("rwandaemr", "queue/queueDashboard")).thenReturn("/queue-dashboard");
+        when(queueService.getQueueEntry(44)).thenReturn(entry);
+        when(providerService.getProvider(19)).thenReturn(provider);
+
+        controller.post(ui, sessionContext, queueService, encounterService, providerService, "transfer", 44,
+                null, 1, 8, 19, null, "Needs consultation", "ALL", "YESTERDAY", "Aline", 1, 10);
+
+        verify(queueService).transferPatient(entry, destination, "Needs consultation", provider);
+    }
+
+    @Test
+    public void shouldParseChangedQueueTemplates() throws Exception {
+        for (String templatePath : Arrays.asList(
+                "src/main/webapp/pages/queue/queueDashboard.gsp",
+                "src/main/webapp/pages/queue/providerQueue.gsp",
+                "src/main/webapp/pages/queue/servicePointQueue.gsp",
+                "src/main/webapp/fragments/queue/transferReasonDialog.gsp")) {
+            File template = new File(templatePath);
+            assertTrue(template.isFile(), templatePath);
+            new SimpleTemplateEngine().createTemplate(template);
+        }
     }
 }

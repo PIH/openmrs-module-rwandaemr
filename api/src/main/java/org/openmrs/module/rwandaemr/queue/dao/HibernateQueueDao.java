@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import lombok.Setter;
 import org.hibernate.Query;
@@ -128,23 +129,32 @@ public class HibernateQueueDao implements QueueDao {
     @Override
     @SuppressWarnings("unchecked")
     public List<QueueEntry> getQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay) {
-        String hql = "from QueueEntry q where q.voided = false and q.arrivalTime >= :startOfDay and q.arrivalTime < :endOfDay";
-        if (location != null) {
-            hql += " and (q.sessionLocation = :location or q.servicePoint = :location)";
-        }
-        if (status != null) {
-            hql += " and q.statusName = :status";
-        }
-        hql += " order by q.arrivalTime";
-        Query query = session().createQuery(hql);
-        query.setParameter("startOfDay", startOfDay);
-        query.setParameter("endOfDay", endOfDay);
-        if (location != null) {
-            query.setParameter("location", location);
-        }
-        if (status != null) {
-            query.setParameter("status", status.name());
-        }
+        Query query = createQueueEntriesQuery("from QueueEntry q", location, status, startOfDay, endOfDay,
+                null, null, null, " order by q.arrivalTime");
+        return query.list();
+    }
+
+    @Override
+    public int countQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay,
+                                 Date currentDayStart, List<QueueStatus> activeStatuses, String patientName) {
+        Query query = createQueueEntriesQuery("select count(q.id) from QueueEntry q", location, status,
+                startOfDay, endOfDay, currentDayStart, activeStatuses, patientName, "");
+        Number count = (Number) query.uniqueResult();
+        return count == null ? 0 : count.intValue();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<QueueEntry> getQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay,
+                                            Date currentDayStart, List<QueueStatus> activeStatuses,
+                                            String patientName, int firstResult, int maxResults) {
+        String priorityOrder = " order by case q.priorityName " +
+                "when 'EMERGENCY' then 0 when 'ELDERLY' then 10 when 'PREGNANT' then 20 " +
+                "when 'CHILD' then 30 when 'DISABILITY' then 40 else 100 end, q.arrivalTime, q.id";
+        Query query = createQueueEntriesQuery("from QueueEntry q", location, status, startOfDay, endOfDay,
+                currentDayStart, activeStatuses, patientName, priorityOrder);
+        query.setFirstResult(Math.max(0, firstResult));
+        query.setMaxResults(Math.max(1, maxResults));
         return query.list();
     }
 
@@ -219,6 +229,60 @@ public class HibernateQueueDao implements QueueDao {
 
     private DbSession session() {
         return sessionFactory.getCurrentSession();
+    }
+
+    private Query createQueueEntriesQuery(String select, Location location, QueueStatus status,
+                                          Date startOfDay, Date endOfDay, Date currentDayStart,
+                                          List<QueueStatus> activeStatuses, String patientName, String orderBy) {
+        List<String> patientNameTokens = patientNameTokens(patientName);
+        String hql = select + " where q.voided = false " +
+                "and q.arrivalTime >= :startOfDay and q.arrivalTime < :endOfDay";
+        if (location != null) {
+            hql += " and (q.sessionLocation = :location or q.servicePoint = :location)";
+        }
+        if (status != null) {
+            hql += " and q.statusName = :status";
+        } else if (currentDayStart != null && activeStatuses != null && !activeStatuses.isEmpty()) {
+            hql += " and (q.statusName in (:activeStatuses) or q.arrivalTime >= :currentDayStart)";
+        }
+        for (int i = 0; i < patientNameTokens.size(); i++) {
+            hql += " and exists (select patientName.personNameId from PersonName patientName " +
+                    "where patientName.person = q.patient and patientName.voided = false and (" +
+                    "lower(patientName.givenName) like :patientName" + i +
+                    " or lower(patientName.middleName) like :patientName" + i +
+                    " or lower(patientName.familyName) like :patientName" + i +
+                    " or lower(patientName.familyName2) like :patientName" + i + "))";
+        }
+        Query query = session().createQuery(hql + orderBy);
+        query.setParameter("startOfDay", startOfDay);
+        query.setParameter("endOfDay", endOfDay);
+        if (location != null) {
+            query.setParameter("location", location);
+        }
+        if (status != null) {
+            query.setParameter("status", status.name());
+        } else if (currentDayStart != null && activeStatuses != null && !activeStatuses.isEmpty()) {
+            query.setParameterList("activeStatuses", toStatusNames(activeStatuses));
+            query.setParameter("currentDayStart", currentDayStart);
+        }
+        for (int i = 0; i < patientNameTokens.size(); i++) {
+            query.setParameter("patientName" + i, "%" + patientNameTokens.get(i) + "%");
+        }
+        return query;
+    }
+
+    private List<String> patientNameTokens(String patientName) {
+        List<String> tokens = new ArrayList<String>();
+        if (patientName == null) {
+            return tokens;
+        }
+        for (String token : patientName.trim().split("\\s+")) {
+            String normalized = token.replace("%", "").replace("_", "").toLowerCase(Locale.ENGLISH);
+            if (!normalized.isEmpty()) {
+                tokens.add(normalized);
+            }
+        }
+        return tokens;
     }
 
     private List<String> toStatusNames(List<QueueStatus> statuses) {

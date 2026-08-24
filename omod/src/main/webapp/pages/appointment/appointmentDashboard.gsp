@@ -100,7 +100,7 @@
     }
 
     .appointment-table {
-        min-width: 800px;
+        min-width: 900px;
         width: 100%;
     }
 
@@ -123,7 +123,7 @@
 
     .appointment-patient-table {
         margin: 0;
-        min-width: 680px;
+        min-width: 800px;
         width: 100%;
     }
 
@@ -274,6 +274,7 @@
                 <th>Patients</th>
                 <th>Date</th>
                 <th>Service point</th>
+                <th>Provider</th>
                 <th>Booked</th>
                 <th>Maximum</th>
                 <th>Remaining</th>
@@ -282,7 +283,7 @@
             </thead>
             <tbody>
             <% if (scheduleSummaries.isEmpty()) { %>
-                <tr><td colspan="7">No appointment schedules match these filters.</td></tr>
+                <tr><td colspan="8">No appointment schedules match these filters.</td></tr>
             <% } %>
             <% scheduleSummaries.each { summary ->
                 def schedule = summary.schedule
@@ -300,6 +301,7 @@
                     </td>
                     <td>${ ui.format(schedule.scheduleDate) }</td>
                     <td>${ ui.encodeHtmlContent(schedule.servicePoint?.name ?: "") }</td>
+                    <td>${ ui.encodeHtmlContent(schedule.provider?.name ?: "") }</td>
                     <td>${ summary.bookedPatients }</td>
                     <td>${ schedule.maximumPatients }</td>
                     <td>${ summary.remainingCapacity }</td>
@@ -310,13 +312,14 @@
                     </td>
                 </tr>
                 <tr id="${ detailId }" class="appointment-detail-row">
-                    <td colspan="7">
+                    <td colspan="8">
                         <div class="appointment-detail-content">
                             <table class="appointment-patient-table">
                                 <thead>
                                 <tr>
                                     <th>Patient</th>
                                     <th>Identifier</th>
+                                    <th>Phone number</th>
                                     <th>Program</th>
                                     <th>Visit type</th>
                                     <th>Status</th>
@@ -327,7 +330,7 @@
                                 </thead>
                                 <tbody>
                                 <% if (bookings.isEmpty()) { %>
-                                    <tr><td colspan="8">No patients are booked for this schedule.</td></tr>
+                                    <tr><td colspan="9">No patients are booked for this schedule.</td></tr>
                                 <% } %>
                                 <% bookings.each { booking ->
                                     def statusName = booking.status?.name() ?: ""
@@ -352,6 +355,7 @@
                                     <tr>
                                         <td>${ ui.encodeHtmlContent(booking.patient?.personName?.fullName ?: "") }</td>
                                         <td>${ ui.encodeHtmlContent(booking.patient?.patientIdentifier?.identifier ?: "") }</td>
+                                        <td>${ ui.encodeHtmlContent(phoneNumberByPatientId[booking.patient?.id] ?: "") }</td>
                                         <td>${ ui.encodeHtmlContent(booking.program?.name ?: "") }</td>
                                         <td>${ ui.encodeHtmlContent(booking.visitType?.displayName ?: "") }</td>
                                         <td>
