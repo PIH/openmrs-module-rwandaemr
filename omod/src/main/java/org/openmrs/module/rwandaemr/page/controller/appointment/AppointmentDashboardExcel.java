@@ -25,12 +25,12 @@ final class AppointmentDashboardExcel {
     static final String CONTENT_TYPE = "application/vnd.ms-excel";
 
     private static final String[] HEADERS = {
-            "Date", "Service point", "Patient", "Identifier", "Program", "Visit type",
+            "Date", "Service point", "Provider", "Patient", "Identifier", "Program", "Visit type",
             "Appointment status", "Requested", "Notes", "Booked", "Maximum", "Remaining", "Schedule status"
     };
 
     private static final int[] COLUMN_WIDTHS = {
-            14, 28, 30, 20, 24, 16, 20, 20, 35, 12, 12, 12, 18
+            14, 28, 28, 30, 20, 24, 16, 20, 20, 35, 12, 12, 12, 18
     };
 
     private AppointmentDashboardExcel() {
@@ -91,18 +91,19 @@ final class AppointmentDashboardExcel {
         AppointmentSchedule schedule = summary.getSchedule();
         setDate(row, 0, schedule.getScheduleDate(), dateStyle);
         setText(row, 1, schedule.getServicePoint() == null ? null : schedule.getServicePoint().getName());
-        setText(row, 2, patientName(booking));
-        setText(row, 3, patientIdentifier(booking));
-        setText(row, 4, booking == null || booking.getProgram() == null ? null : booking.getProgram().getName());
-        setText(row, 5, booking == null || booking.getVisitType() == null
+        setText(row, 2, schedule.getProvider() == null ? null : schedule.getProvider().getName());
+        setText(row, 3, patientName(booking));
+        setText(row, 4, patientIdentifier(booking));
+        setText(row, 5, booking == null || booking.getProgram() == null ? null : booking.getProgram().getName());
+        setText(row, 6, booking == null || booking.getVisitType() == null
                 ? null : booking.getVisitType().getDisplayName());
-        setText(row, 6, booking == null ? null : label(booking.getStatus()));
-        setDate(row, 7, booking == null ? null : booking.getRequestedAt(), dateTimeStyle);
-        setText(row, 8, booking == null ? null : booking.getNotes());
-        setNumber(row, 9, summary.getBookedPatients());
-        setNumber(row, 10, schedule.getMaximumPatients());
-        setNumber(row, 11, summary.getRemainingCapacity());
-        setText(row, 12, Boolean.TRUE.equals(schedule.getActive()) ? "Open" : "Closed");
+        setText(row, 7, booking == null ? null : label(booking.getStatus()));
+        setDate(row, 8, booking == null ? null : booking.getRequestedAt(), dateTimeStyle);
+        setText(row, 9, booking == null ? null : booking.getNotes());
+        setNumber(row, 10, summary.getBookedPatients());
+        setNumber(row, 11, schedule.getMaximumPatients());
+        setNumber(row, 12, summary.getRemainingCapacity());
+        setText(row, 13, Boolean.TRUE.equals(schedule.getActive()) ? "Open" : "Closed");
     }
 
     private static void setText(Row row, int column, String value) {

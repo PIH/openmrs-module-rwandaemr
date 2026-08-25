@@ -19,8 +19,10 @@ import org.junit.jupiter.api.Test;
 import org.openmrs.Location;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
+import org.openmrs.Person;
 import org.openmrs.PersonName;
 import org.openmrs.Program;
+import org.openmrs.Provider;
 import org.openmrs.module.rwandaemr.appointment.AppointmentScheduleSummary;
 import org.openmrs.module.rwandaemr.appointment.AppointmentStatus;
 import org.openmrs.module.rwandaemr.appointment.AppointmentVisitType;
@@ -36,6 +38,11 @@ public class AppointmentDashboardExcelTest {
 
         AppointmentSchedule bookedSchedule = schedule(21, servicePoint, new Date(86_400_000L), 20, true);
         AppointmentSchedule emptySchedule = schedule(22, servicePoint, new Date(172_800_000L), 10, false);
+        Person providerPerson = new Person(8);
+        providerPerson.addName(new PersonName("Jean", null, "Mugabo"));
+        Provider provider = new Provider(9);
+        provider.setPerson(providerPerson);
+        bookedSchedule.setProvider(provider);
         AppointmentScheduleSummary bookedSummary = new AppointmentScheduleSummary(bookedSchedule, 1);
         AppointmentScheduleSummary emptySummary = new AppointmentScheduleSummary(emptySchedule, 0);
 
@@ -67,26 +74,29 @@ public class AppointmentDashboardExcelTest {
         Workbook workbook = new HSSFWorkbook(new ByteArrayInputStream(report));
         Sheet sheet = workbook.getSheet("Appointments");
         assertEquals("Date", sheet.getRow(0).getCell(0).getStringCellValue());
-        assertEquals("Appointment status", sheet.getRow(0).getCell(6).getStringCellValue());
+        assertEquals("Provider", sheet.getRow(0).getCell(2).getStringCellValue());
+        assertEquals("Appointment status", sheet.getRow(0).getCell(7).getStringCellValue());
 
         Row bookedRow = sheet.getRow(1);
         assertEquals(bookedSchedule.getScheduleDate(), bookedRow.getCell(0).getDateCellValue());
         assertEquals("Dental Clinic", bookedRow.getCell(1).getStringCellValue());
-        assertEquals("Aline Uwase", bookedRow.getCell(2).getStringCellValue());
-        assertEquals("RW-1234", bookedRow.getCell(3).getStringCellValue());
-        assertEquals("HIV", bookedRow.getCell(4).getStringCellValue());
-        assertEquals("Follow-Up", bookedRow.getCell(5).getStringCellValue());
-        assertEquals("Confirmed", bookedRow.getCell(6).getStringCellValue());
-        assertEquals("Bring results", bookedRow.getCell(8).getStringCellValue());
-        assertEquals(1, bookedRow.getCell(9).getNumericCellValue());
-        assertEquals(20, bookedRow.getCell(10).getNumericCellValue());
-        assertEquals(19, bookedRow.getCell(11).getNumericCellValue());
-        assertEquals("Open", bookedRow.getCell(12).getStringCellValue());
+        assertEquals("Jean Mugabo", bookedRow.getCell(2).getStringCellValue());
+        assertEquals("Aline Uwase", bookedRow.getCell(3).getStringCellValue());
+        assertEquals("RW-1234", bookedRow.getCell(4).getStringCellValue());
+        assertEquals("HIV", bookedRow.getCell(5).getStringCellValue());
+        assertEquals("Follow-Up", bookedRow.getCell(6).getStringCellValue());
+        assertEquals("Confirmed", bookedRow.getCell(7).getStringCellValue());
+        assertEquals("Bring results", bookedRow.getCell(9).getStringCellValue());
+        assertEquals(1, bookedRow.getCell(10).getNumericCellValue());
+        assertEquals(20, bookedRow.getCell(11).getNumericCellValue());
+        assertEquals(19, bookedRow.getCell(12).getNumericCellValue());
+        assertEquals("Open", bookedRow.getCell(13).getStringCellValue());
 
         Row emptyRow = sheet.getRow(2);
         assertEquals("", emptyRow.getCell(2).getStringCellValue());
-        assertEquals(0, emptyRow.getCell(9).getNumericCellValue());
-        assertEquals("Closed", emptyRow.getCell(12).getStringCellValue());
+        assertEquals("", emptyRow.getCell(3).getStringCellValue());
+        assertEquals(0, emptyRow.getCell(10).getNumericCellValue());
+        assertEquals("Closed", emptyRow.getCell(13).getStringCellValue());
     }
 
     private AppointmentSchedule schedule(Integer id, Location servicePoint, Date date,

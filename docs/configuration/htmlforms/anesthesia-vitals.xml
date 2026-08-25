@@ -1,0 +1,39 @@
+<htmlform formName="Anesthesia Vital Signs"
+          formUuid="9b019e4f-37f6-42fa-97a6-5e1e6b064857"
+          formEncounterType="Anesthesia Record"
+          formVersion="2.1">
+
+    <style>
+        .anesthesia-entry fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 12px; padding: 12px; }
+        .anesthesia-entry legend { color: #00473f; font-weight: bold; padding: 0 6px; }
+        .anesthesia-entry .grid { display: grid; gap: 12px 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .anesthesia-entry label { display: block; font-weight: bold; margin-bottom: 3px; }
+        .anesthesia-case-link { display: none; }
+        @media (max-width: 900px) { .anesthesia-entry .grid { grid-template-columns: 1fr; } }
+    </style>
+
+    <div class="anesthesia-entry">
+        <div class="anesthesia-case-link"><anesthesiaCaseIdObs/></div>
+        <h2>Blood Pressure &amp; Pulse / Tension et pouls</h2>
+        <fieldset>
+            <legend>Encounter / Consultation</legend>
+            <div class="grid">
+                <div><label>Date / Time</label><encounterDate default="now" showTime="true"/></div>
+                <div><label>Location</label><encounterLocation/></div>
+                <div><label>Provider</label><encounterProvider/></div>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Vital Signs / Signes vitaux</legend>
+            <div class="grid">
+                <div><label>Systolic BP / TA systolique</label><obs conceptId="3ce934fa-26fe-102b-80cb-0017a47871b2" required="true"/></div>
+                <div><label>Diastolic BP / TA diastolique</label><obs conceptId="3ce93694-26fe-102b-80cb-0017a47871b2" required="true"/></div>
+                <div><label>Pulse / Pouls</label><obs conceptId="3ce93824-26fe-102b-80cb-0017a47871b2" required="true"/></div>
+                <div><label>Respiratory rate / Frequence respiratoire</label><obs conceptId="3ceb11f8-26fe-102b-80cb-0017a47871b2"/></div>
+                <div><label>SpO2</label><obs conceptId="3ce9401c-26fe-102b-80cb-0017a47871b2"/></div>
+                <div><label>Temperature</label><obs conceptId="3ce939d2-26fe-102b-80cb-0017a47871b2"/></div>
+            </div>
+        </fieldset>
+    </div>
+    <submit/>
+</htmlform>

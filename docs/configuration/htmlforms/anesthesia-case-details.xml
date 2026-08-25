@@ -1,0 +1,73 @@
+<htmlform formName="Anesthesia Case Details"
+          formUuid="f2cecb64-fa9a-489d-a4a0-07d26e2072b1"
+          formEncounterType="Anesthesia Record"
+          formVersion="2.1">
+
+    <style>
+        .anesthesia-entry fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 12px; padding: 12px; }
+        .anesthesia-entry legend { color: #00473f; font-weight: bold; padding: 0 6px; }
+        .anesthesia-entry .grid { display: grid; gap: 14px 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .anesthesia-entry .span-two { grid-column: span 2; }
+        .anesthesia-entry label { display: block; font-weight: bold; margin-bottom: 4px; }
+        .anesthesia-entry input[type="text"] { max-width: 100%; width: 90%; }
+        .anesthesia-entry .obs-field label { display: inline-block; font-weight: normal; margin: 4px 14px 4px 0; }
+        .anesthesia-case-link { display: none; }
+        @media (max-width: 900px) {
+            .anesthesia-entry .grid { grid-template-columns: 1fr; }
+            .anesthesia-entry .span-two { grid-column: auto; }
+        }
+    </style>
+
+    <div class="anesthesia-entry">
+        <div class="anesthesia-case-link"><anesthesiaCaseIdObs/></div>
+        <h2>Anesthesia Case Details / Details du cas d'anesthesie</h2>
+        <fieldset>
+            <legend>Encounter / Consultation</legend>
+            <div class="grid">
+                <div><label>Date / Time</label><encounterDate default="now" showTime="true"/></div>
+                <div><label>Location</label><encounterLocation/></div>
+                <div><label>Provider</label><encounterProvider/></div>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Case Information / Informations du cas</legend>
+            <div class="grid">
+                <div><label>Service</label><obs conceptId="21e73863-867c-4faa-8c4b-dc5b1c0319ac" size="40"/></div>
+                <div class="span-two"><label>Procedure / Intervention</label><obs conceptId="c3ecac79-8555-4588-a228-61c6d7f59892" size="60"/></div>
+                <div><label>Surgeon / Chirurgien</label><obs conceptId="f1fe45a0-70aa-4819-9543-e98002c80401" size="40"/></div>
+                <div><label>Anesthetist / Anesthesiste</label><obs conceptId="54c9c4db-428b-4579-9023-84d8db65223a" size="40"/></div>
+                <div class="obs-field">
+                    <label>Urgency / Urgence</label>
+                    <obs conceptId="dedb6827-bd3f-4de1-9bc7-1cc63c8974e6"
+                         style="radio"
+                         answerConceptIds="c7d7e318-67ee-44d7-9b89-1a487d24c609,22e5350e-3b6b-4797-b3d4-184d354a5192"
+                         answerLabels="Emergency / Urgence,Elective / Electif"
+                         required="true"/>
+                </div>
+                <div class="obs-field">
+                    <label>Anesthesia / Anesthesie</label>
+                    <obs conceptId="a6e87d58-bf18-4d6b-a7f6-8a17db7452a7"
+                         style="radio"
+                         answerConceptIds="5bf03345-65a8-4350-8c9d-a26cb93e38b5,e7deab8a-0223-4724-a5ab-322a698f7884"
+                         answerLabels="General / Generale,Regional / Loco-regionale"
+                         required="true"/>
+                </div>
+                <div class="obs-field">
+                    <label>Premedication</label>
+                    <obs conceptId="6ac01def-4790-4e05-98a3-4cc3da667005"
+                         style="radio"
+                         answerConceptIds="82ed58d5-5797-4baa-bda3-f5e0a3ee7fba,9e620141-eb87-4185-ad54-a4310b33944b"
+                         answerLabels="Pre-op,On table / Sur table"/>
+                </div>
+                <div class="span-two obs-field">
+                    <label>Ventilation / Respiration</label>
+                    <obs conceptId="7a81095b-c2d2-48bb-9b2f-81fe4050d791"
+                         style="radio"
+                         answerConceptIds="0365d7cf-d727-4c66-8593-f7555b009fe4,78397c49-8b70-4598-8ab2-bde2b0ff3dfa,c88563b9-d30a-43ea-a600-19b139da38a1"
+                         answerLabels="Spontaneous / Spontanee,Assisted / Assistee,Controlled / Controlee"/>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+    <submit/>
+</htmlform>

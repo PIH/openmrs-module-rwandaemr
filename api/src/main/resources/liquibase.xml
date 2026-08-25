@@ -73,6 +73,62 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="rwandaemr-create-rhip-approval-request-log" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rhip_approval_request_log"/></not>
+        </preConditions>
+        <createTable tableName="rhip_approval_request_log">
+            <column name="rhip_approval_request_log_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="patient_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="insurance_policy_id" type="int"/>
+            <column name="insurance_type" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="insurance_name" type="varchar(255)"/>
+            <column name="insurance_card_no" type="varchar(100)"/>
+            <column name="patient_identifier" type="varchar(100)"/>
+            <column name="facility_fosa_id" type="varchar(50)"/>
+            <column name="product_code" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="product_name" type="varchar(255)"/>
+            <column name="product_type" type="varchar(100)"/>
+            <column name="requested_quantity" type="decimal(20,2)"/>
+            <column name="requested_unit_price" type="decimal(20,2)"/>
+            <column name="diagnosis_ids" type="varchar(500)"/>
+            <column name="clinical_knowledge" type="text"/>
+            <column name="practitioner_license_number" type="varchar(100)"/>
+            <column name="approval_code" type="varchar(100)"/>
+            <column name="approval_status" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message" type="text"/>
+            <column name="request_payload" type="text"/>
+            <column name="response_payload" type="text"/>
+            <column name="response_code" type="int"/>
+            <column name="creator" type="int"/>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int"/>
+            <column name="date_changed" type="datetime"/>
+        </createTable>
+        <createIndex tableName="rhip_approval_request_log" indexName="idx_rhip_approval_patient_created">
+            <column name="patient_id"/>
+            <column name="date_created"/>
+        </createIndex>
+        <createIndex tableName="rhip_approval_request_log" indexName="idx_rhip_approval_code">
+            <column name="approval_code"/>
+        </createIndex>
+        <createIndex tableName="rhip_approval_request_log" indexName="idx_rhip_approval_status">
+            <column name="approval_status"/>
+        </createIndex>
+    </changeSet>
+
     <changeSet id="rwandaemr-allow-pre-visit-mmi-patient-reception-log" author="jberchmas">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="mmi_patient_reception_log"/>
@@ -119,6 +175,43 @@
         </createIndex>
         <createIndex tableName="lab_notification_log" indexName="idx_lab_notification_created">
             <column name="date_created"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="rwandaemr-create-payment-clearance-sms-log" author="codex">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="payment_clearance_sms_log"/></not>
+        </preConditions>
+        <createTable tableName="payment_clearance_sms_log">
+            <column name="payment_clearance_sms_log_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="global_bill_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="patient_id" type="int"/>
+            <column name="patient_identifier" type="varchar(100)"/>
+            <column name="phone_number" type="varchar(50)"/>
+            <column name="message_content" type="text"/>
+            <column name="provider_message_id" type="varchar(100)"/>
+            <column name="request_payload" type="text"/>
+            <column name="response_code" type="int"/>
+            <column name="response_body" type="text"/>
+            <column name="status" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="error_message" type="text"/>
+            <column name="creator" type="int"/>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="payment_clearance_sms_log" indexName="idx_payment_clearance_global_bill">
+            <column name="global_bill_id"/>
+            <column name="date_created"/>
+        </createIndex>
+        <createIndex tableName="payment_clearance_sms_log" indexName="idx_payment_clearance_status">
+            <column name="status"/>
         </createIndex>
     </changeSet>
 

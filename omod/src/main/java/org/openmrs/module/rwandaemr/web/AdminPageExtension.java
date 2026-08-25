@@ -49,6 +49,7 @@ public class AdminPageExtension extends AdministrationSectionExt {
 		map.put("/rwandaemr/queue/queueReports.page", "Queue Reports");
 		map.put("/rwandaemr/labreports/aggregate.page", "Aggregate Lab Report");
 		map.put("/rwandaemr/labreports/turnaroundTime.page", "Laboratory Turnaround Time");
+		map.put("/rwandaemr/admin/rhipApprovals.page", "RHIP Approvals");
 		map.put("/rwandaemr/admin/rhipVoucherSubmissions.page", "RHIP Voucher Submission");
 		return map;
 	}

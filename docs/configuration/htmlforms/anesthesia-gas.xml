@@ -1,0 +1,163 @@
+<htmlform formName="Anesthesia Gas Monitoring"
+          formUuid="9ecb1c2c-67f6-4be5-a8d2-7200d28abd63"
+          formEncounterType="Anesthesia Record"
+          formVersion="3.1">
+
+    <style>
+        .anesthesia-entry fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 12px; padding: 12px; }
+        .anesthesia-entry legend { color: #00473f; font-weight: bold; padding: 0 6px; }
+        .anesthesia-entry .grid { display: grid; gap: 12px 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .anesthesia-entry label { display: block; font-weight: bold; margin-bottom: 3px; }
+        .anesthesia-entry .item-table { border-collapse: collapse; table-layout: fixed; width: 100%; }
+        .anesthesia-entry .item-table th { background: #00473f; color: #fff; padding: 8px; text-align: left; }
+        .anesthesia-entry .item-table td { border-bottom: 1px solid #ddd; padding: 8px; vertical-align: middle; }
+        .anesthesia-entry .item-number { text-align: center; width: 44px; }
+        .anesthesia-entry .item-actions { text-align: center; width: 54px; }
+        .anesthesia-entry .anesthesia-item-row[data-row]:not([data-row="1"]) { display: none; }
+        .anesthesia-entry .add-item { margin-top: 12px; }
+        .anesthesia-entry .remove-item { min-width: 34px; padding: 5px 8px; }
+        .anesthesia-case-link { display: none; }
+        @media (max-width: 900px) {
+            .anesthesia-entry .grid { grid-template-columns: 1fr; }
+            .anesthesia-entry .item-table { table-layout: auto; }
+        }
+    </style>
+
+    <div class="anesthesia-entry">
+        <div class="anesthesia-case-link"><anesthesiaCaseIdObs/></div>
+        <h2>Inhaled Gas / Gaz anesthesique</h2>
+        <fieldset>
+            <legend>Encounter / Consultation</legend>
+            <div class="grid">
+                <div><label>Date / Time</label><encounterDate default="now" showTime="true"/></div>
+                <div><label>Location</label><encounterLocation/></div>
+                <div><label>Provider</label><encounterProvider/></div>
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Gas Observations / Observations du gaz</legend>
+            <table class="item-table">
+                <thead>
+                <tr>
+                    <th class="item-number">#</th>
+                    <th>Inhaled agent / Agent inhale</th>
+                    <th>Concentration (%)</th>
+                    <th class="item-actions"></th>
+                </tr>
+                </thead>
+                <tbody>
+                <repeat>
+                    <template>
+                        <obsgroup groupingConceptId="a04ca71f-cb71-4c9c-b05b-9397235699b7">
+                            <tr class="anesthesia-item-row" data-row="{row}">
+                                <td class="item-number">{row}</td>
+                                <td class="item-value"><obs conceptId="2b42694e-707c-4888-80a8-1f6325072678" size="40"/></td>
+                                <td class="item-value"><obs conceptId="b6e47933-62b2-4929-b6f6-eaee3d5e9c8f"/></td>
+                                <td class="item-actions">
+                                    <ifMode mode="VIEW" include="false">
+                                        <button type="button" class="remove-item" title="Remove gas observation">&#215;</button>
+                                    </ifMode>
+                                </td>
+                            </tr>
+                        </obsgroup>
+                    </template>
+                    <render row="1"/>
+                    <render row="2"/>
+                    <render row="3"/>
+                    <render row="4"/>
+                    <render row="5"/>
+                    <render row="6"/>
+                    <render row="7"/>
+                    <render row="8"/>
+                </repeat>
+                </tbody>
+            </table>
+            <ifMode mode="VIEW" include="false">
+                <button id="add-anesthesia-gas" type="button" class="add-item confirm"><i class="icon-plus"></i> Add another gas observation</button>
+            </ifMode>
+        </fieldset>
+    </div>
+
+    <script type="text/javascript">
+        $j(function() {
+            var rows = $j('.anesthesia-item-row');
+            var addButton = $j('#add-anesthesia-gas');
+
+            function cellHasValue(cell) {
+                var hasControlValue = false;
+                cell.find('input:not([type="hidden"]):not([type="button"]), textarea, select').each(function() {
+                    var input = $j(this);
+                    if ((input.is(':checkbox') || input.is(':radio')) ? input.is(':checked') : input.val()) {
+                        hasControlValue = true;
+                    }
+                });
+                return hasControlValue || $j.trim(cell.text()).length > 0;
+            }
+
+            function rowHasValue(row) {
+                return cellHasValue(row.find('.item-value').eq(0)) || cellHasValue(row.find('.item-value').eq(1));
+            }
+
+            function updateControls() {
+                var visibleRows = rows.filter(':visible');
+                visibleRows.find('.remove-item').prop('disabled', visibleRows.length === 1);
+                addButton.prop('disabled', rows.filter(':hidden').length === 0);
+            }
+
+            rows.each(function(index) {
+                var row = $j(this);
+                if (index === 0 || rowHasValue(row)) {
+                    row.show();
+                }
+            });
+
+            addButton.on('click', function() {
+                rows.filter(':hidden').first().show();
+                updateControls();
+            });
+
+            rows.on('click', '.remove-item', function() {
+                var row = $j(this).closest('.anesthesia-item-row');
+                row.find('input:not([type="hidden"]), textarea, select').each(function() {
+                    var input = $j(this);
+                    if (input.is(':checkbox') || input.is(':radio')) {
+                        input.prop('checked', false);
+                    }
+                    else {
+                        input.val('');
+                    }
+                    input.trigger('change');
+                });
+                row.hide();
+                updateControls();
+            });
+
+            if (typeof beforeSubmit !== 'undefined') {
+                beforeSubmit.push(function() {
+                    var hasCompleteRow = false;
+                    var hasPartialRow = false;
+                    rows.filter(':visible').each(function() {
+                        var cells = $j(this).find('.item-value');
+                        var hasAgent = cellHasValue(cells.eq(0));
+                        var hasConcentration = cellHasValue(cells.eq(1));
+                        hasCompleteRow = hasCompleteRow || (hasAgent &amp;&amp; hasConcentration);
+                        hasPartialRow = hasPartialRow || (hasAgent !== hasConcentration);
+                    });
+                    if (hasPartialRow) {
+                        alert('Enter both the inhaled agent and concentration for each gas row.');
+                        return false;
+                    }
+                    if (!hasCompleteRow) {
+                        alert('Enter at least one gas observation before saving.');
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            updateControls();
+        });
+    </script>
+
+    <submit/>
+</htmlform>

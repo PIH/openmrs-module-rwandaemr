@@ -66,42 +66,43 @@ public class MmiPatientReceptionOrchestratorService {
 	}
 
 	@Transactional
-	public void createMmiReceptionForRegistration(FormEntrySession session) {
+	public MmiPatientReceptionResult createMmiReceptionForRegistration(FormEntrySession session) {
+		boolean mmiReceptionRequired = false;
 		try {
 			if (session == null || session.getContext() == null) {
-				return;
+				return MmiPatientReceptionResult.notRequired();
 			}
 			FormEntryContext.Mode mode = session.getContext().getMode();
 			if (!(mode == FormEntryContext.Mode.ENTER || mode == FormEntryContext.Mode.EDIT)) {
-				return;
+				return MmiPatientReceptionResult.notRequired();
 			}
 			Encounter encounter = session.getEncounter();
 			if (encounter == null) {
 				log.warn("Skipping MMI patient reception because encounter is null");
-				return;
+				return MmiPatientReceptionResult.notRequired();
 			}
 			Visit visit = encounter.getVisit();
 			if (visit == null) {
 				log.warn("Skipping MMI patient reception because visit is null for encounter " + encounter.getUuid());
-				return;
+				return MmiPatientReceptionResult.notRequired();
 			}
 			if (logRepository.hasSuccessfulReceptionForVisit(visit.getVisitId())) {
 				log.debug("MMI patient reception already exists for visit " + visit.getVisitId());
-				return;
+				return MmiPatientReceptionResult.success(null);
 			}
 
 			Concept insuranceTypeConcept = getConceptFromGp(GP_INSURANCE_TYPE_CONCEPT);
 			Concept insuranceNumberConcept = getConceptFromGp(GP_INSURANCE_NUMBER_CONCEPT);
 			if (insuranceTypeConcept == null || insuranceNumberConcept == null) {
 				log.warn("Skipping MMI patient reception: registration insurance concepts are not configured");
-				return;
+				return MmiPatientReceptionResult.notRequired();
 			}
 
 			Obs insuranceTypeObs = findTopLevelObs(encounter, insuranceTypeConcept);
 			Obs insuranceNumberObs = findTopLevelObs(encounter, insuranceNumberConcept);
 			if (insuranceTypeObs == null || insuranceTypeObs.getValueCoded() == null || insuranceNumberObs == null ||
 					StringUtils.isBlank(insuranceNumberObs.getValueText())) {
-				return;
+				return MmiPatientReceptionResult.notRequired();
 			}
 
 			String insuranceCardNo = insuranceNumberObs.getValueText().trim();
@@ -110,7 +111,16 @@ public class MmiPatientReceptionOrchestratorService {
 					insuranceTypeObs.getValueCoded().getDisplayString();
 
 			if (!isMmiInsurance(insuranceName)) {
-				return;
+				return MmiPatientReceptionResult.notRequired();
+			}
+			mmiReceptionRequired = true;
+
+			Date visitDate = visit.getStartDatetime() == null ? new Date() : visit.getStartDatetime();
+			String existingReceptionNumber = logRepository.getSuccessfulReceptionNumberForInsuranceCardOnDate(
+					insuranceCardNo, visitDate);
+			if (StringUtils.isNotBlank(existingReceptionNumber)) {
+				saveReceptionNumberOnVisit(visit, existingReceptionNumber);
+				return MmiPatientReceptionResult.success(existingReceptionNumber);
 			}
 
 			String patientIdentifier = insuranceCardNo;
@@ -177,14 +187,20 @@ public class MmiPatientReceptionOrchestratorService {
 
 			if (success) {
 				saveReceptionNumberOnVisit(visit, entry.getReceptionNumber());
+				return MmiPatientReceptionResult.success(entry.getReceptionNumber());
 			}
 
 			if (!success) {
 				log.warn("MMI patient reception failed for visit " + visit.getVisitId() + ": " + errorMessage);
 			}
+			return MmiPatientReceptionResult.failed(StringUtils.isBlank(errorMessage)
+					? "MMI reception number was not generated for this insurance number today." : errorMessage);
 		}
 		catch (Exception e) {
 			log.error("Unexpected error while creating MMI patient reception", e);
+			return mmiReceptionRequired
+					? MmiPatientReceptionResult.failed("Unable to verify MMI reception before starting this visit.")
+					: MmiPatientReceptionResult.notRequired();
 		}
 	}
 

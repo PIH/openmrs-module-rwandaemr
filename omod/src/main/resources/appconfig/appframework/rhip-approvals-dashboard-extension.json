@@ -1,0 +1,12 @@
+[
+  {
+    "id": "rwandaemr.rhipApprovals.patientDashboard",
+    "extensionPointId": "patientDashboard.overallActions",
+    "type": "link",
+    "label": "Request Insurance Approval",
+    "url": "rwandaemr/admin/rhipApprovals.page?patientId={{patient.uuid}}&openRequest=true",
+    "icon": "icon-shield",
+    "order": 12,
+    "requiredPrivilege": "Billing RHIP Approval - View"
+  }
+]

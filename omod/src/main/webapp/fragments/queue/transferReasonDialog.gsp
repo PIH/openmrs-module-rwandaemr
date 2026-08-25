@@ -20,11 +20,19 @@
         margin-bottom: 5px;
     }
 
-    #queue-transfer-reason {
+    #queue-transfer-reason,
+    #queue-transfer-provider {
         box-sizing: border-box;
+        width: 100%;
+    }
+
+    #queue-transfer-reason {
         min-height: 96px;
         resize: vertical;
-        width: 100%;
+    }
+
+    .queue-transfer-provider-field {
+        margin-top: 14px;
     }
 
     .queue-transfer-reason-error {
@@ -64,6 +72,14 @@
              role="alert" style="display: none">
             Transfer reason is required.
         </div>
+        <div class="queue-transfer-provider-field">
+            <label class="queue-transfer-reason-label" for="queue-transfer-provider">
+                Provider (optional)
+            </label>
+            <select id="queue-transfer-provider">
+                <option value="">No provider assigned</option>
+            </select>
+        </div>
         <div class="queue-transfer-dialog-actions">
             <button type="button" class="button cancel">Cancel</button>
             <button type="button" class="button confirm">
@@ -78,13 +94,45 @@
         jq(function() {
             var dialogElement = jq("#queue-transfer-reason-dialog");
             var reasonInput = jq("#queue-transfer-reason");
+            var providerInput = jq("#queue-transfer-provider");
             var reasonError = jq("#queue-transfer-reason-error");
             var pendingForm = null;
             var transferDialog = null;
+            var providerLoadState = "idle";
+
+            function loadProviders() {
+                if (providerLoadState === "loading" || providerLoadState === "loaded") {
+                    return;
+                }
+                providerLoadState = "loading";
+                providerInput.prop("disabled", true).empty()
+                    .append(jq("<option>").val("").text("Loading providers..."));
+                jq.ajax({
+                    url: "${ ui.actionLink("rwandaemr", "queue/transferReasonDialog", "getProviders") }",
+                    dataType: "json",
+                    success: function(data) {
+                        providerInput.empty()
+                            .append(jq("<option>").val("").text("No provider assigned"));
+                        jq.each(data.providers || [], function(index, provider) {
+                            providerInput.append(jq("<option>").val(provider.id).text(provider.label));
+                        });
+                        providerLoadState = "loaded";
+                    },
+                    error: function() {
+                        providerInput.empty()
+                            .append(jq("<option>").val("").text("Providers unavailable - no provider assigned"));
+                        providerLoadState = "failed";
+                    },
+                    complete: function() {
+                        providerInput.prop("disabled", false);
+                    }
+                });
+            }
 
             function closeDialog() {
                 pendingForm = null;
                 reasonInput.val("");
+                providerInput.val("");
                 reasonError.hide();
                 if (transferDialog) {
                     transferDialog.close();
@@ -106,6 +154,7 @@
 
                 var formToSubmit = pendingForm;
                 formToSubmit.find("input[name='reason']").val(reason);
+                formToSubmit.find("input[name='assignedProviderId']").val(providerInput.val());
                 pendingForm = null;
                 reasonError.hide();
                 if (transferDialog) {
@@ -139,7 +188,9 @@
                 jq("#queue-transfer-origin").text(jq.trim(origin));
                 jq("#queue-transfer-destination").text(jq.trim(destination));
                 reasonInput.val("");
+                providerInput.val("");
                 reasonError.hide();
+                loadProviders();
 
                 if (transferDialog) {
                     transferDialog.show();
@@ -163,6 +214,7 @@
                 }
                 var fallbackForm = pendingForm;
                 fallbackForm.find("input[name='reason']").val(fallbackReason);
+                fallbackForm.find("input[name='assignedProviderId']").val(providerInput.val());
                 pendingForm = null;
                 fallbackForm.get(0).submit();
             });

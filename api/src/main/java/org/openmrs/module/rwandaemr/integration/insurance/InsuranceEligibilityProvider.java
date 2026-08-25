@@ -154,6 +154,62 @@ public class InsuranceEligibilityProvider {
 		return postRequest(config.getMmiReceptionUrl(), parameters, MmiReceptionResponse.class, "MMI_RECEPTION");
 	}
 
+	public IntegrationResponse getApprovalRequiredProducts(String insuranceType, String facilityFosaId, String search,
+	                                                       Integer page, Integer limit) {
+		Map<String, Object> parameters = new HashMap<>();
+		parameters.put("insuranceType", normalizeInsuranceType(insuranceType));
+		parameters.put("facilityFosaId", facilityFosaId);
+		parameters.put("search", search);
+		parameters.put("page", page == null || page <= 0 ? 1 : page);
+		parameters.put("limit", limit == null || limit <= 0 ? 20 : limit);
+		return postRequest(config.getRhipApprovalRequiredProductsUrl(), parameters, JsonNode.class,
+				"RHIP_APPROVAL_REQUIRED_PRODUCTS");
+	}
+
+	public IntegrationResponse requestApproval(String insuranceType, String facilityFosaId, String patientIdentifier,
+	                                           String receptionNumber, String practitionerLicenseNumber,
+	                                           List<String> diagnosisIds, String clinicalKnowledge, String rhicCode,
+	                                           Number requestedQuantity, Number requestedUnitPrice) {
+		Map<String, Object> parameters = new HashMap<>();
+		String normalizedType = normalizeInsuranceType(insuranceType);
+		parameters.put("insuranceType", normalizedType);
+		parameters.put("facilityFosaId", facilityFosaId);
+		if ("mmi".equalsIgnoreCase(normalizedType)) {
+			parameters.put("receptionNumber", receptionNumber);
+			parameters.put("licenseNumber", practitionerLicenseNumber);
+			parameters.put("comment", clinicalKnowledge);
+		}
+		else {
+			parameters.put("patientIdentifier", patientIdentifier);
+			parameters.put("practitionerLicenseNumber", practitionerLicenseNumber);
+			parameters.put("diagnosisIds", diagnosisIds);
+			parameters.put("clinicalKnowledge", clinicalKnowledge);
+		}
+		List<Map<String, Object>> procedures = new ArrayList<Map<String, Object>>();
+		Map<String, Object> procedure = new HashMap<String, Object>();
+		procedure.put("rhicCode", rhicCode);
+		procedure.put("requestedQuantity", requestedQuantity);
+		if (requestedUnitPrice != null) {
+			procedure.put("requestedUnitPrice", requestedUnitPrice);
+		}
+		procedures.add(procedure);
+		parameters.put("procedures", procedures);
+		return postRequest(config.getRhipApprovalRequestUrl(), parameters, JsonNode.class, "RHIP_APPROVAL_REQUEST");
+	}
+
+	public IntegrationResponse checkApprovalStatus(String insuranceType, String approvalCode, String facilityFosaId, String period) {
+		Map<String, Object> parameters = new HashMap<>();
+		parameters.put("insuranceType", normalizeInsuranceType(insuranceType));
+		parameters.put("approvalCode", approvalCode);
+		parameters.put("facilityFosaId", facilityFosaId);
+		parameters.put("period", period);
+		return postRequest(config.getRhipApprovalStatusUrl(), parameters, JsonNode.class, "RHIP_APPROVAL_STATUS");
+	}
+
+	public String toJsonPayload(Object value) {
+		return toJson(value);
+	}
+
 	private String normalizeInsuranceType(String insuranceType) {
 		if (StringUtils.isBlank(insuranceType)) {
 			return insuranceType;
