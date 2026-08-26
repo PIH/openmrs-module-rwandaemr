@@ -39,6 +39,13 @@ public interface QueueDao {
 
     List<QueueEntry> getQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay);
 
+    int countQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay,
+                          Date currentDayStart, List<QueueStatus> activeStatuses, String patientName);
+
+    List<QueueEntry> getQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay,
+                                     Date currentDayStart, List<QueueStatus> activeStatuses,
+                                     String patientName, int firstResult, int maxResults);
+
     List<QueueEntry> getQueueEntriesByServicePoint(Location servicePoint, Location visibleLocation,
                                                    QueueStatus status, Date startOfDay, Date endOfDay);
 

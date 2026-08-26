@@ -3,6 +3,7 @@ package org.openmrs.module.rwandaemr.queue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,8 +14,10 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +26,7 @@ import org.openmrs.Encounter;
 import org.openmrs.Location;
 import org.openmrs.Obs;
 import org.openmrs.Patient;
+import org.openmrs.PersonName;
 import org.openmrs.Provider;
 import org.openmrs.User;
 import org.openmrs.Visit;
@@ -51,6 +55,10 @@ public class QueueServiceImplTest {
 
     private Location laboratoryLocation;
 
+    private Location radiologyLocation;
+
+    private Location imagingLocation;
+
     private Location nonLoginLocation;
 
     private User user;
@@ -72,12 +80,19 @@ public class QueueServiceImplTest {
         triageLocation = location("Triage");
         consultationLocation = location("Consultation");
         laboratoryLocation = location("Laboratory");
+        radiologyLocation = location("Radiology Service");
+        imagingLocation = location("Imaging Service");
         nonLoginLocation = location("Store Room");
         service.loginLocations.add(triageLocation);
         service.loginLocations.add(consultationLocation);
         service.loginLocations.add(laboratoryLocation);
+        service.loginLocations.add(radiologyLocation);
+        service.loginLocations.add(imagingLocation);
         service.sessionLocation = triageLocation;
         service.laboratoryLocation = laboratoryLocation;
+        service.diagnosticLocations.add(laboratoryLocation);
+        service.diagnosticLocations.add(radiologyLocation);
+        service.diagnosticLocations.add(imagingLocation);
 
         dao.conceptMaps.add(conceptMap(triageConcept, triageLocation));
     }
@@ -212,6 +227,24 @@ public class QueueServiceImplTest {
     }
 
     @Test
+    public void shouldUpdateServiceRequestedOnExistingQueueEntryFromEditedRegistration() {
+        Patient patient = patient("patient-a");
+        Concept consultationConcept = concept("consultation-service-concept");
+        QueueEntry entry = service.addPatientToQueueFromRegistration(
+                encounter(patient, new Visit(), triageLocation, triageConcept));
+
+        QueueEntry updatedEntry = service.addPatientToQueueFromRegistration(
+                encounter(patient, new Visit(), triageLocation, consultationConcept));
+
+        assertSame(entry, updatedEntry);
+        assertSame(consultationConcept, entry.getServiceRequestedConcept());
+        assertSame(user, entry.getChangedBy());
+        assertNotNull(entry.getDateChanged());
+        assertEquals(1, dao.entries.size());
+        assertEquals(1, dao.histories.size());
+    }
+
+    @Test
     public void shouldResolveServicePointLocationFromServiceRequestedConcept() {
         assertSame(triageLocation, service.resolveServicePointFromServiceRequestedConcept(triageConcept));
         assertNull(service.resolveServicePointFromServiceRequestedConcept(concept("unknown-service")));
@@ -241,6 +274,70 @@ public class QueueServiceImplTest {
 
         assertEquals(1, consultationEntries.size());
         assertSame(normalAtConsultation, consultationEntries.get(0));
+    }
+
+    @Test
+    public void shouldKeepLateNightPatientActiveAndAllowServicePointChangeNextMorning() {
+        Date referenceDate = todayAt(8, 0);
+        Patient recentPatient = patient("recent-patient");
+        QueueEntry recentEntry = queueEntry("recent", triageLocation, QueuePriority.NORMAL, dayAt(-1, 23, 30));
+        recentEntry.setPatient(recentPatient);
+        Patient expiredPatient = patient("expired-patient");
+        QueueEntry expiredEntry = queueEntry("expired", triageLocation, QueuePriority.NORMAL, dayAt(-1, 7, 0));
+        expiredEntry.setPatient(expiredPatient);
+        dao.entries.add(recentEntry);
+        dao.entries.add(expiredEntry);
+
+        List<QueueEntry> entries = service.getQueueEntriesByLocation(
+                triageLocation, QueueStatus.WAITING, referenceDate);
+
+        assertEquals(1, entries.size());
+        assertSame(recentEntry, entries.get(0));
+        assertSame(recentEntry, service.getActiveQueueEntry(recentPatient, triageLocation, referenceDate));
+        assertSame(recentEntry, service.getActiveQueueEntry(recentPatient, referenceDate));
+        assertNull(service.getActiveQueueEntry(expiredPatient, triageLocation, referenceDate));
+        assertNull(service.getActiveQueueEntry(expiredPatient, referenceDate));
+
+        QueueEntry transferredEntry = service.transferPatient(
+                recentEntry, consultationLocation, "Continue consultation next morning");
+
+        assertSame(recentEntry, transferredEntry);
+        assertSame(triageLocation, transferredEntry.getPreviousServicePoint());
+        assertSame(consultationLocation, transferredEntry.getServicePoint());
+        assertSame(consultationLocation, transferredEntry.getSessionLocation());
+        assertEquals(QueueStatus.WAITING, transferredEntry.getStatus());
+        assertSame(transferredEntry, service.getActiveQueueEntry(
+                recentPatient, consultationLocation, transferredEntry.getArrivalTime()));
+    }
+
+    @Test
+    public void shouldKeepActiveEntriesButNotTerminalEntriesFromThePreviousDayInLiveQueue() {
+        Date referenceDate = todayAt(1, 0);
+        QueueEntry activeEntry = queueEntry("active", triageLocation, QueuePriority.NORMAL, dayAt(-1, 2, 0));
+        QueueEntry completedEntry = queueEntry("completed", triageLocation, QueuePriority.NORMAL, dayAt(-1, 2, 15));
+        completedEntry.setStatus(QueueStatus.COMPLETED);
+        QueueEntry transferredEntry = queueEntry("transferred", triageLocation, QueuePriority.NORMAL, dayAt(-1, 2, 30));
+        transferredEntry.setStatus(QueueStatus.TRANSFERRED);
+        QueueEntry todayCompletedEntry = queueEntry("today-completed", triageLocation, QueuePriority.NORMAL,
+                todayAt(0, 30));
+        todayCompletedEntry.setStatus(QueueStatus.COMPLETED);
+        dao.entries.add(activeEntry);
+        dao.entries.add(completedEntry);
+        dao.entries.add(transferredEntry);
+        dao.entries.add(todayCompletedEntry);
+
+        List<QueueEntry> locationEntries = service.getQueueEntriesByLocation(triageLocation, null, referenceDate);
+        List<QueueEntry> servicePointEntries = service.getQueueEntriesByServicePoint(
+                triageLocation, triageLocation, null, referenceDate);
+
+        assertEquals(2, locationEntries.size());
+        assertTrue(locationEntries.contains(activeEntry));
+        assertTrue(locationEntries.contains(todayCompletedEntry));
+        assertEquals(2, servicePointEntries.size());
+        assertTrue(servicePointEntries.contains(activeEntry));
+        assertTrue(servicePointEntries.contains(todayCompletedEntry));
+        assertFalse(locationEntries.contains(completedEntry));
+        assertFalse(locationEntries.contains(transferredEntry));
     }
 
     @Test
@@ -393,10 +490,11 @@ public class QueueServiceImplTest {
         entry.setCompletedTime(todayAt(8, 45));
         dao.entries.add(entry);
 
-        service.transferPatient(entry, consultationLocation, "Needs consultation");
+        service.transferPatient(entry, consultationLocation, "  Needs consultation  ");
 
         assertSame(consultationLocation, entry.getServicePoint());
         assertSame(triageLocation, entry.getPreviousServicePoint());
+        assertEquals("Needs consultation", entry.getTransferReason());
         assertSame(consultationLocation, entry.getSessionLocation());
         assertEquals(QueueStatus.WAITING, entry.getStatus());
         assertTrue(entry.getQueueNumber().startsWith("CONSUL-"));
@@ -421,6 +519,46 @@ public class QueueServiceImplTest {
     }
 
     @Test
+    public void shouldAssignSelectedProviderAtTransferredDestination() {
+        QueueEntry entry = queueEntry("queue-a", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        Provider provider = new Provider(17);
+        dao.entries.add(entry);
+
+        QueueEntry transferredEntry = service.transferPatient(
+                entry, consultationLocation, "Needs consultation", provider);
+
+        assertSame(entry, transferredEntry);
+        assertSame(provider, transferredEntry.getAssignedProvider());
+    }
+
+    @Test
+    public void shouldAssignSelectedProviderToDiagnosticDestinationQueue() {
+        QueueEntry entry = queueEntry("queue-a", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        Provider provider = new Provider(18);
+        dao.entries.add(entry);
+
+        QueueEntry diagnosticEntry = service.transferPatient(
+                entry, laboratoryLocation, "Needs laboratory", provider);
+
+        assertNotSame(entry, diagnosticEntry);
+        assertSame(provider, diagnosticEntry.getAssignedProvider());
+        assertNull(entry.getAssignedProvider());
+    }
+
+    @Test
+    public void shouldRejectTransferWithoutReason() {
+        QueueEntry entry = queueEntry("queue-a", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.transferPatient(entry, consultationLocation, "   "));
+
+        assertEquals("Transfer reason is required", exception.getMessage());
+        assertSame(triageLocation, entry.getServicePoint());
+        assertEquals(0, dao.histories.size());
+    }
+
+    @Test
     public void shouldSendPatientToLaboratoryWithoutRemovingFromOriginQueue() {
         QueueEntry entry = queueEntry("queue-a", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
         entry.setQueueNumber("TRIAGE-20200101-001");
@@ -428,19 +566,30 @@ public class QueueServiceImplTest {
         entry.setCalledTime(todayAt(8, 10));
         dao.entries.add(entry);
 
-        service.transferPatient(entry, laboratoryLocation, "Needs laboratory");
+        QueueEntry laboratoryEntry = service.transferPatient(entry, laboratoryLocation, "Needs laboratory");
 
-        assertSame(laboratoryLocation, entry.getServicePoint());
-        assertSame(triageLocation, entry.getPreviousServicePoint());
+        assertSame(triageLocation, entry.getServicePoint());
         assertSame(triageLocation, entry.getSessionLocation());
+        assertEquals("Needs laboratory", entry.getTransferReason());
         assertEquals(QueueStatus.IN_PROGRESS, entry.getStatus());
-        assertTrue(entry.getQueueNumber().startsWith("LABORA-"));
+        assertEquals("TRIAGE-20200101-001", entry.getQueueNumber());
         assertNotNull(entry.getServiceStartTime());
         assertNull(entry.getServiceEndTime());
         assertNull(entry.getCompletedTime());
-        assertEquals(1, dao.histories.size());
+
+        assertNotSame(entry, laboratoryEntry);
+        assertSame(laboratoryLocation, laboratoryEntry.getServicePoint());
+        assertSame(laboratoryLocation, laboratoryEntry.getSessionLocation());
+        assertSame(triageLocation, laboratoryEntry.getPreviousServicePoint());
+        assertEquals("Needs laboratory", laboratoryEntry.getTransferReason());
+        assertEquals(QueueStatus.WAITING, laboratoryEntry.getStatus());
+        assertTrue(laboratoryEntry.getQueueNumber().startsWith("LABORA-"));
+        assertEquals(2, dao.entries.size());
+        assertEquals(2, dao.histories.size());
         assertEquals(QueueStatus.CALLED, dao.histories.get(0).getPreviousStatus());
         assertEquals(QueueStatus.IN_PROGRESS, dao.histories.get(0).getNewStatus());
+        assertNull(dao.histories.get(1).getPreviousStatus());
+        assertEquals(QueueStatus.WAITING, dao.histories.get(1).getNewStatus());
 
         List<QueueEntry> originEntries = service.getQueueEntriesByLocation(triageLocation, QueueStatus.IN_PROGRESS,
                 new Date());
@@ -448,21 +597,141 @@ public class QueueServiceImplTest {
         assertSame(entry, originEntries.get(0));
 
         List<QueueEntry> laboratoryEntries = service.getQueueEntriesByServicePoint(laboratoryLocation,
-                laboratoryLocation, QueueStatus.IN_PROGRESS, new Date());
+                laboratoryLocation, QueueStatus.WAITING, new Date());
         assertEquals(1, laboratoryEntries.size());
-        assertSame(entry, laboratoryEntries.get(0));
+        assertSame(laboratoryEntry, laboratoryEntries.get(0));
     }
 
     @Test
-    public void shouldReplacePreviousServicePointOnEachTransfer() {
+    public void shouldSendPatientToRadiologyWithoutRemovingFromOriginQueue() {
+        assertDiagnosticTransfer(radiologyLocation, "Needs radiology", "RADIOL-");
+    }
+
+    @Test
+    public void shouldSendPatientToImagingWithoutRemovingFromOriginQueue() {
+        assertDiagnosticTransfer(imagingLocation, "Needs imaging", "IMAGIN-");
+    }
+
+    @Test
+    public void shouldRemovePatientFromLaboratoryQueueWhenSentToRadiology() {
+        assertDiagnosticSourceTransfer(laboratoryLocation, radiologyLocation);
+    }
+
+    @Test
+    public void shouldRemovePatientFromRadiologyQueueWhenSentToImaging() {
+        assertDiagnosticSourceTransfer(radiologyLocation, imagingLocation);
+    }
+
+    @Test
+    public void shouldRemovePatientFromImagingQueueWhenSentToLaboratory() {
+        assertDiagnosticSourceTransfer(imagingLocation, laboratoryLocation);
+    }
+
+    @Test
+    public void shouldUseCurrentServicePointAsPreviousServicePointForDiagnosticEntry() {
         QueueEntry entry = queueEntry("queue-a", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
         dao.entries.add(entry);
 
         service.transferPatient(entry, consultationLocation, "Needs consultation");
-        service.transferPatient(entry, laboratoryLocation, "Needs laboratory");
+        QueueEntry laboratoryEntry = service.transferPatient(entry, laboratoryLocation, "Needs laboratory");
 
-        assertSame(laboratoryLocation, entry.getServicePoint());
-        assertSame(consultationLocation, entry.getPreviousServicePoint());
+        assertSame(consultationLocation, entry.getServicePoint());
+        assertEquals("Needs laboratory", entry.getTransferReason());
+        assertSame(laboratoryLocation, laboratoryEntry.getServicePoint());
+        assertSame(consultationLocation, laboratoryEntry.getPreviousServicePoint());
+    }
+
+    @Test
+    public void shouldQueuePatientAtLaboratoryAndRadiologyAtTheSameTime() {
+        QueueEntry sourceEntry = queueEntry("queue-a", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        sourceEntry.setQueueNumber("TRIAGE-20200101-001");
+        dao.entries.add(sourceEntry);
+
+        QueueEntry laboratoryEntry = service.transferPatient(
+                sourceEntry, laboratoryLocation, "Laboratory investigation");
+        QueueEntry radiologyEntry = service.transferPatient(
+                sourceEntry, radiologyLocation, "Radiology investigation");
+
+        assertEquals(3, dao.entries.size());
+        assertEquals(QueueStatus.IN_PROGRESS, sourceEntry.getStatus());
+        assertSame(triageLocation, sourceEntry.getServicePoint());
+        assertEquals(QueueStatus.WAITING, laboratoryEntry.getStatus());
+        assertSame(laboratoryLocation, laboratoryEntry.getServicePoint());
+        assertEquals(QueueStatus.WAITING, radiologyEntry.getStatus());
+        assertSame(radiologyLocation, radiologyEntry.getServicePoint());
+
+        assertSame(laboratoryEntry, service.getActiveQueueEntry(
+                sourceEntry.getPatient(), laboratoryLocation, new Date()));
+        assertSame(radiologyEntry, service.getActiveQueueEntry(
+                sourceEntry.getPatient(), radiologyLocation, new Date()));
+    }
+
+    @Test
+    public void shouldReuseActiveDiagnosticQueueEntryWithoutWarning() {
+        QueueEntry sourceEntry = queueEntry("queue-a", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        sourceEntry.setQueueNumber("TRIAGE-20200101-001");
+        dao.entries.add(sourceEntry);
+        QueueEntry laboratoryEntry = service.transferPatient(
+                sourceEntry, laboratoryLocation, "Laboratory investigation");
+        int historyCount = dao.histories.size();
+
+        QueueEntry repeatedTransfer = service.transferPatient(
+                sourceEntry, laboratoryLocation, "Repeated laboratory request");
+
+        assertSame(laboratoryEntry, repeatedTransfer);
+        assertEquals(2, dao.entries.size());
+        assertEquals(historyCount, dao.histories.size());
+        assertEquals(QueueStatus.IN_PROGRESS, sourceEntry.getStatus());
+    }
+
+    @Test
+    public void shouldRemovePatientFromDiagnosticSourceWhenDestinationEntryIsAlreadyActive() {
+        QueueEntry sourceEntry = queueEntry(
+                "queue-source", laboratoryLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        QueueEntry destinationEntry = queueEntry(
+                "queue-destination", radiologyLocation, QueuePriority.NORMAL, todayAt(9, 0));
+        destinationEntry.setPatient(sourceEntry.getPatient());
+        dao.entries.add(sourceEntry);
+        dao.entries.add(destinationEntry);
+
+        QueueEntry result = service.transferPatient(
+                sourceEntry, radiologyLocation, "Continue at radiology");
+
+        assertSame(destinationEntry, result);
+        assertEquals(QueueStatus.TRANSFERRED, sourceEntry.getStatus());
+        assertEquals("Continue at radiology", sourceEntry.getTransferReason());
+        assertNotNull(sourceEntry.getServiceEndTime());
+        assertNotNull(sourceEntry.getCompletedTime());
+        assertNull(service.getActiveQueueEntry(sourceEntry.getPatient(), laboratoryLocation, new Date()));
+        assertSame(destinationEntry, service.getActiveQueueEntry(
+                sourceEntry.getPatient(), radiologyLocation, new Date()));
+    }
+
+    @Test
+    public void shouldReturnDiagnosticPatientToPreservedPreviousQueueEntryWithoutWarning() {
+        Visit visit = new Visit();
+        visit.setUuid("visit-a");
+        QueueEntry sourceEntry = queueEntry("queue-a", consultationLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        sourceEntry.setVisit(visit);
+        sourceEntry.setQueueNumber("CONSUL-20200101-001");
+        dao.entries.add(sourceEntry);
+        QueueEntry radiologyEntry = service.transferPatient(
+                sourceEntry, radiologyLocation, "Radiology investigation");
+
+        QueueEntry returnedEntry = service.transferPatient(
+                radiologyEntry, consultationLocation, "Radiology completed");
+
+        assertSame(sourceEntry, returnedEntry);
+        assertEquals(2, dao.entries.size());
+        assertEquals(QueueStatus.IN_PROGRESS, sourceEntry.getStatus());
+        assertEquals(QueueStatus.TRANSFERRED, radiologyEntry.getStatus());
+        assertEquals("Radiology completed", radiologyEntry.getTransferReason());
+        assertNotNull(radiologyEntry.getServiceEndTime());
+        assertNotNull(radiologyEntry.getCompletedTime());
+        assertEquals(3, dao.histories.size());
+        assertEquals(QueueStatus.WAITING, dao.histories.get(2).getPreviousStatus());
+        assertEquals(QueueStatus.TRANSFERRED, dao.histories.get(2).getNewStatus());
+        assertEquals("Radiology completed", dao.histories.get(2).getReason());
     }
 
     @Test
@@ -492,7 +761,7 @@ public class QueueServiceImplTest {
     }
 
     @Test
-    public void shouldFindLatestActiveQueueEntryForPatientToday() {
+    public void shouldFindLatestActiveQueueEntryForPatientWithin24Hours() {
         Patient patient = patient("patient-a");
         QueueEntry earlier = queueEntry("queue-a", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
         QueueEntry latest = queueEntry("queue-b", consultationLocation, QueuePriority.NORMAL, todayAt(10, 0));
@@ -508,6 +777,81 @@ public class QueueServiceImplTest {
         QueueEntry result = service.getActiveQueueEntry(patient, todayAt(12, 0));
 
         assertSame(latest, result);
+    }
+
+    @Test
+    public void shouldCountAndPageLiveQueueEntriesInPriorityOrder() {
+        Date referenceTime = todayAt(12, 0);
+        QueueEntry normal = queueEntry("queue-normal", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        QueueEntry emergency = queueEntry("queue-emergency", triageLocation, QueuePriority.EMERGENCY, todayAt(10, 0));
+        QueueEntry previousDayWaiting = queueEntry(
+                "queue-previous-waiting", triageLocation, QueuePriority.ELDERLY, dayAt(-1, 18, 0));
+        QueueEntry previousDayCompleted = queueEntry(
+                "queue-previous-completed", triageLocation, QueuePriority.PREGNANT, dayAt(-1, 19, 0));
+        previousDayCompleted.setStatus(QueueStatus.COMPLETED);
+        dao.entries.add(normal);
+        dao.entries.add(emergency);
+        dao.entries.add(previousDayWaiting);
+        dao.entries.add(previousDayCompleted);
+
+        int count = service.countQueueEntriesByLocation(triageLocation, null, referenceTime);
+        List<QueueEntry> firstPage = service.getQueueEntriesByLocation(
+                triageLocation, null, referenceTime, 0, 2);
+        List<QueueEntry> secondPage = service.getQueueEntriesByLocation(
+                triageLocation, null, referenceTime, 2, 2);
+
+        assertEquals(3, count);
+        assertEquals(Arrays.asList(emergency, previousDayWaiting), firstPage);
+        assertEquals(Collections.singletonList(normal), secondPage);
+    }
+
+    @Test
+    public void shouldCountAndPageEntriesByExactArrivalDate() {
+        Date yesterday = dayAt(-1, 12, 0);
+        QueueEntry yesterdayWaiting = queueEntry(
+                "yesterday-waiting", triageLocation, QueuePriority.NORMAL, dayAt(-1, 8, 0));
+        QueueEntry yesterdayCompleted = queueEntry(
+                "yesterday-completed", triageLocation, QueuePriority.EMERGENCY, dayAt(-1, 9, 0));
+        yesterdayCompleted.setStatus(QueueStatus.COMPLETED);
+        QueueEntry todayWaiting = queueEntry(
+                "today-waiting", triageLocation, QueuePriority.ELDERLY, todayAt(7, 0));
+        dao.entries.add(yesterdayWaiting);
+        dao.entries.add(yesterdayCompleted);
+        dao.entries.add(todayWaiting);
+
+        int count = service.countQueueEntriesByLocation(
+                triageLocation, null, yesterday, yesterday);
+        List<QueueEntry> entries = service.getQueueEntriesByLocation(
+                triageLocation, null, yesterday, yesterday, 0, 10);
+
+        assertEquals(2, count);
+        assertEquals(Arrays.asList(yesterdayCompleted, yesterdayWaiting), entries);
+        assertFalse(entries.contains(todayWaiting));
+    }
+
+    @Test
+    public void shouldFilterExactArrivalDateEntriesByPatientName() {
+        Date today = todayAt(12, 0);
+        QueueEntry alineUwase = queueEntry(
+                "aline-uwase", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        alineUwase.getPatient().addName(personName("Aline", "Uwase"));
+        QueueEntry alineMukamana = queueEntry(
+                "aline-mukamana", triageLocation, QueuePriority.NORMAL, todayAt(9, 0));
+        alineMukamana.getPatient().addName(personName("Aline", "Mukamana"));
+        QueueEntry ericUwase = queueEntry(
+                "eric-uwase", triageLocation, QueuePriority.NORMAL, todayAt(10, 0));
+        ericUwase.getPatient().addName(personName("Eric", "Uwase"));
+        dao.entries.add(alineUwase);
+        dao.entries.add(alineMukamana);
+        dao.entries.add(ericUwase);
+
+        int count = service.countQueueEntriesByLocation(
+                triageLocation, null, today, today, "  Aline Uwa  ");
+        List<QueueEntry> entries = service.getQueueEntriesByLocation(
+                triageLocation, null, today, today, "  Aline Uwa  ", 0, 10);
+
+        assertEquals(1, count);
+        assertEquals(Collections.singletonList(alineUwase), entries);
     }
 
     @Test
@@ -616,10 +960,82 @@ public class QueueServiceImplTest {
         return entry;
     }
 
+    private void assertDiagnosticTransfer(Location destination, String reason, String queueNumberPrefix) {
+        QueueEntry entry = queueEntry("queue-a", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        entry.setQueueNumber("TRIAGE-20200101-001");
+        entry.setStatus(QueueStatus.CALLED);
+        entry.setCalledTime(todayAt(8, 10));
+        dao.entries.add(entry);
+
+        QueueEntry destinationEntry = service.transferPatient(entry, destination, reason);
+
+        assertSame(triageLocation, entry.getServicePoint());
+        assertSame(triageLocation, entry.getSessionLocation());
+        assertEquals(reason, entry.getTransferReason());
+        assertEquals(QueueStatus.IN_PROGRESS, entry.getStatus());
+        assertEquals("TRIAGE-20200101-001", entry.getQueueNumber());
+        assertNotNull(entry.getServiceStartTime());
+        assertNull(entry.getServiceEndTime());
+        assertNull(entry.getCompletedTime());
+        assertNotSame(entry, destinationEntry);
+        assertSame(destination, destinationEntry.getServicePoint());
+        assertSame(destination, destinationEntry.getSessionLocation());
+        assertSame(triageLocation, destinationEntry.getPreviousServicePoint());
+        assertEquals(reason, destinationEntry.getTransferReason());
+        assertEquals(QueueStatus.WAITING, destinationEntry.getStatus());
+        assertTrue(destinationEntry.getQueueNumber().startsWith(queueNumberPrefix));
+        assertEquals(2, dao.entries.size());
+        assertEquals(2, dao.histories.size());
+        assertEquals(QueueStatus.CALLED, dao.histories.get(0).getPreviousStatus());
+        assertEquals(QueueStatus.IN_PROGRESS, dao.histories.get(0).getNewStatus());
+        assertEquals(reason, dao.histories.get(0).getReason());
+        assertNull(dao.histories.get(1).getPreviousStatus());
+        assertEquals(QueueStatus.WAITING, dao.histories.get(1).getNewStatus());
+        assertEquals(reason, dao.histories.get(1).getReason());
+
+        List<QueueEntry> originEntries = service.getQueueEntriesByLocation(
+                triageLocation, QueueStatus.IN_PROGRESS, new Date());
+        assertEquals(1, originEntries.size());
+        assertSame(entry, originEntries.get(0));
+
+        List<QueueEntry> destinationEntries = service.getQueueEntriesByServicePoint(
+                destination, destination, QueueStatus.WAITING, new Date());
+        assertEquals(1, destinationEntries.size());
+        assertSame(destinationEntry, destinationEntries.get(0));
+    }
+
+    private void assertDiagnosticSourceTransfer(Location source, Location destination) {
+        QueueEntry sourceEntry = queueEntry("queue-source", source, QueuePriority.NORMAL, todayAt(8, 0));
+        sourceEntry.setStatus(QueueStatus.CALLED);
+        sourceEntry.setCalledTime(todayAt(8, 10));
+        dao.entries.add(sourceEntry);
+
+        QueueEntry destinationEntry = service.transferPatient(
+                sourceEntry, destination, "Continue at " + destination.getName());
+
+        assertNotSame(sourceEntry, destinationEntry);
+        assertSame(source, sourceEntry.getServicePoint());
+        assertEquals(QueueStatus.TRANSFERRED, sourceEntry.getStatus());
+        assertNotNull(sourceEntry.getServiceEndTime());
+        assertNotNull(sourceEntry.getCompletedTime());
+        assertNull(service.getActiveQueueEntry(sourceEntry.getPatient(), source, new Date()));
+        assertSame(destination, destinationEntry.getServicePoint());
+        assertSame(source, destinationEntry.getPreviousServicePoint());
+        assertEquals(QueueStatus.WAITING, destinationEntry.getStatus());
+        assertSame(destinationEntry, service.getActiveQueueEntry(
+                sourceEntry.getPatient(), destination, new Date()));
+    }
+
     private Patient patient(String uuid) {
         Patient patient = new Patient();
         patient.setUuid(uuid);
         return patient;
+    }
+
+    private PersonName personName(String givenName, String familyName) {
+        PersonName name = new PersonName(givenName, null, familyName);
+        name.setVoided(false);
+        return name;
     }
 
     private Concept concept(String uuid) {
@@ -670,6 +1086,8 @@ public class QueueServiceImplTest {
 
         private Location laboratoryLocation;
 
+        private List<Location> diagnosticLocations = new ArrayList<Location>();
+
         @Override
         protected Concept getServiceRequestedConcept() {
             return serviceRequestedConcept;
@@ -691,8 +1109,13 @@ public class QueueServiceImplTest {
         }
 
         @Override
-        protected boolean isLaboratoryServicePoint(Location location) {
+        public boolean isLaboratoryServicePoint(Location location) {
             return laboratoryLocation != null && laboratoryLocation.equals(location);
+        }
+
+        @Override
+        protected boolean isDiagnosticServicePoint(Location location) {
+            return diagnosticLocations.contains(location);
         }
 
         @Override
@@ -827,6 +1250,25 @@ public class QueueServiceImplTest {
         }
 
         @Override
+        public int countQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay,
+                                     Date currentDayStart, List<QueueStatus> activeStatuses, String patientName) {
+            return getPagedQueueEntries(location, status, startOfDay, endOfDay,
+                    currentDayStart, activeStatuses, patientName).size();
+        }
+
+        @Override
+        public List<QueueEntry> getQueueEntries(Location location, QueueStatus status,
+                                                Date startOfDay, Date endOfDay, Date currentDayStart,
+                                                List<QueueStatus> activeStatuses, String patientName,
+                                                int firstResult, int maxResults) {
+            List<QueueEntry> matches = getPagedQueueEntries(location, status, startOfDay, endOfDay,
+                    currentDayStart, activeStatuses, patientName);
+            int fromIndex = Math.min(firstResult, matches.size());
+            int toIndex = Math.min(fromIndex + maxResults, matches.size());
+            return new ArrayList<QueueEntry>(matches.subList(fromIndex, toIndex));
+        }
+
+        @Override
         public List<QueueEntry> getQueueEntriesByServicePoint(Location servicePoint, Location visibleLocation,
                                                               QueueStatus status, Date startOfDay, Date endOfDay) {
             List<QueueEntry> matches = new ArrayList<QueueEntry>();
@@ -894,6 +1336,68 @@ public class QueueServiceImplTest {
             }
             Date arrivalTime = entry.getArrivalTime();
             return arrivalTime != null && !arrivalTime.before(startOfDay) && arrivalTime.before(endOfDay);
+        }
+
+        private List<QueueEntry> getPagedQueueEntries(Location location, QueueStatus status,
+                                                       Date startOfDay, Date endOfDay, Date currentDayStart,
+                                                       List<QueueStatus> activeStatuses, String patientName) {
+            List<QueueEntry> matches = getQueueEntries(location, status, startOfDay, endOfDay);
+            if (status == null && currentDayStart != null && activeStatuses != null) {
+                List<QueueEntry> liveMatches = new ArrayList<QueueEntry>();
+                for (QueueEntry entry : matches) {
+                    if (activeStatuses.contains(entry.getStatus())
+                            || !entry.getArrivalTime().before(currentDayStart)) {
+                        liveMatches.add(entry);
+                    }
+                }
+                matches = liveMatches;
+            }
+            if (patientName != null) {
+                List<QueueEntry> nameMatches = new ArrayList<QueueEntry>();
+                for (QueueEntry entry : matches) {
+                    if (matchesPatientName(entry.getPatient(), patientName)) {
+                        nameMatches.add(entry);
+                    }
+                }
+                matches = nameMatches;
+            }
+            Collections.sort(matches, new Comparator<QueueEntry>() {
+                @Override
+                public int compare(QueueEntry left, QueueEntry right) {
+                    int priorityComparison = Integer.compare(left.getPriority().getSortWeight(),
+                            right.getPriority().getSortWeight());
+                    return priorityComparison != 0 ? priorityComparison
+                            : left.getArrivalTime().compareTo(right.getArrivalTime());
+                }
+            });
+            return matches;
+        }
+
+        private boolean matchesPatientName(Patient patient, String patientName) {
+            if (patient == null) {
+                return false;
+            }
+            String[] tokens = patientName.toLowerCase(Locale.ENGLISH).split("\\s+");
+            for (String token : tokens) {
+                boolean tokenMatched = false;
+                for (PersonName name : patient.getNames()) {
+                    if (!Boolean.TRUE.equals(name.getVoided()) && (containsNameToken(name.getGivenName(), token)
+                            || containsNameToken(name.getMiddleName(), token)
+                            || containsNameToken(name.getFamilyName(), token)
+                            || containsNameToken(name.getFamilyName2(), token))) {
+                        tokenMatched = true;
+                        break;
+                    }
+                }
+                if (!tokenMatched) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private boolean containsNameToken(String namePart, String token) {
+            return namePart != null && namePart.toLowerCase(Locale.ENGLISH).contains(token);
         }
     }
 }

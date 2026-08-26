@@ -1,0 +1,21 @@
+[
+  {
+    "id": "rwandaemr.labourCareGuide",
+    "description": "Labour Care Guide dashboard summary",
+    "label": "rwandaemr.labourCareGuide.label",
+    "icon": "fas fa-fw fa-heartbeat",
+    "order": 2,
+    "extensions": [
+      {
+        "id": "rwandaemr.labourCareGuide.clinicianDashboardSecondColumn",
+        "appId": "rwandaemr.labourCareGuide",
+        "extensionPointId": "patientDashboard.secondColumnFragments",
+        "extensionParams": {
+          "provider": "rwandaemr",
+          "fragment": "patient/labourCareGuide"
+        },
+        "require": "patient.person.gender == 'F'"
+      }
+    ]
+  }
+]
