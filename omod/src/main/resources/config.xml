@@ -136,6 +136,22 @@
 		</description>
 	</globalProperty>
 
+	<globalProperty>
+		<property>rwandaemr.queue.webhookUrl</property>
+		<defaultValue></defaultValue>
+		<description>
+			URL that RwandaEMR will POST to whenever a queue entry is created or changes status/priority (e.g. http://localhost:3000/webhooks/queue). When blank, no webhook is sent.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.queue.webhookSecret</property>
+		<defaultValue></defaultValue>
+		<description>
+			Shared secret sent as the X-RwandaEMR-Queue-Secret header on every queue webhook POST, so the receiving system can verify the request came from this OpenMRS instance. When blank, no secret header is sent.
+		</description>
+	</globalProperty>
+
 
 
 	<globalProperty>

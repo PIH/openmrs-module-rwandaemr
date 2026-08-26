@@ -74,12 +74,15 @@
 		<constructor-arg ref="locationService"/>
 	</bean>
 
+	<bean id="queueWebhookNotifier" class="org.openmrs.module.rwandaemr.queue.QueueWebhookNotifier"/>
+
 	<bean id="queueService" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
 		<property name="transactionManager"><ref bean="transactionManager"/></property>
 		<property name="target">
 			<bean class="org.openmrs.module.rwandaemr.queue.QueueServiceImpl">
 				<property name="dao"><ref bean="queueDao"/></property>
 				<property name="locationTagUtil"><ref bean="locationTagUtil"/></property>
+				<property name="webhookNotifier"><ref bean="queueWebhookNotifier"/></property>
 			</bean>
 		</property>
 		<property name="preInterceptors">

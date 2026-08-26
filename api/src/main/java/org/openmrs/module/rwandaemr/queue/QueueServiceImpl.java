@@ -1,6 +1,5 @@
 package org.openmrs.module.rwandaemr.queue;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -59,6 +58,9 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     @Setter
     private LocationTagUtil locationTagUtil;
 
+    @Setter
+    private QueueWebhookNotifier webhookNotifier;
+
     @Override
     @Transactional
     public QueueEntry addPatientToQueueFromRegistration(Encounter encounter) {
@@ -111,6 +113,7 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
             setCreationMetadata(queueEntry, now);
             dao.saveQueueEntry(queueEntry);
             createQueueStatusHistory(queueEntry, null, QueueStatus.WAITING, "Created from registration");
+            notifyWebhook(queueEntry, "CREATED");
             log.info("Created queue entry " + queueEntry.getQueueNumber() + " for patient "
                     + encounter.getPatient().getUuid() + " at " + servicePoint.getName());
             return queueEntry;
@@ -172,13 +175,13 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         int next = dao.countQueueEntries(servicePoint, startOfDay(date), endOfDay(date)) + 1;
         String code = servicePoint == null ? "Q" : StringUtils.defaultString(servicePoint.getName());
         code = code.replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ENGLISH);
-        if (code.length() > 6) {
-            code = code.substring(0, 6);
+        if (code.length() > 4) {
+            code = code.substring(0, 4);
         }
         if (StringUtils.isBlank(code)) {
             code = "Q";
         }
-        return code + "-" + new SimpleDateFormat("yyyyMMdd", Locale.ENGLISH).format(date) + "-" + String.format("%03d", next);
+        return String.format("%03d", next) + "-" + code;
     }
 
     @Override
@@ -390,7 +393,9 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         queueEntry.setPriority(priority);
         queueEntry.setChangedBy(getAuthenticatedUser());
         queueEntry.setDateChanged(new Date());
-        return dao.saveQueueEntry(queueEntry);
+        QueueEntry saved = dao.saveQueueEntry(queueEntry);
+        notifyWebhook(saved, "PRIORITY_CHANGED");
+        return saved;
     }
 
     @Override
@@ -545,6 +550,14 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         return components.get(0);
     }
 
+    protected QueueWebhookNotifier getWebhookNotifier() {
+        if (webhookNotifier != null) {
+            return webhookNotifier;
+        }
+        List<QueueWebhookNotifier> components = Context.getRegisteredComponents(QueueWebhookNotifier.class);
+        return (components == null || components.isEmpty()) ? null : components.get(0);
+    }
+
     private QueueEntry changeStatus(QueueEntry queueEntry, QueueStatus newStatus, String reason) {
         if (queueEntry == null) {
             return null;
@@ -555,7 +568,15 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         queueEntry.setDateChanged(new Date());
         dao.saveQueueEntry(queueEntry);
         createQueueStatusHistory(queueEntry, previousStatus, newStatus, reason);
+        notifyWebhook(queueEntry, "STATUS_CHANGED");
         return queueEntry;
+    }
+
+    private void notifyWebhook(QueueEntry queueEntry, String event) {
+        QueueWebhookNotifier notifier = getWebhookNotifier();
+        if (notifier != null) {
+            notifier.notifyChanged(queueEntry, event);
+        }
     }
 
     private boolean isAfter(Date candidate, Date reference) {
