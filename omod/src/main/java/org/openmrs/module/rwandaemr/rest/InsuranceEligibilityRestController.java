@@ -1,7 +1,10 @@
 package org.openmrs.module.rwandaemr.rest;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.openmrs.api.context.Context;
+import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
 import org.openmrs.module.rwandaemr.integration.IntegrationResponse;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceEligibilityProvider;
 import org.openmrs.module.webservices.rest.web.response.ResponseException;
@@ -22,12 +25,18 @@ public class InsuranceEligibilityRestController {
     @Autowired
     InsuranceEligibilityProvider insuranceEligibilityProvider;
 
+    @Autowired
+    IntegrationConfig integrationConfig;
+
     @RequestMapping(value = "/rest/v1/rwandaemr/insurance/eligibility", method = RequestMethod.GET)
     @ResponseBody
     public Object checkInsuranceEligibility(HttpServletRequest request, HttpServletResponse response) throws ResponseException {
         String type = request.getParameter("type");
         String identifier = request.getParameter("identifier");
         String fosaid = request.getParameter("fosaid");
+        if (StringUtils.isBlank(fosaid)) {
+            fosaid = integrationConfig.getFosaId(Context.getUserContext().getLocation());
+        }
         IntegrationResponse ret = insuranceEligibilityProvider.checkEligibility(type, identifier, fosaid);
         return ret;
     }

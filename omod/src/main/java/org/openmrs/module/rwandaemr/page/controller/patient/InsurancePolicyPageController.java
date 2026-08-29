@@ -130,15 +130,7 @@ public class InsurancePolicyPageController {
             if (errors.hasErrors()) {
                 String message = "";
                 for (ObjectError error : errors.getAllErrors()) {
-                    Object[] arguments = error.getArguments();
-                    String errorMessage = mss.getMessage(Objects.requireNonNull(error.getCode()));
-                    if (arguments != null) {
-                        for (int i = 0; i < arguments.length; i++) {
-                            String argument = (String) arguments[i];
-                            errorMessage = errorMessage.replaceAll("\\{" + i + "}", mss.getMessage(argument));
-                        }
-                    }
-                    message = message.concat(errorMessage).concat("<br>");
+                    message = message.concat(getErrorMessage(error, mss)).concat("<br>");
                 }
                 throw new APIException(message);
             }
@@ -146,6 +138,7 @@ public class InsurancePolicyPageController {
             policy.setInsurance(insurance);
             policy.setOwner(policyModel.getOwner());
             policy.setInsuranceCardNo(policyModel.getInsuranceCardNo());
+            policy.setRhipPatientId(policyModel.getRhipPatientId());
             policy.setCoverageStartDate(policyModel.getCoverageStartDate());
             policy.setExpirationDate(policyModel.getExpirationDate());
             policy.setThirdParty(policyModel.getThirdPartyId() == null ? null : InsurancePolicyUtil.getThirdParty(policyModel.getThirdPartyId()));
@@ -205,6 +198,32 @@ public class InsurancePolicyPageController {
         }
     }
 
+    private String getErrorMessage(ObjectError error, MessageSourceService mss) {
+        String errorMessage = error.getDefaultMessage();
+        try {
+            if (StringUtils.isNotBlank(error.getCode())) {
+                errorMessage = mss.getMessage(Objects.requireNonNull(error.getCode()));
+            }
+        }
+        catch (Exception ignored) {}
+        if (StringUtils.isBlank(errorMessage)) {
+            errorMessage = "Error";
+        }
+        Object[] arguments = error.getArguments();
+        if (arguments != null) {
+            for (int i = 0; i < arguments.length; i++) {
+                Object argument = arguments[i];
+                String argumentMessage = argument == null ? "" : argument.toString();
+                try {
+                    argumentMessage = mss.getMessage(argumentMessage);
+                }
+                catch (Exception ignored) {}
+                errorMessage = errorMessage.replace("{" + i + "}", argumentMessage);
+            }
+        }
+        return errorMessage;
+    }
+
     public String getReturnUrl(String returnUrl, Patient patient, InsurancePolicy policy) {
         if (StringUtils.isBlank(returnUrl)) {
             returnUrl = "/registrationapp/registrationSummary.page?patientId=" + patient.getId() + "&appId=rwandaemr.registerPatient";
@@ -236,6 +255,7 @@ public class InsurancePolicyPageController {
         private String ownerCode;
         private Integer level;
         private String company;
+        private String rhipPatientId;
 
         public InsurancePolicyModel() {}
 
@@ -244,6 +264,7 @@ public class InsurancePolicyPageController {
             this.owner = policy.getOwner();
             this.insuranceId = policy.getInsurance() == null ? null : policy.getInsurance().getInsuranceId();
             this.insuranceCardNo = policy.getInsuranceCardNo();
+            this.rhipPatientId = policy.getRhipPatientId();
             this.coverageStartDate = policy.getCoverageStartDate();
             this.expirationDate = policy.getExpirationDate();
             this.thirdPartyId = policy.getThirdParty() == null ? null : policy.getThirdParty().getThirdPartyId();
