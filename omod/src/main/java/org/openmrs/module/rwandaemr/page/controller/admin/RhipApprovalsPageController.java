@@ -20,6 +20,9 @@ import org.openmrs.module.rwandaemr.integration.insurance.InsuranceIntegrationCo
 import org.openmrs.module.rwandaemr.integration.insurance.MmiPatientReceptionLogRepository;
 import org.openmrs.module.rwandaemr.integration.insurance.RhipApprovalRequestLogEntry;
 import org.openmrs.module.rwandaemr.integration.insurance.RhipApprovalRequestLogRepository;
+import org.openmrs.module.rwandaemr.integration.insurance.RhipApprovalStatusService;
+import org.openmrs.module.rwandaemr.integration.insurance.RhipApprovalStatusService.ApprovalStatusUpdate;
+import org.openmrs.module.rwandaemr.icd11.Icd11Config;
 import org.openmrs.module.rwandaemr.icd11.Icd11Service;
 import org.openmrs.module.rwandaemr.icd11.model.Icd11PatientDiagnosis;
 import org.openmrs.module.uicommons.UiCommonsConstants;
@@ -33,7 +36,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import javax.servlet.http.HttpServletResponse;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
@@ -62,6 +67,7 @@ public class RhipApprovalsPageController {
 	                  @SpringBean RhipApprovalRequestLogRepository approvalRequestLogRepository,
 	                  @SpringBean MmiPatientReceptionLogRepository mmiPatientReceptionLogRepository,
 	                  @SpringBean Icd11Service icd11Service,
+	                  @SpringBean Icd11Config icd11Config,
 	                  @RequestParam(value = "openRequest", required = false) String openRequest,
 	                  @RequestParam(value = "searchQuery", required = false) String searchQuery,
 	                  @RequestParam(value = "patientId", required = false) String patientId,
@@ -105,9 +111,12 @@ public class RhipApprovalsPageController {
 		model.addAttribute("productError", productResponse == null ? null : productResponse.getErrorMessage());
 		model.addAttribute("currentPractitionerLicenseNumber", getCurrentPractitionerLicenseNumber());
 		model.addAttribute("patientDiagnoses", getPatientDiagnoses(patient, icd11Service));
+		model.addAttribute("icd11Enabled", icd11Config != null && icd11Config.isEnabled());
+		model.addAttribute("icd11EctSettingsBase64", getEmbeddedCodingToolSettingsBase64(icd11Config));
 		model.addAttribute("approvalRequests", toRequestViews(patient == null
 				? approvalRequestLogRepository.getRecent(50)
 				: approvalRequestLogRepository.getRecentByPatient(patient.getPatientId(), 25)));
+		model.addAttribute("maxAutomaticStatusChecks", RhipApprovalStatusService.MAX_AUTOMATIC_STATUS_CHECKS);
 		model.addAttribute("canRequestApproval", Context.hasPrivilege(PRIVILEGE_REQUEST));
 		model.addAttribute("canCheckApprovalStatus", Context.hasPrivilege(PRIVILEGE_CHECK_STATUS));
 		return null;
@@ -116,10 +125,11 @@ public class RhipApprovalsPageController {
 	public String post(UiUtils ui,
 	                   UiSessionContext sessionContext,
 	                   @SpringBean("mohBillingService") BillingService billingService,
-	                  @SpringBean InsuranceEligibilityProvider insuranceEligibilityProvider,
-	                  @SpringBean InsuranceIntegrationConfig insuranceIntegrationConfig,
-	                  @SpringBean RhipApprovalRequestLogRepository approvalRequestLogRepository,
-	                  @SpringBean MmiPatientReceptionLogRepository mmiPatientReceptionLogRepository,
+		                  @SpringBean InsuranceEligibilityProvider insuranceEligibilityProvider,
+		                  @SpringBean InsuranceIntegrationConfig insuranceIntegrationConfig,
+		                  @SpringBean RhipApprovalRequestLogRepository approvalRequestLogRepository,
+		                  @SpringBean RhipApprovalStatusService approvalStatusService,
+		                  @SpringBean MmiPatientReceptionLogRepository mmiPatientReceptionLogRepository,
 	                  HttpServletResponse httpResponse,
 	                   @RequestParam(value = "action", required = false) String action,
 	                   @RequestParam(value = "approvalRequestId", required = false) Integer approvalRequestId,
@@ -140,15 +150,19 @@ public class RhipApprovalsPageController {
 	                   @RequestParam(value = "productPage", required = false) Integer productPage,
 	                   @RequestParam(value = "productLimit", required = false) Integer productLimit) {
 		if ("autoCheckStatus".equalsIgnoreCase(action)) {
-			return autoCheckStatus(httpResponse, insuranceEligibilityProvider, approvalRequestLogRepository, approvalRequestIds);
+			return autoCheckStatus(httpResponse, approvalStatusService, approvalRequestLogRepository, approvalRequestIds);
 		}
 		if ("checkStatus".equalsIgnoreCase(action)) {
-			return checkStatus(ui, sessionContext, insuranceEligibilityProvider, approvalRequestLogRepository,
+			return checkStatus(ui, sessionContext, approvalStatusService, approvalRequestLogRepository,
 					approvalRequestId, searchQuery, patientId, productSearch, productPage, productLimit);
 		}
 		if ("retryApproval".equalsIgnoreCase(action)) {
 			return retryApproval(ui, sessionContext, insuranceEligibilityProvider, approvalRequestLogRepository,
 					approvalRequestId, searchQuery, patientId, productSearch, productPage, productLimit);
+		}
+		if ("deleteApproval".equalsIgnoreCase(action)) {
+			return deleteApproval(ui, sessionContext, approvalRequestLogRepository, approvalRequestId, searchQuery,
+					patientId, productSearch, productPage, productLimit);
 		}
 		if (!Context.hasPrivilege(PRIVILEGE_REQUEST)) {
 			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_ERROR_MESSAGE,
@@ -281,7 +295,42 @@ public class RhipApprovalsPageController {
 				productSearch, productPage, productLimit);
 	}
 
-	private String checkStatus(UiUtils ui, UiSessionContext sessionContext, InsuranceEligibilityProvider provider,
+	private String deleteApproval(UiUtils ui, UiSessionContext sessionContext, RhipApprovalRequestLogRepository repository,
+	                              Integer approvalRequestId, String searchQuery, String patientId, String productSearch,
+	                              Integer productPage, Integer productLimit) {
+		if (!Context.hasPrivilege(PRIVILEGE_REQUEST)) {
+			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_ERROR_MESSAGE,
+					"You do not have permission to delete RHIP approval requests.");
+			return redirect(ui, searchQuery, patientId, null, productSearch, productPage, productLimit);
+		}
+		RhipApprovalRequestLogEntry entry = repository.getById(approvalRequestId);
+		if (entry == null) {
+			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_ERROR_MESSAGE,
+					"Approval request was not found.");
+			return redirect(ui, searchQuery, patientId, null, productSearch, productPage, productLimit);
+		}
+		if (!isDeletableApprovalStatus(entry.getApprovalStatus())) {
+			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_ERROR_MESSAGE,
+					"Only pending, failed, or rejected approval requests can be deleted.");
+			return redirect(ui, searchQuery, patientId, entry.getInsurancePolicyId(), productSearch, productPage, productLimit);
+		}
+		int deleted = repository.deleteByStatuses(entry.getId(), RhipApprovalRequestLogEntry.STATUS_PENDING,
+				"CREATED", "EDITED", "REQUESTED", RhipApprovalRequestLogEntry.STATUS_FAILED,
+				RhipApprovalRequestLogEntry.STATUS_REJECTED);
+		if (deleted > 0) {
+			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_TOAST_MESSAGE,
+					"RHIP approval request deleted.");
+		}
+		else {
+			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_ERROR_MESSAGE,
+					"RHIP approval request could not be deleted.");
+		}
+		Patient patient = entry.getPatientId() == null ? null : Context.getPatientService().getPatient(entry.getPatientId());
+		return redirect(ui, searchQuery, patient == null ? patientId : patient.getUuid(), entry.getInsurancePolicyId(),
+				productSearch, productPage, productLimit);
+	}
+
+	private String checkStatus(UiUtils ui, UiSessionContext sessionContext, RhipApprovalStatusService approvalStatusService,
 	                           RhipApprovalRequestLogRepository repository, Integer approvalRequestId, String searchQuery,
 	                           String patientId, String productSearch, Integer productPage, Integer productLimit) {
 		if (!Context.hasPrivilege(PRIVILEGE_CHECK_STATUS)) {
@@ -295,13 +344,13 @@ public class RhipApprovalsPageController {
 					"Approval request or approval code was not found.");
 			return redirect(ui, searchQuery, patientId, null, productSearch, productPage, productLimit);
 		}
-		ApprovalStatusUpdate update = updateApprovalStatus(provider, repository, entry);
+		ApprovalStatusUpdate update = approvalStatusService.updateApprovalStatus(entry);
 		sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_TOAST_MESSAGE,
 				"RHIP approval status updated to " + update.getNewStatus() + ".");
 		return redirect(ui, searchQuery, patientId, entry.getInsurancePolicyId(), productSearch, productPage, productLimit);
 	}
 
-	private String autoCheckStatus(HttpServletResponse httpResponse, InsuranceEligibilityProvider provider,
+	private String autoCheckStatus(HttpServletResponse httpResponse, RhipApprovalStatusService approvalStatusService,
 	                               RhipApprovalRequestLogRepository repository, String approvalRequestIds) {
 		Map<String, Object> payload = new LinkedHashMap<String, Object>();
 		List<Map<String, Object>> updates = new ArrayList<Map<String, Object>>();
@@ -317,16 +366,17 @@ public class RhipApprovalsPageController {
 			if (entry == null || StringUtils.isBlank(entry.getApprovalCode())) {
 				continue;
 			}
-			ApprovalStatusUpdate update = updateApprovalStatus(provider, repository, entry);
+			String status = normalizeApprovalStatus(entry.getApprovalStatus());
 			Map<String, Object> updatePayload = new LinkedHashMap<String, Object>();
 			updatePayload.put("id", entry.getId());
-			updatePayload.put("oldStatus", update.getOldStatus());
-			updatePayload.put("newStatus", update.getNewStatus());
-			updatePayload.put("statusLabel", getApprovalStatusLabel(update.getNewStatus()));
-			updatePayload.put("changed", update.isChanged());
+			updatePayload.put("oldStatus", status);
+			updatePayload.put("newStatus", status);
+			updatePayload.put("automaticStatusCheckCount", getAutomaticStatusCheckCount(entry));
+			updatePayload.put("statusLabel", approvalStatusService.getApprovalStatusLabel(status));
+			updatePayload.put("changed", true);
 			updatePayload.put("patientName", getPatientName(entry.getPatientId()));
 			updatePayload.put("procedureName", entry.getProductName());
-			updatePayload.put("message", update.getMessage());
+			updatePayload.put("message", entry.getMessage());
 			updates.add(updatePayload);
 		}
 		payload.put("success", true);
@@ -368,6 +418,21 @@ public class RhipApprovalsPageController {
 			views.add(new ApprovalDiagnosisView(code, title));
 		}
 		return views;
+	}
+
+	private String getEmbeddedCodingToolSettingsBase64(Icd11Config icd11Config) {
+		Icd11Config config = icd11Config == null ? new Icd11Config() : icd11Config;
+		Map<String, Object> settings = new LinkedHashMap<String, Object>();
+		settings.put("apiServerUrl", config.getBaseUrl());
+		settings.put("apiSecured", true);
+		settings.put("source", config.getDefaultLinearization());
+		settings.put("language", config.getLanguage());
+		settings.put("minorVersion", config.getDefaultReleaseId());
+		settings.put("sourceApp", "RwandaEMR");
+		settings.put("searchByCodeOrURI", true);
+		settings.put("height", "260px");
+		return Base64.getEncoder().encodeToString(
+				toJson(settings).getBytes(StandardCharsets.UTF_8));
 	}
 
 	private String getCurrentPractitionerLicenseNumber() {
@@ -732,55 +797,6 @@ public class RhipApprovalsPageController {
 		}
 	}
 
-	private String resolveApprovalStatusPeriod(RhipApprovalRequestLogEntry entry) {
-		JsonNode requestPayload = parseJson(entry == null ? null : entry.getRequestPayload());
-		String configuredPeriod = text(requestPayload, "period");
-		return StringUtils.isBlank(configuredPeriod) ? null : configuredPeriod;
-	}
-
-	private ApprovalStatusUpdate updateApprovalStatus(InsuranceEligibilityProvider provider,
-	                                                  RhipApprovalRequestLogRepository repository,
-	                                                  RhipApprovalRequestLogEntry entry) {
-		String oldStatus = normalizeApprovalStatus(entry == null ? null : entry.getApprovalStatus());
-		IntegrationResponse response = provider.checkApprovalStatus(entry.getInsuranceType(), entry.getApprovalCode(),
-				entry.getFacilityFosaId(), resolveApprovalStatusPeriod(entry));
-		JsonNode root = asJsonNode(response == null ? null : response.getResponseEntity());
-		String status = resolveApprovalStatus(entry, root, response);
-		String message = defaultIfBlank(text(root, "message"), response == null ? null : response.getErrorMessage());
-		User currentUser = Context.getAuthenticatedUser();
-		repository.updateStatus(entry.getId(), status, entry.getApprovalCode(), message, toJson(root),
-				response == null ? null : response.getResponseCode(), currentUser == null ? null : currentUser.getUserId());
-		return new ApprovalStatusUpdate(oldStatus, status, message);
-	}
-
-	private String resolveApprovalStatus(RhipApprovalRequestLogEntry entry, JsonNode root, IntegrationResponse response) {
-		JsonNode data = root == null ? null : root.path("data");
-		String status = normalizeApprovalStatus(text(data, "status"));
-		if (StringUtils.isNotBlank(status)) {
-			return status;
-		}
-		if (!isSuccess(root, response)) {
-			return RhipApprovalRequestLogEntry.STATUS_FAILED;
-		}
-		if (isMmi(entry == null ? null : entry.getInsuranceType()) && hasPositiveAmount(data, "totalApprovalAmount")) {
-			return RhipApprovalRequestLogEntry.STATUS_APPROVED;
-		}
-		status = normalizeApprovalStatus(entry == null ? null : entry.getApprovalStatus());
-		return StringUtils.isBlank(status) ? RhipApprovalRequestLogEntry.STATUS_PENDING : status;
-	}
-
-	private boolean hasPositiveAmount(JsonNode node, String name) {
-		if (node == null || node.isMissingNode() || node.path(name).isMissingNode() || node.path(name).isNull()) {
-			return false;
-		}
-		try {
-			return node.path(name).decimalValue().compareTo(BigDecimal.ZERO) > 0;
-		}
-		catch (Exception e) {
-			return false;
-		}
-	}
-
 	private boolean isSuccess(JsonNode root, IntegrationResponse response) {
 		if (root != null && root.has("success")) {
 			return root.path("success").asBoolean(false);
@@ -813,6 +829,17 @@ public class RhipApprovalsPageController {
 		return "mmi".equalsIgnoreCase(StringUtils.trimToEmpty(insuranceType));
 	}
 
+	private int getAutomaticStatusCheckCount(RhipApprovalRequestLogEntry entry) {
+		return entry == null || entry.getAutomaticStatusCheckCount() == null ? 0 : entry.getAutomaticStatusCheckCount();
+	}
+
+	private boolean isDeletableApprovalStatus(String status) {
+		String normalized = normalizeApprovalStatus(status);
+		return RhipApprovalRequestLogEntry.STATUS_FAILED.equalsIgnoreCase(normalized)
+				|| RhipApprovalRequestLogEntry.STATUS_PENDING.equalsIgnoreCase(normalized)
+				|| RhipApprovalRequestLogEntry.STATUS_REJECTED.equalsIgnoreCase(normalized);
+	}
+
 	private String normalizeApprovalStatus(String status) {
 		if (StringUtils.isBlank(status)) {
 			return status;
@@ -822,14 +849,6 @@ public class RhipApprovalsPageController {
 			return RhipApprovalRequestLogEntry.STATUS_PENDING;
 		}
 		return normalized;
-	}
-
-	private String getApprovalStatusLabel(String status) {
-		String normalized = normalizeApprovalStatus(status);
-		if (RhipApprovalRequestLogEntry.STATUS_PENDING.equals(normalized)) {
-			return "Requested/Pending";
-		}
-		return StringUtils.defaultString(normalized);
 	}
 
 	private String defaultIfBlank(String value, String defaultValue) {
@@ -920,33 +939,17 @@ public class RhipApprovalsPageController {
 			}
 			return status;
 		}
-	}
 
-	private static class ApprovalStatusUpdate {
-		private final String oldStatus;
-		private final String newStatus;
-		private final String message;
-
-		private ApprovalStatusUpdate(String oldStatus, String newStatus, String message) {
-			this.oldStatus = StringUtils.defaultIfBlank(oldStatus, RhipApprovalRequestLogEntry.STATUS_PENDING);
-			this.newStatus = StringUtils.defaultIfBlank(newStatus, RhipApprovalRequestLogEntry.STATUS_PENDING);
-			this.message = message;
+		public int getAutomaticStatusCheckCount() {
+			return request == null || request.getAutomaticStatusCheckCount() == null
+					? 0 : request.getAutomaticStatusCheckCount();
 		}
 
-		public String getOldStatus() {
-			return oldStatus;
-		}
-
-		public String getNewStatus() {
-			return newStatus;
-		}
-
-		public String getMessage() {
-			return message;
-		}
-
-		public boolean isChanged() {
-			return !StringUtils.equalsIgnoreCase(oldStatus, newStatus);
+		public boolean isDeletable() {
+			String status = getStatusClass();
+			return RhipApprovalRequestLogEntry.STATUS_FAILED.equalsIgnoreCase(status)
+					|| RhipApprovalRequestLogEntry.STATUS_PENDING.equalsIgnoreCase(status)
+					|| RhipApprovalRequestLogEntry.STATUS_REJECTED.equalsIgnoreCase(status);
 		}
 	}
 

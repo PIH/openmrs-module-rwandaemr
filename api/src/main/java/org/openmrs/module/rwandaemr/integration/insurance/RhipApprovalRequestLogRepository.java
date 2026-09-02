@@ -24,6 +24,13 @@ import java.util.List;
 @Component
 public class RhipApprovalRequestLogRepository {
 
+	private static final String SELECT_COLUMNS =
+			"rhip_approval_request_log_id, patient_id, insurance_policy_id, insurance_type, insurance_name, " +
+					"insurance_card_no, patient_identifier, facility_fosa_id, product_code, product_name, product_type, " +
+					"requested_quantity, requested_unit_price, diagnosis_ids, clinical_knowledge, " +
+					"practitioner_license_number, approval_code, approval_status, message, request_payload, " +
+					"response_payload, response_code, automatic_status_check_count, creator, date_created, changed_by, date_changed";
+
 	private final DbSessionFactory dbSessionFactory;
 
 	public RhipApprovalRequestLogRepository(@Autowired DbSessionFactory dbSessionFactory) {
@@ -39,13 +46,13 @@ public class RhipApprovalRequestLogRepository {
 						"patient_identifier, facility_fosa_id, product_code, product_name, product_type, " +
 						"requested_quantity, requested_unit_price, diagnosis_ids, clinical_knowledge, " +
 						"practitioner_license_number, approval_code, approval_status, message, request_payload, " +
-						"response_payload, response_code, creator, date_created, changed_by, date_changed" +
+						"response_payload, response_code, automatic_status_check_count, creator, date_created, changed_by, date_changed" +
 						") values (" +
 						":patientId, :insurancePolicyId, :insuranceType, :insuranceName, :insuranceCardNo, " +
 						":patientIdentifier, :facilityFosaId, :productCode, :productName, :productType, " +
 						":requestedQuantity, :requestedUnitPrice, :diagnosisIds, :clinicalKnowledge, " +
 						":practitionerLicenseNumber, :approvalCode, :approvalStatus, :message, :requestPayload, " +
-						":responsePayload, :responseCode, :creator, :dateCreated, :changedBy, :dateChanged" +
+						":responsePayload, :responseCode, :automaticStatusCheckCount, :creator, :dateCreated, :changedBy, :dateChanged" +
 						")"
 		);
 		bindEntry(query, entry);
@@ -55,11 +62,20 @@ public class RhipApprovalRequestLogRepository {
 	@Transactional
 	public void updateStatus(Integer id, String approvalStatus, String approvalCode, String message,
 	                         String responsePayload, Integer responseCode, Integer changedBy) {
+		updateStatus(id, approvalStatus, approvalCode, message, responsePayload, responseCode, changedBy, false);
+	}
+
+	@Transactional
+	public void updateStatus(Integer id, String approvalStatus, String approvalCode, String message,
+	                         String responsePayload, Integer responseCode, Integer changedBy,
+	                         boolean incrementAutomaticStatusCheckCount) {
 		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
 		NativeQuery<?> query = session.createSQLQuery(
 				"update rhip_approval_request_log set approval_status = :approvalStatus, " +
 						"approval_code = :approvalCode, message = :message, response_payload = :responsePayload, " +
-						"response_code = :responseCode, changed_by = :changedBy, date_changed = :dateChanged " +
+						"response_code = :responseCode, " +
+						"automatic_status_check_count = automatic_status_check_count + :automaticStatusCheckIncrement, " +
+						"changed_by = :changedBy, date_changed = :dateChanged " +
 						"where rhip_approval_request_log_id = :id"
 		);
 		query.setParameter("id", id);
@@ -68,6 +84,7 @@ public class RhipApprovalRequestLogRepository {
 		query.setParameter("message", message);
 		query.setParameter("responsePayload", responsePayload);
 		query.setParameter("responseCode", responseCode);
+		query.setParameter("automaticStatusCheckIncrement", incrementAutomaticStatusCheckCount ? 1 : 0);
 		query.setParameter("changedBy", changedBy);
 		query.setParameter("dateChanged", new Date());
 		query.executeUpdate();
@@ -82,6 +99,7 @@ public class RhipApprovalRequestLogRepository {
 				"update rhip_approval_request_log set approval_status = :approvalStatus, " +
 						"approval_code = :approvalCode, message = :message, request_payload = :requestPayload, " +
 						"response_payload = :responsePayload, response_code = :responseCode, changed_by = :changedBy, " +
+						"automatic_status_check_count = 0, " +
 						"date_changed = :dateChanged where rhip_approval_request_log_id = :id"
 		);
 		query.setParameter("id", id);
@@ -96,13 +114,34 @@ public class RhipApprovalRequestLogRepository {
 		query.executeUpdate();
 	}
 
+	@Transactional
+	public int deleteFailed(Integer id) {
+		return deleteByStatuses(id, RhipApprovalRequestLogEntry.STATUS_FAILED);
+	}
+
+	@Transactional
+	public int deleteByStatuses(Integer id, String... statuses) {
+		if (id == null) {
+			return 0;
+		}
+		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
+		NativeQuery<?> query = session.createSQLQuery(
+				"delete from rhip_approval_request_log where rhip_approval_request_log_id = :id " +
+						"and upper(approval_status) in (:statuses)"
+		);
+		query.setParameter("id", id);
+		query.setParameterList("statuses", statuses);
+		return query.executeUpdate();
+	}
+
 	@Transactional(readOnly = true)
 	public RhipApprovalRequestLogEntry getById(Integer id) {
 		if (id == null) {
 			return null;
 		}
 		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
-		NativeQuery<?> query = session.createSQLQuery("select * from rhip_approval_request_log where rhip_approval_request_log_id = :id");
+		NativeQuery<?> query = session.createSQLQuery("select " + SELECT_COLUMNS +
+				" from rhip_approval_request_log where rhip_approval_request_log_id = :id");
 		query.setParameter("id", id);
 		Object row = query.uniqueResult();
 		return row == null ? null : toEntry((Object[]) row);
@@ -116,7 +155,7 @@ public class RhipApprovalRequestLogRepository {
 		}
 		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
 		NativeQuery<?> query = session.createSQLQuery(
-				"select * from rhip_approval_request_log where patient_id = :patientId " +
+				"select " + SELECT_COLUMNS + " from rhip_approval_request_log where patient_id = :patientId " +
 						"order by date_created desc, rhip_approval_request_log_id desc"
 		);
 		query.setParameter("patientId", patientId);
@@ -132,9 +171,35 @@ public class RhipApprovalRequestLogRepository {
 		List<RhipApprovalRequestLogEntry> ret = new ArrayList<RhipApprovalRequestLogEntry>();
 		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
 		NativeQuery<?> query = session.createSQLQuery(
-				"select * from rhip_approval_request_log order by date_created desc, rhip_approval_request_log_id desc"
+				"select " + SELECT_COLUMNS + " from rhip_approval_request_log order by date_created desc, rhip_approval_request_log_id desc"
 		);
 		query.setMaxResults(limit <= 0 ? 50 : limit);
+		for (Object row : query.list()) {
+			ret.add(toEntry((Object[]) row));
+		}
+		return ret;
+	}
+
+	@Transactional(readOnly = true)
+	public List<RhipApprovalRequestLogEntry> getPendingWithApprovalCode(int limit) {
+		return getPendingWithApprovalCode(limit, Integer.MAX_VALUE);
+	}
+
+	@Transactional(readOnly = true)
+	public List<RhipApprovalRequestLogEntry> getPendingWithApprovalCode(int limit, int maxAutomaticStatusChecks) {
+		List<RhipApprovalRequestLogEntry> ret = new ArrayList<RhipApprovalRequestLogEntry>();
+		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
+		NativeQuery<?> query = session.createSQLQuery(
+				"select " + SELECT_COLUMNS + " from rhip_approval_request_log where upper(approval_status) in (:pendingStatuses) " +
+						"and approval_code is not null and approval_code <> '' " +
+						"and automatic_status_check_count < :maxAutomaticStatusChecks " +
+						"order by date_created asc, rhip_approval_request_log_id asc"
+		);
+		query.setParameterList("pendingStatuses", new String[] {
+				RhipApprovalRequestLogEntry.STATUS_PENDING, "CREATED", "EDITED", "REQUESTED"
+		});
+		query.setParameter("maxAutomaticStatusChecks", maxAutomaticStatusChecks);
+		query.setMaxResults(limit <= 0 ? 25 : limit);
 		for (Object row : query.list()) {
 			ret.add(toEntry((Object[]) row));
 		}
@@ -163,6 +228,8 @@ public class RhipApprovalRequestLogRepository {
 		query.setParameter("requestPayload", entry.getRequestPayload());
 		query.setParameter("responsePayload", entry.getResponsePayload());
 		query.setParameter("responseCode", entry.getResponseCode());
+		query.setParameter("automaticStatusCheckCount", entry.getAutomaticStatusCheckCount() == null
+				? 0 : entry.getAutomaticStatusCheckCount());
 		query.setParameter("creator", entry.getCreator());
 		query.setParameter("dateCreated", entry.getDateCreated());
 		query.setParameter("changedBy", entry.getChangedBy());
@@ -193,10 +260,11 @@ public class RhipApprovalRequestLogRepository {
 		entry.setRequestPayload(stringValue(row[19]));
 		entry.setResponsePayload(stringValue(row[20]));
 		entry.setResponseCode(intValue(row[21]));
-		entry.setCreator(intValue(row[22]));
-		entry.setDateCreated((Date) row[23]);
-		entry.setChangedBy(intValue(row[24]));
-		entry.setDateChanged((Date) row[25]);
+		entry.setAutomaticStatusCheckCount(intValue(row[22]));
+		entry.setCreator(intValue(row[23]));
+		entry.setDateCreated((Date) row[24]);
+		entry.setChangedBy(intValue(row[25]));
+		entry.setDateChanged((Date) row[26]);
 		return entry;
 	}
 

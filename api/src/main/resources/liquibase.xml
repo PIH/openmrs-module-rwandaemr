@@ -129,6 +129,18 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="rwandaemr-add-rhip-approval-automatic-status-check-count" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="rhip_approval_request_log"/>
+            <not><columnExists tableName="rhip_approval_request_log" columnName="automatic_status_check_count"/></not>
+        </preConditions>
+        <addColumn tableName="rhip_approval_request_log">
+            <column name="automatic_status_check_count" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
     <changeSet id="rwandaemr-allow-pre-visit-mmi-patient-reception-log" author="jberchmas">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="mmi_patient_reception_log"/>

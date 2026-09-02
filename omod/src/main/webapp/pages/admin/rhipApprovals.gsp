@@ -13,8 +13,14 @@
     var rhipApprovalsPageUrl = "${ ui.pageLink("rwandaemr", "admin/rhipApprovals") }";
     var rhipCanAutoCheckStatus = ${ canCheckApprovalStatus ? "true" : "false" };
     var rhipStatusPollDelay = 300000;
+    var rhipMaxAutomaticStatusChecks = ${ maxAutomaticStatusChecks ?: 12 };
     var rhipStatusPollTimer = null;
     var rhipStatusPollInProgress = false;
+    var rhipDiagnosisSearchTimer = null;
+    var rhipIcd11Enabled = ${ icd11Enabled ? "true" : "false" };
+    var rhipIcd11EctSettingsBase64 = "${ icd11EctSettingsBase64 ?: "" }";
+    var rhipIcd11AssetsLoading = false;
+    var rhipIcd11AssetsLoaded = false;
 
     jq(function() {
         <% if (openRequest) { %>
@@ -27,6 +33,7 @@
                 form.submit();
             }
         });
+        setupRhipDiagnosisSearch();
         scheduleRhipApprovalStatusPoll();
     });
 
@@ -55,6 +62,12 @@
     }
 
     function submitRhipApprovalRequest(form) {
+        var diagnosisSearch = jq("#diagnosis-search");
+        if (diagnosisSearch.length && jq("#diagnosisIds").val() === "" && diagnosisSearch.val() !== "") {
+            alert("Select a diagnosis from the ICD-11 results before submitting.");
+            diagnosisSearch.focus();
+            return false;
+        }
         if (!confirm("Submit this approval request?")) {
             return false;
         }
@@ -68,6 +81,182 @@
             }
         });
         return true;
+    }
+
+    function setupRhipDiagnosisSearch() {
+        var search = jq("#diagnosis-search");
+        if (!search.length) {
+            return;
+        }
+        if (search.hasClass("ctw-input") && rhipIcd11Enabled) {
+            search.one("focus click", function() {
+                ensureRhipIcd11Assets(setupRhipEmbeddedCodingTool);
+            });
+            return;
+        }
+        search.on("input", function() {
+            jq("#diagnosisIds").val("");
+            jq("#selected-diagnosis-label").text("");
+            clearTimeout(rhipDiagnosisSearchTimer);
+            var query = jq.trim(search.val());
+            if (query.length < 2) {
+                showRhipDiagnosisResults("");
+                return;
+            }
+            rhipDiagnosisSearchTimer = setTimeout(function() {
+                searchRhipDiagnoses(query);
+            }, 250);
+        });
+    }
+
+    function ensureRhipIcd11Assets(callback) {
+        if (rhipIcd11AssetsLoaded || (window.ECT && window.ECT.Handler)) {
+            rhipIcd11AssetsLoaded = true;
+            callback();
+            return;
+        }
+        if (rhipIcd11AssetsLoading) {
+            setTimeout(function() {
+                ensureRhipIcd11Assets(callback);
+            }, 100);
+            return;
+        }
+        rhipIcd11AssetsLoading = true;
+        if (!jq("link[data-rhip-icd11-ect]").length) {
+            jq("<link/>", {
+                rel: "stylesheet",
+                href: "https://icdcdn.who.int/embeddedct/icd11ect-1.8.css",
+                "data-rhip-icd11-ect": "true"
+            }).appendTo("head");
+        }
+        jq.getScript("https://icdcdn.who.int/embeddedct/icd11ect-1.8.js")
+                .done(function() {
+                    rhipIcd11AssetsLoaded = true;
+                    callback();
+                })
+                .fail(function() {
+                    jq("#selected-diagnosis-label").text("Unable to load the WHO ICD-11 Coding Tool.");
+                })
+                .always(function() {
+                    rhipIcd11AssetsLoading = false;
+                });
+    }
+
+    function setupRhipEmbeddedCodingTool() {
+        if (!window.ECT || !window.ECT.Handler) {
+            jq("#selected-diagnosis-label").text("Unable to load the WHO ICD-11 Coding Tool.");
+            return;
+        }
+        var ectId = "rhip-approval-diagnosis";
+        var settings = decodeRhipBase64Json(rhipIcd11EctSettingsBase64) || {};
+        window.ECT.Handler.configure(settings, {
+            selectedEntityFunction: function(selectedEntity) {
+                if (!selectedEntity || selectedEntity.iNo !== ectId) {
+                    return;
+                }
+                var code = selectedEntity.code || "";
+                var display = selectedEntity.selectedText || selectedEntity.title || selectedEntity.bestMatchText || code;
+                selectRhipDiagnosis(code, display);
+                window.ECT.Handler.clear(ectId);
+            },
+            getNewTokenFunction: function() {
+                return fetch(rhipOpenmrsContextPath + "/ws/rest/v1/rwandaemr/icd11/token", {
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                }).then(function(response) {
+                    if (!response.ok) {
+                        throw new Error("Unable to retrieve ICD-11 token");
+                    }
+                    return response.json();
+                }).then(function(result) {
+                    return result.token;
+                });
+            },
+            searchStartedFunction: function() {
+                jq("#selected-diagnosis-label").text("Searching...");
+            },
+            searchEndedFunction: function() {
+                if (!jq("#diagnosisIds").val()) {
+                    jq("#selected-diagnosis-label").text("");
+                }
+            }
+        });
+    }
+
+    function decodeRhipBase64Json(value) {
+        if (!value) {
+            return null;
+        }
+        try {
+            return JSON.parse(decodeURIComponent(escape(window.atob(value))));
+        }
+        catch (e) {
+            return null;
+        }
+    }
+
+    function searchRhipDiagnoses(query) {
+        showRhipDiagnosisResults("<button type='button' class='rhip-diagnosis-option disabled'>Searching...</button>");
+        jq.ajax({
+            type: "GET",
+            url: rhipOpenmrsContextPath + "/ws/rest/v1/rwandaemr/icd11/concepts",
+            dataType: "json",
+            data: { q: query },
+            success: function(response) {
+                var results = response && response.results ? response.results : [];
+                if (!results.length) {
+                    showRhipDiagnosisResults("<button type='button' class='rhip-diagnosis-option disabled'>No ICD-11 diagnosis found</button>");
+                    return;
+                }
+                var html = "";
+                jq.each(results, function(index, result) {
+                    var code = result.code || "";
+                    var display = result.display || code;
+                    html += "<button type='button' class='rhip-diagnosis-option' data-code='" + escapeRhipHtml(code)
+                            + "' data-display='" + escapeRhipHtml(display) + "'>"
+                            + escapeRhipHtml(display) + "</button>";
+                });
+                showRhipDiagnosisResults(html);
+            },
+            error: function(xhr) {
+                var message = xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : "Unable to search ICD-11 diagnoses";
+                showRhipDiagnosisResults("<button type='button' class='rhip-diagnosis-option disabled'>" + escapeRhipHtml(message) + "</button>");
+            }
+        });
+    }
+
+    function showRhipDiagnosisResults(html) {
+        var results = jq("#diagnosis-results");
+        if (!results.length) {
+            return;
+        }
+        if (!html) {
+            results.hide().empty();
+            return;
+        }
+        results.html(html).show();
+        results.find(".rhip-diagnosis-option").not(".disabled").click(function() {
+            var option = jq(this);
+            selectRhipDiagnosis(option.data("code"), option.data("display"));
+        });
+    }
+
+    function selectRhipDiagnosis(code, display) {
+        jq("#diagnosisIds").val(code || "");
+        jq("#diagnosis-search").val(display || code || "");
+        jq("#selected-diagnosis-label").text(code ? "Selected: " + (display || code) : "");
+        showRhipDiagnosisResults("");
+    }
+
+    function escapeRhipHtml(value) {
+        return String(value == null ? "" : value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
     }
 
     function submitRhipApprovalStatus(form) {
@@ -99,6 +288,22 @@
         return true;
     }
 
+    function submitRhipApprovalDelete(form) {
+        if (!confirm("Delete this approval request?")) {
+            return false;
+        }
+        jq(form).find("input[type=submit], button[type=submit]").prop("disabled", true).each(function() {
+            var button = jq(this);
+            if (button.is("input")) {
+                button.val("Deleting...");
+            }
+            else {
+                button.find(".rhip-button-label").text("Deleting...");
+            }
+        });
+        return true;
+    }
+
     function showRhipApprovalDetails(id) {
         jq(".rhip-details-panel").hide();
         jq("#" + id).show();
@@ -122,7 +327,9 @@
         var ids = [];
         jq("[data-rhip-approval-id]").each(function() {
             var row = jq(this);
-            if ((row.attr("data-rhip-approval-status") || "").toUpperCase() === "PENDING") {
+            var status = (row.attr("data-rhip-approval-status") || "").toUpperCase();
+            var automaticStatusCheckCount = parseInt(row.attr("data-rhip-automatic-status-check-count") || "0", 10);
+            if (status === "PENDING" && automaticStatusCheckCount < rhipMaxAutomaticStatusChecks) {
                 ids.push(row.attr("data-rhip-approval-id"));
             }
         });
@@ -165,6 +372,9 @@
             var oldStatus = (row.attr("data-rhip-approval-status") || "").toUpperCase();
             var newStatus = (update.newStatus || "").toUpperCase();
             row.attr("data-rhip-approval-status", newStatus);
+            if (update.automaticStatusCheckCount != null) {
+                row.attr("data-rhip-automatic-status-check-count", update.automaticStatusCheckCount);
+            }
             var chip = row.find(".rhip-chip").first();
             chip.removeClass(function(i, className) {
                 var classesToRemove = [];
@@ -175,6 +385,9 @@
                 });
                 return classesToRemove.join(" ");
             }).addClass("rhip-chip rhip-chip-" + newStatus).text(update.statusLabel || newStatus);
+            if (newStatus === "APPROVED" || newStatus === "REJECTED") {
+                row.find(".rhip-check-status-form").remove();
+            }
             if (update.changed && oldStatus !== newStatus) {
                 changed.push(update);
             }
@@ -246,7 +459,8 @@
     }
     .rhip-button,
     .rhip-primary-button,
-    .rhip-secondary-button {
+    .rhip-secondary-button,
+    .rhip-icon-button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -263,7 +477,8 @@
     }
     .rhip-button i,
     .rhip-primary-button i,
-    .rhip-secondary-button i {
+    .rhip-secondary-button i,
+    .rhip-icon-button i {
         font-size: 13px;
         line-height: 1;
     }
@@ -281,7 +496,8 @@
     }
     .rhip-button:disabled,
     .rhip-primary-button:disabled,
-    .rhip-secondary-button:disabled {
+    .rhip-secondary-button:disabled,
+    .rhip-icon-button:disabled {
         opacity: 0.62;
         cursor: not-allowed;
         box-shadow: none;
@@ -406,6 +622,11 @@
         overflow-y: auto;
         background: #fff;
     }
+    .ctw-window.rhip-diagnosis-results {
+        display: block;
+        max-height: none;
+        overflow: visible;
+    }
     .rhip-diagnosis-option {
         display: block;
         width: 100%;
@@ -499,8 +720,8 @@
         display: flex;
         align-items: center;
         flex-wrap: wrap;
-        gap: 8px;
-        min-width: 188px;
+        gap: 6px;
+        min-width: 132px;
     }
     .rhip-actions form {
         margin: 0;
@@ -545,6 +766,59 @@
         color: #10192f;
         box-shadow: 0 0 0 3px rgba(143, 162, 196, 0.16);
     }
+    .rhip-icon-button {
+        width: 34px;
+        min-width: 34px;
+        height: 34px;
+        min-height: 34px;
+        padding: 0;
+        border: 1px solid #c7d2e4;
+        background: #ffffff;
+        color: #1f2a44;
+    }
+    .rhip-icon-button:hover,
+    .rhip-icon-button:focus {
+        border-color: #8fa2c4;
+        background: #f5f8ff;
+        color: #10192f;
+        box-shadow: 0 0 0 3px rgba(143, 162, 196, 0.16);
+    }
+    .rhip-icon-button.rhip-status-button {
+        border-color: #9fc8ad;
+        background: #f1fbf5;
+        color: #207638;
+    }
+    .rhip-icon-button.rhip-status-button:hover,
+    .rhip-icon-button.rhip-status-button:focus {
+        border-color: #6cad81;
+        background: #e5f8eb;
+        color: #185a2b;
+        box-shadow: 0 0 0 3px rgba(90, 187, 118, 0.16);
+    }
+    .rhip-icon-button.rhip-retry-button {
+        border-color: #f3b064;
+        background: #fff8ed;
+        color: #8a4b00;
+    }
+    .rhip-icon-button.rhip-retry-button:hover,
+    .rhip-icon-button.rhip-retry-button:focus {
+        border-color: #d89037;
+        background: #fff1d9;
+        color: #6c3c00;
+        box-shadow: 0 0 0 3px rgba(243, 176, 100, 0.22);
+    }
+    .rhip-icon-button.rhip-delete-button {
+        border-color: #e7a0a9;
+        background: #fff5f6;
+        color: #a61f31;
+    }
+    .rhip-icon-button.rhip-delete-button:hover,
+    .rhip-icon-button.rhip-delete-button:focus {
+        border-color: #cc6473;
+        background: #ffe9ec;
+        color: #831525;
+        box-shadow: 0 0 0 3px rgba(204, 100, 115, 0.16);
+    }
     .rhip-secondary-button.rhip-retry-button {
         border-color: #f3b064;
         background: #fff8ed;
@@ -568,6 +842,18 @@
         background: #e5f8eb;
         color: #185a2b;
         box-shadow: 0 0 0 3px rgba(90, 187, 118, 0.16);
+    }
+    .rhip-secondary-button.rhip-delete-button {
+        border-color: #e7a0a9;
+        background: #fff5f6;
+        color: #a61f31;
+    }
+    .rhip-secondary-button.rhip-delete-button:hover,
+    .rhip-secondary-button.rhip-delete-button:focus {
+        border-color: #cc6473;
+        background: #ffe9ec;
+        color: #831525;
+        box-shadow: 0 0 0 3px rgba(204, 100, 115, 0.16);
     }
     .rhip-empty {
         padding: 24px;
@@ -753,7 +1039,18 @@
                                     </select>
                                 <% } else if (patient) { %>
                                     <input type="hidden" id="diagnosisIds" name="diagnosisIds"/>
-                                    <div class="rhip-muted">No diagnosis recorded for this patient.</div>
+                                    <% if (icd11Enabled) { %>
+                                        <input type="text" id="diagnosis-search" class="ctw-input"
+                                               data-ctw-ino="rhip-approval-diagnosis"
+                                               placeholder="Search ICD-11 diagnosis by code or name" autocomplete="off"/>
+                                        <div id="diagnosis-results" class="ctw-window rhip-diagnosis-results"
+                                             data-ctw-ino="rhip-approval-diagnosis"></div>
+                                    <% } else { %>
+                                        <input type="text" id="diagnosis-search" placeholder="Search ICD-11 diagnosis by code or name" autocomplete="off"/>
+                                        <div id="diagnosis-results" class="rhip-diagnosis-results"></div>
+                                    <% } %>
+                                    <div id="selected-diagnosis-label" class="rhip-selected-diagnosis"></div>
+                                    <div class="rhip-muted" style="margin-top: 6px;">No recorded diagnosis found for this patient. Search and select an ICD-11 diagnosis for this approval.</div>
                                 <% } else { %>
                                     <input type="hidden" id="diagnosisIds" name="diagnosisIds"/>
                                     <div class="rhip-muted">Select a patient first.</div>
@@ -814,15 +1111,17 @@
                         <th>Qty</th>
                         <th>Request Date</th>
                         <th>Status</th>
-                        <th>Action</th>
+                        <th>ACTIONS</th>
                     </tr>
                     </thead>
                     <tbody>
                     <% approvalRequests.each { view -> %>
                         <% def request = view.request %>
                         <% def detailsId = "approval-details-" + request.id %>
+                        <% def requestStatus = (view.statusClass ?: "").toString() %>
                         <tr data-rhip-approval-id="${ ui.escapeAttribute(request.id?.toString() ?: "") }"
-                            data-rhip-approval-status="${ ui.escapeAttribute(view.statusClass ?: "") }">
+                            data-rhip-approval-status="${ ui.escapeAttribute(view.statusClass ?: "") }"
+                            data-rhip-automatic-status-check-count="${ ui.escapeAttribute(view.automaticStatusCheckCount?.toString() ?: "0") }">
                             <td>${ ui.format(view.patientName ?: "") }</td>
                             <td>
                                 ${ ui.format(request.insuranceName ?: "") }
@@ -837,26 +1136,36 @@
                             <td>${ ui.format(request.dateCreated) }</td>
                             <td><span class="rhip-chip rhip-chip-${ ui.escapeAttribute(view.statusClass) }">${ ui.format(view.statusLabel) }</span></td>
                             <td class="rhip-actions">
-                                <button type="button" class="rhip-secondary-button" onclick="showRhipApprovalDetails('${ ui.escapeAttribute(detailsId) }');">
-                                    <i class="icon-eye-open"></i><span class="rhip-button-label">View</span>
+                                <button type="button" class="rhip-icon-button" title="View details" aria-label="View details" onclick="showRhipApprovalDetails('${ ui.escapeAttribute(detailsId) }');">
+                                    <i class="icon-eye-open"></i>
                                 </button>
-                                <% if (canCheckApprovalStatus && request.approvalCode) { %>
-                                    <form method="post" action="${ ui.pageLink("rwandaemr", "admin/rhipApprovals") }" onsubmit="return submitRhipApprovalStatus(this);">
+                                <% if (canCheckApprovalStatus && request.approvalCode && !"APPROVED".equalsIgnoreCase(requestStatus) && !"REJECTED".equalsIgnoreCase(requestStatus)) { %>
+                                    <form class="rhip-check-status-form" method="post" action="${ ui.pageLink("rwandaemr", "admin/rhipApprovals") }" onsubmit="return submitRhipApprovalStatus(this);">
                                         <input type="hidden" name="action" value="checkStatus"/>
                                         <input type="hidden" name="approvalRequestId" value="${ ui.escapeAttribute(request.id?.toString() ?: "") }"/>
                                         <input type="hidden" name="patientId" value="${ ui.escapeAttribute((view.patient?.uuid ?: "").toString()) }"/>
-                                        <button type="submit" class="rhip-secondary-button rhip-status-button">
-                                            <i class="icon-refresh"></i><span class="rhip-button-label">Check Status</span>
+                                        <button type="submit" class="rhip-icon-button rhip-status-button" title="Check status" aria-label="Check status">
+                                            <i class="icon-refresh"></i>
                                         </button>
                                     </form>
                                 <% } %>
-                                <% if (canRequestApproval && "FAILED".equalsIgnoreCase(view.statusClass ?: "")) { %>
+                                <% if (canRequestApproval && "FAILED".equalsIgnoreCase(requestStatus)) { %>
                                     <form method="post" action="${ ui.pageLink("rwandaemr", "admin/rhipApprovals") }" onsubmit="return submitRhipApprovalRetry(this);">
                                         <input type="hidden" name="action" value="retryApproval"/>
                                         <input type="hidden" name="approvalRequestId" value="${ ui.escapeAttribute(request.id?.toString() ?: "") }"/>
                                         <input type="hidden" name="patientId" value="${ ui.escapeAttribute((view.patient?.uuid ?: "").toString()) }"/>
-                                        <button type="submit" class="rhip-secondary-button rhip-retry-button">
-                                            <i class="icon-repeat"></i><span class="rhip-button-label">Retry</span>
+                                        <button type="submit" class="rhip-icon-button rhip-retry-button" title="Retry request" aria-label="Retry request">
+                                            <i class="icon-repeat"></i>
+                                        </button>
+                                    </form>
+                                <% } %>
+                                <% if (canRequestApproval && view.deletable) { %>
+                                    <form method="post" action="${ ui.pageLink("rwandaemr", "admin/rhipApprovals") }" onsubmit="return submitRhipApprovalDelete(this);">
+                                        <input type="hidden" name="action" value="deleteApproval"/>
+                                        <input type="hidden" name="approvalRequestId" value="${ ui.escapeAttribute(request.id?.toString() ?: "") }"/>
+                                        <input type="hidden" name="patientId" value="${ ui.escapeAttribute((view.patient?.uuid ?: "").toString()) }"/>
+                                        <button type="submit" class="rhip-icon-button rhip-delete-button" title="Delete request" aria-label="Delete request">
+                                            <i class="icon-trash"></i>
                                         </button>
                                     </form>
                                 <% } %>

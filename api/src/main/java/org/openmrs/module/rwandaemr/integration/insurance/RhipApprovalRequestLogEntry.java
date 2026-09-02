@@ -45,6 +45,7 @@ public class RhipApprovalRequestLogEntry {
 	private String requestPayload;
 	private String responsePayload;
 	private Integer responseCode;
+	private Integer automaticStatusCheckCount;
 	private Integer creator;
 	private Date dateCreated;
 	private Integer changedBy;
