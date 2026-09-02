@@ -171,30 +171,67 @@
         align-items: stretch;
         margin: 0;
     }
-    .rhip-actions input[type=submit],
+    .rhip-actions button[type=submit],
     .rhip-open-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         box-sizing: border-box;
+        width: 34px;
+        min-width: 34px;
         height: 34px;
+        min-height: 34px;
         margin: 0;
-        padding: 7px 12px;
+        padding: 0;
         border-radius: 3px;
         font-size: 14px;
-        line-height: 18px;
+        line-height: 1;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, color 120ms ease;
+    }
+    .rhip-actions button[type=submit] i,
+    .rhip-open-link i {
+        font-size: 14px;
+        line-height: 1;
+    }
+    .rhip-actions button[type=submit]:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        box-shadow: none;
     }
     .rhip-actions .primary {
         background: #007fff;
         color: #ffffff;
         border: 1px solid #0066cc;
     }
+    .rhip-actions .primary:hover,
+    .rhip-actions .primary:focus {
+        background: #006bd6;
+        border-color: #005ab5;
+        box-shadow: 0 0 0 3px rgba(0, 127, 255, 0.16);
+    }
     .rhip-actions .retry {
         background: #ff9800;
         color: #ffffff;
         border: 1px solid #e08600;
     }
+    .rhip-actions .retry:hover,
+    .rhip-actions .retry:focus {
+        background: #ed8d00;
+        border-color: #c87500;
+        box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.2);
+    }
     .rhip-actions .confirm {
         background: #2e7d32;
         color: #ffffff;
         border: 1px solid #1b5e20;
+    }
+    .rhip-actions .confirm:hover,
+    .rhip-actions .confirm:focus {
+        background: #256b29;
+        border-color: #174d1a;
+        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.16);
     }
     .rhip-open-link,
     .rhip-open-link:link,
@@ -202,12 +239,16 @@
     .rhip-open-link:hover,
     .rhip-open-link:focus,
     .rhip-open-link:active {
-        display: inline-flex;
-        align-items: center;
         border: 1px solid #4a235a;
         background: #5b2c6f;
         color: #ffffff !important;
         text-decoration: none;
+    }
+    .rhip-open-link:hover,
+    .rhip-open-link:focus {
+        background: #4a235a;
+        border-color: #351941;
+        box-shadow: 0 0 0 3px rgba(91, 44, 111, 0.16);
     }
     .rhip-detail-row {
         display: none;
@@ -273,6 +314,52 @@
 </style>
 
 <script type="text/javascript">
+    (function() {
+        var refreshStorageKey = "rhipVoucherSubmissionsRefreshAfterGlobalBill";
+        var pageWasHidden = false;
+
+        function markRefreshNeeded() {
+            try {
+                window.sessionStorage.setItem(refreshStorageKey, "true");
+            }
+            catch (e) {
+                // Ignore storage failures; the bfcache pageshow handler still covers same-tab return.
+            }
+        }
+
+        function refreshIfNeeded(event) {
+            var shouldRefresh = event && event.persisted;
+            try {
+                shouldRefresh = shouldRefresh || window.sessionStorage.getItem(refreshStorageKey) === "true";
+                window.sessionStorage.removeItem(refreshStorageKey);
+            }
+            catch (e) {}
+            if (shouldRefresh) {
+                window.location.reload();
+            }
+        }
+
+        function refreshIfReturningToPage() {
+            if (pageWasHidden) {
+                refreshIfNeeded();
+            }
+        }
+
+        jq(function() {
+            jq(".rhip-open-link").on("click auxclick", markRefreshNeeded);
+        });
+        window.addEventListener("blur", function() {
+            pageWasHidden = true;
+        });
+        document.addEventListener("visibilitychange", function() {
+            if (document.hidden) {
+                pageWasHidden = true;
+            }
+        });
+        window.addEventListener("focus", refreshIfReturningToPage);
+        window.addEventListener("pageshow", refreshIfNeeded);
+    })();
+
     function toggleRhipDetails(id) {
         var row = jq("#rhip-detail-" + id);
         row.toggle();
@@ -289,6 +376,12 @@
             return false;
         }
         jq(form).find("input[type=submit]").prop("disabled", true).val("Processing...");
+        jq(form).find("button[type=submit]")
+            .prop("disabled", true)
+            .attr("title", "Processing...")
+            .attr("aria-label", "Processing...")
+            .find("i")
+            .attr("class", "icon-spinner icon-spin");
         return true;
     }
 </script>
@@ -297,7 +390,6 @@
     <div class="rhip-page-header">
         <div>
             <h1 class="rhip-page-title">RHIP Voucher Submission</h1>
-            <p class="rhip-page-subtitle">Discharged global bills ready for voucher submission and retry follow-up.</p>
         </div>
         <div class="rhip-count-card">
             <strong>${ totalCount }</strong>
@@ -408,8 +500,8 @@
                 <% rows.each { row ->
                     def globalBill = row.globalBill
                     def globalBillId = globalBill.globalBillId
-                    def histories = historyByGlobalBillId[globalBillId] ?: []
                     def consommations = consommationsByGlobalBillId[globalBillId] ?: []
+                    def patientJourneyLogs = patientJourneyLogsByGlobalBillId[globalBillId] ?: []
                 %>
                     <tr class="rhip-row" onclick="toggleRhipDetails('${ globalBillId }')">
                         <td>
@@ -458,7 +550,9 @@
                                     <input type="hidden" name="sortDirection" value="${ sortDirection }"/>
                                     <input type="hidden" name="page" value="${ page }"/>
                                     <input type="hidden" name="pageSize" value="${ pageSize }"/>
-                                    <input class="confirm" type="submit" value="Clearance SMS" ${ row.allPatientBillsPaid ? "" : "disabled=\"disabled\"" } title="${ row.allPatientBillsPaid ? "Send payment clearance SMS" : "Available only when all patient bills are paid" }"/>
+                                    <button class="confirm" type="submit" ${ row.allPatientBillsPaid ? "" : "disabled=\"disabled\"" } title="${ row.allPatientBillsPaid ? "Send payment clearance SMS" : "Available only when all patient bills are paid" }" aria-label="${ row.allPatientBillsPaid ? "Send payment clearance SMS" : "Available only when all patient bills are paid" }">
+                                        <i class="icon-phone"></i>
+                                    </button>
                                 </form>
                             <% } %>
                             <% if (row.effectiveStatus == "NOT_SENT" && canSend) { %>
@@ -474,7 +568,9 @@
                                     <input type="hidden" name="sortDirection" value="${ sortDirection }"/>
                                     <input type="hidden" name="page" value="${ page }"/>
                                     <input type="hidden" name="pageSize" value="${ pageSize }"/>
-                                    <input class="primary" type="submit" value="Send RHIP Voucher"/>
+                                    <button class="primary" type="submit" title="Send RHIP voucher" aria-label="Send RHIP voucher">
+                                        <i class="icon-share-alt"></i>
+                                    </button>
                                 </form>
                             <% } %>
                             <% if (row.effectiveStatus == "SENT" && row.mmiInsurance && canConfirm) { %>
@@ -490,7 +586,9 @@
                                     <input type="hidden" name="sortDirection" value="${ sortDirection }"/>
                                     <input type="hidden" name="page" value="${ page }"/>
                                     <input type="hidden" name="pageSize" value="${ pageSize }"/>
-                                    <input class="confirm" type="submit" value="Confirm RHIP Voucher"/>
+                                    <button class="confirm" type="submit" title="Confirm RHIP voucher" aria-label="Confirm RHIP voucher">
+                                        <i class="icon-ok"></i>
+                                    </button>
                                 </form>
                             <% } %>
                             <% if (row.effectiveStatus == "FAILED" && canRetry) { %>
@@ -506,10 +604,14 @@
                                     <input type="hidden" name="sortDirection" value="${ sortDirection }"/>
                                     <input type="hidden" name="page" value="${ page }"/>
                                     <input type="hidden" name="pageSize" value="${ pageSize }"/>
-                                    <input class="retry" type="submit" value="Retry RHIP Voucher"/>
+                                    <button class="retry" type="submit" title="Retry RHIP voucher" aria-label="Retry RHIP voucher">
+                                        <i class="icon-repeat"></i>
+                                    </button>
                                 </form>
                             <% } %>
-                            <a class="rhip-open-link" href="${ openmrsContextPath }/module/mohbilling/viewGlobalBill.form?globalBillId=${ globalBillId }">Open Global Bill</a>
+                            <a class="rhip-open-link" href="${ openmrsContextPath }/module/mohbilling/viewGlobalBill.form?globalBillId=${ globalBillId }" title="Open global bill" aria-label="Open global bill">
+                                <i class="icon-external-link"></i>
+                            </a>
                             </div>
                         </td>
                     </tr>
@@ -534,30 +636,34 @@
                                 </div>
 
                                 <div class="rhip-detail-card">
-                                    <h4>Submission History</h4>
+                                    <h4>Patient Journey Logs</h4>
                                     <% if (!canViewHistory) { %>
-                                        <div class="rhip-muted">You do not have permission to view submission history.</div>
-                                    <% } else if (!histories) { %>
-                                        <div class="rhip-muted">No RHIP submission attempts recorded.</div>
+                                        <div class="rhip-muted">You do not have permission to view patient journey logs.</div>
+                                    <% } else if (!patientJourneyLogs) { %>
+                                        <div class="rhip-muted">No patient journey logs found for this visit.</div>
                                     <% } else { %>
                                         <table class="rhip-mini-table">
                                             <thead>
                                             <tr>
-                                                <th>Attempt</th>
-                                                <th>Status</th>
-                                                <th>Date</th>
-                                                <th>HTTP</th>
-                                                <th>Reference</th>
+                                                <th>Action</th>
+                                                <th>Encounter</th>
+                                                <th>Form</th>
+                                                <th>Location</th>
+                                                <th>User</th>
+                                                <th>Encounter Date</th>
+                                                <th>Action Date</th>
                                             </tr>
                                             </thead>
                                             <tbody>
-                                            <% histories.each { history -> %>
+                                            <% patientJourneyLogs.each { journeyLog -> %>
                                                 <tr>
-                                                    <td>${ history.attemptNumber }</td>
-                                                    <td>${ ui.format(history.status) }</td>
-                                                    <td>${ ui.formatDatePretty(history.dateSubmitted) }</td>
-                                                    <td>${ history.responseCode ?: "" }</td>
-                                                    <td>${ ui.format(history.voucherReferenceNumber ?: history.voucherCode ?: "") }</td>
+                                                    <td>${ ui.format(journeyLog.action) }</td>
+                                                    <td>${ ui.format(journeyLog.encounterType) }</td>
+                                                    <td>${ ui.format(journeyLog.formName) }</td>
+                                                    <td>${ ui.format(journeyLog.locationName) }</td>
+                                                    <td>${ ui.format(journeyLog.username) }</td>
+                                                    <td>${ journeyLog.encounterDatetime ? ui.formatDatePretty(journeyLog.encounterDatetime) : "" }</td>
+                                                    <td>${ journeyLog.actionDatetime ? ui.formatDatePretty(journeyLog.actionDatetime) : "" }</td>
                                                 </tr>
                                             <% } %>
                                             </tbody>
