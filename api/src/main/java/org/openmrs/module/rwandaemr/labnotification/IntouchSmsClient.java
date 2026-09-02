@@ -13,6 +13,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.openmrs.module.rwandaemr.integration.HttpUtils;
+import org.openmrs.module.rwandaemr.sms.SmsGatewayConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -29,9 +30,9 @@ public class IntouchSmsClient {
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	private final LabNotificationConfig config;
+	private final SmsGatewayConfig config;
 
-	public IntouchSmsClient(@Autowired LabNotificationConfig config) {
+	public IntouchSmsClient(@Autowired SmsGatewayConfig config) {
 		this.config = config;
 	}
 
@@ -39,11 +40,12 @@ public class IntouchSmsClient {
 		IntouchSmsResponse result = new IntouchSmsResponse();
 		Map<String, String> requestPayload = buildRequestPayload(phoneNumber, content, false);
 		result.setRequestPayload(toJson(requestPayload));
-		try (CloseableHttpClient httpClient = HttpUtils.getHttpClient(null, null, false)) {
+		try (CloseableHttpClient httpClient = HttpUtils.getHttpClient(null, null, false,
+				config.getConnectTimeout(), config.getReadTimeout())) {
 			HttpPost httpPost = new HttpPost(config.getIntouchUrl());
 			httpPost.setEntity(new UrlEncodedFormEntity(toFormParameters(buildRequestPayload(phoneNumber, content, true)),
 					StandardCharsets.UTF_8));
-			log.info("Sending lab result notification SMS to " + phoneNumber);
+			log.info("Sending SMS to " + phoneNumber);
 			try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
 				result.setResponseCode(response.getStatusLine().getStatusCode());
 				HttpEntity entity = response.getEntity();

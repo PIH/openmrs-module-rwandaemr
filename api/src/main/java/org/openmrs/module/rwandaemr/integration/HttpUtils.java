@@ -67,6 +67,17 @@ public class HttpUtils {
         }
     }
 
+    public static CloseableHttpClient getHttpClient(String username, String password, boolean trustAllCertificates,
+                                                    int connectTimeout, int socketTimeout) {
+        try {
+            return buildHttpClient(username, password, trustAllCertificates, connectTimeout, socketTimeout,
+                    CONNECTION_REQUEST_TIMEOUT, false);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     /**
      * @return the http client to use to interact with the HIE, or null if no HIE credentials are configured
      */

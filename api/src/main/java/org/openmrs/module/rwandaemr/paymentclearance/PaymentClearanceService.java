@@ -13,7 +13,7 @@ import org.openmrs.module.mohbilling.model.PatientBill;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.module.rwandaemr.labnotification.IntouchSmsClient;
 import org.openmrs.module.rwandaemr.labnotification.IntouchSmsResponse;
-import org.openmrs.module.rwandaemr.labnotification.LabNotificationConfig;
+import org.openmrs.module.rwandaemr.sms.SmsGatewayConfig;
 import org.openmrs.util.ConfigUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -30,11 +30,11 @@ public class PaymentClearanceService {
 	public static final String DEFAULT_MESSAGE_TEMPLATE =
 			"{patientName}, Turemeza ko serivisi zose wahawe mubitaro zishyuwe. Itariki: {timestamp}";
 
-	private final LabNotificationConfig smsConfig;
+	private final SmsGatewayConfig smsConfig;
 	private final IntouchSmsClient smsClient;
 	private final PaymentClearanceLogRepository logRepository;
 
-	public PaymentClearanceService(@Autowired LabNotificationConfig smsConfig,
+	public PaymentClearanceService(@Autowired SmsGatewayConfig smsConfig,
 	                               @Autowired IntouchSmsClient smsClient,
 	                               @Autowired PaymentClearanceLogRepository logRepository) {
 		this.smsConfig = smsConfig;

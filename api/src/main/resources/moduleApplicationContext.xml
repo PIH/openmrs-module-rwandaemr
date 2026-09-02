@@ -154,10 +154,14 @@
 		</property>
 	</bean>
 
-	<bean id="labNotificationConfig" class="org.openmrs.module.rwandaemr.labnotification.LabNotificationConfig"/>
+	<bean id="smsGatewayConfig" class="org.openmrs.module.rwandaemr.sms.SmsGatewayConfig"/>
+
+	<bean id="labNotificationConfig" class="org.openmrs.module.rwandaemr.labnotification.LabNotificationConfig">
+		<constructor-arg ref="smsGatewayConfig"/>
+	</bean>
 
 	<bean id="intouchSmsClient" class="org.openmrs.module.rwandaemr.labnotification.IntouchSmsClient">
-		<constructor-arg ref="labNotificationConfig"/>
+		<constructor-arg ref="smsGatewayConfig"/>
 	</bean>
 
 	<bean id="paymentClearanceLogRepository" class="org.openmrs.module.rwandaemr.paymentclearance.PaymentClearanceLogRepository">
@@ -165,7 +169,7 @@
 	</bean>
 
 	<bean id="paymentClearanceService" class="org.openmrs.module.rwandaemr.paymentclearance.PaymentClearanceService">
-		<constructor-arg ref="labNotificationConfig"/>
+		<constructor-arg ref="smsGatewayConfig"/>
 		<constructor-arg ref="intouchSmsClient"/>
 		<constructor-arg ref="paymentClearanceLogRepository"/>
 	</bean>

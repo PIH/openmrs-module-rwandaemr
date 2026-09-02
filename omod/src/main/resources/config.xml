@@ -233,6 +233,66 @@
 	</globalProperty>
 
 	<globalProperty>
+		<property>rwandaemr.sms.enabled</property>
+		<defaultValue>false</defaultValue>
+		<description>Whether shared Rwanda EMR SMS gateway sending is enabled</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.username</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS gateway username</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.password</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS gateway password</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.postUrl</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS HTTP send endpoint</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.sender</property>
+		<defaultValue></defaultValue>
+		<description>Sender name shown on SMS notifications</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.coding</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS coding parameter</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.dlrUrl</property>
+		<defaultValue></defaultValue>
+		<description>Public URL where InTouch should send SMS delivery reports</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.dlrLevel</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS delivery report level, typically 2</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.connectionTimeout</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS connection timeout in milliseconds</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.readTimeout</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS read timeout in milliseconds</description>
+	</globalProperty>
+
+	<globalProperty>
 		<property>rwandaemr.labNotification.enabled</property>
 		<defaultValue>false</defaultValue>
 		<description>Whether sending SMS notifications for ready laboratory results is enabled</description>

@@ -1,6 +1,7 @@
 package org.openmrs.module.rwandaemr.labnotification;
 
 import org.apache.commons.lang3.StringUtils;
+import org.openmrs.module.rwandaemr.sms.SmsGatewayConfig;
 import org.openmrs.util.ConfigUtil;
 import org.springframework.stereotype.Component;
 
@@ -23,36 +24,46 @@ public class LabNotificationConfig {
 	public static final String DEFAULT_MESSAGE_TEMPLATE =
 			"Your laboratory results are ready at {facility}. Please return to the facility or contact your provider.";
 
+	private final SmsGatewayConfig smsGatewayConfig;
+
+	public LabNotificationConfig() {
+		this(new SmsGatewayConfig());
+	}
+
+	public LabNotificationConfig(SmsGatewayConfig smsGatewayConfig) {
+		this.smsGatewayConfig = smsGatewayConfig;
+	}
+
 	public boolean isEnabled() {
 		return getBoolean(ENABLED_PROPERTY, false);
 	}
 
 	public String getIntouchUrl() {
-		return getString(INTOUCH_URL_PROPERTY, DEFAULT_INTOUCH_URL);
+		return smsGatewayConfig.getIntouchUrl();
 	}
 
 	public String getUsername() {
-		return ConfigUtil.getProperty(INTOUCH_USERNAME_PROPERTY);
+		return smsGatewayConfig.getUsername();
 	}
 
 	public String getPassword() {
-		return ConfigUtil.getProperty(INTOUCH_PASSWORD_PROPERTY);
+		return smsGatewayConfig.getPassword();
 	}
 
 	public String getSender() {
-		return ConfigUtil.getProperty(INTOUCH_SENDER_PROPERTY);
+		return smsGatewayConfig.getSender();
 	}
 
 	public String getCoding() {
-		return getString(INTOUCH_CODING_PROPERTY, DEFAULT_CODING);
+		return smsGatewayConfig.getCoding();
 	}
 
 	public String getDlrUrl() {
-		return ConfigUtil.getProperty(INTOUCH_DLR_URL_PROPERTY);
+		return smsGatewayConfig.getDlrUrl();
 	}
 
 	public String getDlrLevel() {
-		return getString(INTOUCH_DLR_LEVEL_PROPERTY, DEFAULT_DLR_LEVEL);
+		return smsGatewayConfig.getDlrLevel();
 	}
 
 	public String getMessageTemplate() {
@@ -60,8 +71,7 @@ public class LabNotificationConfig {
 	}
 
 	public boolean hasRequiredSettings() {
-		return StringUtils.isNotBlank(getIntouchUrl()) && StringUtils.isNotBlank(getUsername()) &&
-				StringUtils.isNotBlank(getPassword()) && StringUtils.isNotBlank(getSender());
+		return smsGatewayConfig.hasRequiredSettings();
 	}
 
 	protected String getString(String propertyName, String defaultValue) {

@@ -73,7 +73,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="rwandaemr-create-rhip-approval-request-log" author="codex">
+    <changeSet id="rwandaemr-create-rhip-approval-request-log" author="bniyonshuti">
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="rhip_approval_request_log"/></not>
         </preConditions>
@@ -190,7 +190,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="rwandaemr-create-payment-clearance-sms-log" author="codex">
+    <changeSet id="rwandaemr-create-payment-clearance-sms-log" author="bniyonshuti">
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="payment_clearance_sms_log"/></not>
         </preConditions>
