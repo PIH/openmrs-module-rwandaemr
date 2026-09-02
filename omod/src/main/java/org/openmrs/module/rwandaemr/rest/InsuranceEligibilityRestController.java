@@ -62,8 +62,9 @@ public class InsuranceEligibilityRestController {
         }
         boolean sendOtp = Boolean.parseBoolean(request.getParameter("sendOTP"));
         boolean isMainInsurer = Boolean.parseBoolean(request.getParameter("isMainInsurer"));
+        String otpTo = request.getParameter("otpTo");
         IntegrationResponse ret = insuranceEligibilityProvider.checkEligibility(type, identifier, fosaid, sendOtp,
-                isMainInsurer);
+                isMainInsurer, otpTo);
         return ret;
     }
 

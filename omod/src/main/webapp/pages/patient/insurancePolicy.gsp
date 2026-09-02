@@ -135,6 +135,15 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         padding: 12px 14px;
         border-radius: 3px;
     }
+    #mmi-parent-options label {
+        display: inline;
+        font-weight: normal;
+        margin-left: 6px;
+        vertical-align: middle;
+    }
+    #mmi-parent-options input {
+        vertical-align: middle;
+    }
 
     .simplemodal-data {
         max-height: 600px; /* Set a maximum height for the content */
@@ -309,13 +318,17 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
     }
 
     function getMaskedPhoneNumber() {
-        if (!patientPhoneNumber) {
+        return maskPhoneNumber(patientPhoneNumber);
+    }
+
+    function maskPhoneNumber(phoneNumber) {
+        if (!phoneNumber) {
             return null;
         }
-        if (patientPhoneNumber.length <= 4) {
-            return patientPhoneNumber;
+        if (phoneNumber.length <= 4) {
+            return phoneNumber;
         }
-        return patientPhoneNumber.substring(0, patientPhoneNumber.length - 4).replace(/./g, "*") + patientPhoneNumber.substring(patientPhoneNumber.length - 4);
+        return phoneNumber.substring(0, phoneNumber.length - 4).replace(/./g, "*") + phoneNumber.substring(phoneNumber.length - 4);
     }
 
     function setVerifyResultsMessage(message, messageClass) {
@@ -435,6 +448,154 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         });
     }
 
+    function getMmiParentOtpTargets(eligibilityData) {
+        if (!eligibilityData) {
+            return [];
+        }
+        const targets = [];
+        if (eligibilityData.parent1Name || eligibilityData.parent1Tel) {
+            targets.push({
+                value: "parent1",
+                name: eligibilityData.parent1Name || "Parent 1",
+                phone: eligibilityData.parent1Tel || ""
+            });
+        }
+        if (eligibilityData.parent2Name || eligibilityData.parent2Tel) {
+            targets.push({
+                value: "parent2",
+                name: eligibilityData.parent2Name || "Parent 2",
+                phone: eligibilityData.parent2Tel || ""
+            });
+        }
+        return targets;
+    }
+
+    function getOtpSentMessage(target) {
+        if (target) {
+            const maskedPhone = maskPhoneNumber(target.phone);
+            const recipient = target.name ? target.name : "selected parent";
+            return maskedPhone
+                ? ("OTP sent to " + recipient + " (" + maskedPhone + "). Enter the code to continue.")
+                : ("OTP sent to " + recipient + ". Enter the code to continue.");
+        }
+        const maskedPhone = getMaskedPhoneNumber();
+        return maskedPhone ? ("OTP sent to " + maskedPhone + ". Enter the code to continue.") : "OTP sent. Enter the code to continue.";
+    }
+
+    function openMmiParentSelectionDialog(parentTargets, onSelect) {
+        const optionsContainer = jq("#mmi-parent-options");
+        optionsContainer.empty();
+        parentTargets.forEach((target, index) => {
+            const optionId = "mmi-parent-option-" + target.value;
+            const label = target.name + (target.phone ? (" (" + maskPhoneNumber(target.phone) + ")") : "");
+            const option = jq("<p>").append(
+                jq("<input>", {
+                    type: "radio",
+                    name: "mmi-parent-option",
+                    id: optionId,
+                    value: target.value
+                }).prop("checked", index === 0)
+            ).append(
+                jq("<label>", {
+                    "for": optionId,
+                    text: label
+                })
+            );
+            optionsContainer.append(option);
+        });
+        jq("#mmi-parent-select-button")
+            .off("click")
+            .on("click", function() {
+                const selectedValue = jq("input[name='mmi-parent-option']:checked").val();
+                const selected = parentTargets.find((target) => target.value === selectedValue);
+                if (!selected) {
+                    jq("#mmi-parent-message").text("Choose the parent who is present.");
+                    return;
+                }
+                jq.modal.close();
+                onSelect(selected);
+            });
+        jq("#mmi-parent-message").text("Choose the parent who is present to receive the OTP.");
+        jq.modal(jq("#mmi-parent-dialog"), {
+            overlayClose: true,
+            overlayId: "modal-overlay",
+            opacity: 80,
+            persist: true,
+            closeClass: "cancel",
+            position: [20, 50],
+        });
+    }
+
+    function sendMmiOtpRequest(insuranceType, ownerCode, selectedParent) {
+        const eligibilityUrl = openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility";
+        const eligibilityRequest = {
+            type: insuranceType,
+            identifier: ownerCode,
+            sendOTP: true,
+            isMainInsurer: !selectedParent
+        };
+        if (selectedParent) {
+            eligibilityRequest.otpTo = selectedParent.value;
+        }
+        const eligibilityParams = jq.param(eligibilityRequest);
+        setVerifyResultsMessage("Sending MMI OTP...");
+        jq.get(eligibilityUrl + "?" + eligibilityParams, function(data) {
+            if (isMmiInactiveEligibilityResponse(data)) {
+                enableManualEntry();
+                setInsuranceCardNumberDisabled(true);
+                setVerifyResultsMessage(getMmiInactiveEligibilityMessage(data), mmiInactiveAlertClass);
+            } else if (data.responseCode === 200 && data.responseEntity && data.responseEntity.success !== false) {
+                loadMmiPatientTypesAndOpenOtpDialog(insuranceType, ownerCode, getOtpSentMessage(selectedParent));
+                setVerifyResultsMessage("Waiting for MMI reception creation...");
+            } else {
+                const errorMessage = data && data.responseEntity && data.responseEntity.message
+                    ? data.responseEntity.message
+                    : "Failed to send OTP.";
+                setVerifyResultsMessage(errorMessage);
+            }
+            jq("#verify-button").removeAttr("disabled");
+        }).fail(function(xhr) {
+            const message = xhr && xhr.responseText ? xhr.responseText : "Insurance verification request failed.";
+            setVerifyResultsMessage("Error: " + message);
+            enableManualEntry();
+            jq("#verify-button").removeAttr("disabled");
+        });
+    }
+
+    function handleMmiEligibilityBeforeOtp(data, insuranceType, ownerCode) {
+        if (!data) {
+            setVerifyResultsMessage("Insurance verification request failed.");
+            jq("#verify-button").removeAttr("disabled");
+            return;
+        }
+        if (isMmiInactiveEligibilityResponse(data)) {
+            enableManualEntry();
+            setInsuranceCardNumberDisabled(true);
+            setVerifyResultsMessage(getMmiInactiveEligibilityMessage(data), mmiInactiveAlertClass);
+            jq("#verify-button").removeAttr("disabled");
+            return;
+        }
+        if (data.responseCode === 200 && data.responseEntity && data.responseEntity.success !== false) {
+            const parentTargets = getMmiParentOtpTargets(data.responseEntity.data);
+            if (parentTargets.length > 0) {
+                setVerifyResultsMessage("Choose the parent who is present before sending OTP.");
+                jq("#verify-button").removeAttr("disabled");
+                openMmiParentSelectionDialog(parentTargets, function(selectedParent) {
+                    jq("#verify-button").attr("disabled", "disabled");
+                    sendMmiOtpRequest(insuranceType, ownerCode, selectedParent);
+                });
+            } else {
+                sendMmiOtpRequest(insuranceType, ownerCode, null);
+            }
+        } else {
+            const errorMessage = data && data.responseEntity && data.responseEntity.message
+                ? data.responseEntity.message
+                : "Insurance not found";
+            setVerifyResultsMessage(errorMessage);
+            jq("#verify-button").removeAttr("disabled");
+        }
+    }
+
     function continueMmiEligibilitySelection(insuranceType, ownerCode) {
         const eligibilityUrl = openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility";
         const eligibilityParams = jq.param({
@@ -536,7 +697,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 const eligibilityRequest = {
                     type: insuranceType,
                     identifier: ownerCode,
-                    sendOTP: isMmiInsurance
+                    sendOTP: false
                 };
                 if (isRamaInsurance) {
                     eligibilityRequest.isMainInsurer = jq("#rama-main-insurer-field").is(":checked");
@@ -545,22 +706,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 
                 jq.get(eligibilityUrl + "?" + eligibilityParams, function(data) {
                     if (isMmiInsurance) {
-                        if (isMmiInactiveEligibilityResponse(data)) {
-                            enableManualEntry();
-                            setInsuranceCardNumberDisabled(true);
-                            setVerifyResultsMessage(getMmiInactiveEligibilityMessage(data), mmiInactiveAlertClass);
-                        } else if (data.responseCode === 200 && data.responseEntity && data.responseEntity.success !== false) {
-                            const maskedPhone = getMaskedPhoneNumber();
-                            const message = maskedPhone ? ("OTP sent to " + maskedPhone + ". Enter the code to continue.") : "OTP sent. Enter the code to continue.";
-                            loadMmiPatientTypesAndOpenOtpDialog(insuranceType, ownerCode, message);
-                            setVerifyResultsMessage("Waiting for MMI reception creation...");
-                        } else {
-                            const errorMessage = data && data.responseEntity && data.responseEntity.message
-                                ? data.responseEntity.message
-                                : "Failed to send OTP.";
-                            setVerifyResultsMessage(errorMessage);
-                        }
-                        jq("#verify-button").removeAttr("disabled");
+                        handleMmiEligibilityBeforeOtp(data, insuranceType, ownerCode);
                         return;
                     }
                     handleEligibilityResponse(data, insuranceType, verifyMemberDialog, false);
@@ -1022,6 +1168,20 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         <button class="cancel">${ ui.message("coreapps.cancel") }</button>
     </div>
 </div>
+	<div id="mmi-parent-dialog" class="dialog" style="display: none; width: 430px;">
+	    <div class="dialog-header">
+	        <i class="icon-user"></i>
+	        <h3>
+	            MMI OTP Recipient
+	        </h3>
+	    </div>
+	    <div class="dialog-content">
+	        <p class="dialog-instructions" id="mmi-parent-message"></p>
+	        <div id="mmi-parent-options"></div>
+	        <button type="button" id="mmi-parent-select-button">Send OTP</button>
+	        <button type="button" class="cancel">${ ui.message("coreapps.cancel") }</button>
+	    </div>
+	</div>
 	<div id="mmi-otp-dialog" class="dialog" style="display: none; width: 400px;">
 	    <div class="dialog-header">
 	        <i class="icon-lock"></i>

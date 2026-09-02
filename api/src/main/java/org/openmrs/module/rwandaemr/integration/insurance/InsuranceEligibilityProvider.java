@@ -64,14 +64,22 @@ public class InsuranceEligibilityProvider {
 
 	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid, boolean sendOtp,
 			boolean isMainInsurer) {
+		return checkEligibility(type, identifier, fosaid, sendOtp, isMainInsurer, null);
+	}
+
+	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid, boolean sendOtp,
+			boolean isMainInsurer, String otpTo) {
 		Map<String, Object> parameters = new HashMap<>();
 		String normalizedType = normalizeInsuranceType(type);
 		parameters.put("insuranceType", normalizedType);
 		parameters.put("identifier", identifier);
 		parameters.put("fosaid", fosaid);
 		parameters.put("sendOTP", sendOtp);
-		if ("rama".equalsIgnoreCase(normalizedType)) {
+		if ("rama".equalsIgnoreCase(normalizedType) || "mmi".equalsIgnoreCase(normalizedType)) {
 			parameters.put("isMainInsurer", isMainInsurer);
+		}
+		if ("mmi".equalsIgnoreCase(normalizedType) && StringUtils.isNotBlank(otpTo)) {
+			parameters.put("otpTo", otpTo.trim());
 		}
 		return postEligibilityCheck(parameters, sendOtp ? "MMI_ELIGIBILITY_OTP_REQUEST" : "ELIGIBILITY_CHECK");
 	}
@@ -486,6 +494,10 @@ public class InsuranceEligibilityProvider {
 		member.setIsGovernmentSponsored(boolGovernmentSponsored(node));
 		member.setStatus(text(node, "status"));
 		member.setEmployerName(text(node, "employerName"));
+		member.setParent1Name(text(node, "parent1Name"));
+		member.setParent1Tel(text(node, "parent1Tel"));
+		member.setParent2Name(text(node, "parent2Name"));
+		member.setParent2Tel(text(node, "parent2Tel"));
 	}
 
 	private String text(JsonNode node, String field) {

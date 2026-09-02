@@ -27,4 +27,8 @@ public class InsuranceMember {
     Boolean isGovernmentSponsored;
     String status;
     String employerName;
+    String parent1Name;
+    String parent1Tel;
+    String parent2Name;
+    String parent2Tel;
 }
