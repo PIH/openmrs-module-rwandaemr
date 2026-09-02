@@ -29,6 +29,18 @@ public class Icd11ApiClientTest {
 	}
 
 	@Test
+	public void shouldReuseCachedTokenForEmbeddedCodingTool() throws Exception {
+		StubApiClient client = new StubApiClient(new StubConfig());
+
+		String firstToken = client.getAccessToken();
+		String secondToken = client.getAccessToken();
+
+		assertEquals("token-1", firstToken);
+		assertEquals(firstToken, secondToken);
+		assertEquals(1, client.tokenRequests);
+	}
+
+	@Test
 	public void shouldRefreshTokenAndRetryAfterUnauthorizedSearch() {
 		StubApiClient client = new StubApiClient(new StubConfig());
 		client.rejectFirstSearch = true;

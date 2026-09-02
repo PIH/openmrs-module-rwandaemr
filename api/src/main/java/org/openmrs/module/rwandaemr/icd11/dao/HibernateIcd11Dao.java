@@ -133,6 +133,7 @@ public class HibernateIcd11Dao implements Icd11Dao {
 		if (StringUtils.isBlank(code)) {
 			return null;
 		}
+		String lookupCode = getStemCode(code);
 		Object conceptId = sessionFactory.getCurrentSession().createSQLQuery(
 				"select c.concept_id from concept c "
 						+ "join concept_class cc on cc.concept_class_id = c.class_id "
@@ -140,7 +141,7 @@ public class HibernateIcd11Dao implements Icd11Dao {
 						+ "where cc.name = 'ICD-11' and c.retired = 0 and cn.voided = 0 "
 						+ "and cn.locale = 'en' and cn.locale_preferred = 1 "
 						+ "and lower(cn.name) like :codePrefix order by c.concept_id limit 1")
-				.setParameter("codePrefix", code.trim().toLowerCase() + "-%")
+				.setParameter("codePrefix", lookupCode.toLowerCase() + "-%")
 				.uniqueResult();
 		return conceptId == null ? null : (Concept) sessionFactory.getCurrentSession()
 				.get(Concept.class, ((Number) conceptId).intValue());
@@ -244,6 +245,24 @@ public class HibernateIcd11Dao implements Icd11Dao {
 				.setParameter("pattern", code + ".%")
 				.uniqueResult();
 		return count != null && count.longValue() > 0;
+	}
+
+	private String getStemCode(String code) {
+		String trimmed = code.trim();
+		int clusterSeparator = firstSeparatorIndex(trimmed, '&', '/');
+		return clusterSeparator < 0 ? trimmed : trimmed.substring(0, clusterSeparator).trim();
+	}
+
+	private int firstSeparatorIndex(String value, char first, char second) {
+		int firstIndex = value.indexOf(first);
+		int secondIndex = value.indexOf(second);
+		if (firstIndex < 0) {
+			return secondIndex;
+		}
+		if (secondIndex < 0) {
+			return firstIndex;
+		}
+		return Math.min(firstIndex, secondIndex);
 	}
 
 	private Icd11SearchResult toSearchResult(Object[] row, String linearization) {

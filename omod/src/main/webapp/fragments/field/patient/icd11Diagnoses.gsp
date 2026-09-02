@@ -2,15 +2,20 @@
     config.require("id")
 %>
 
+<link rel="stylesheet" href="https://icdcdn.who.int/embeddedct/icd11ect-1.8.css"/>
+
 <div id="${config.id}" class="icd11-diagnoses-widget">
     ${config.hiddenInputHtml}
     <% if (!config.readOnly) { %>
-        <label for="${config.id}-search">Search ICD-11 diagnosis</label>
-        <input id="${config.id}-search" class="icd11-search" type="text" autocomplete="off"
-               placeholder="Type at least 3 characters"/>
-        <button id="${config.id}-open-browser" class="icd11-open-browser" type="button">Browse ICD-11</button>
-        <div id="${config.id}-status" class="icd11-status"></div>
-        <ul id="${config.id}-results" class="icd11-results"></ul>
+        <% if (config.enabled) { %>
+            <label for="${config.id}-search">Search ICD-11 diagnosis</label>
+            <input id="${config.id}-search" class="ctw-input icd11-search" type="text" autocomplete="off"
+                   data-ctw-ino="${config.id}" placeholder="Type for starting the search"/>
+            <div id="${config.id}-status" class="icd11-status"></div>
+            <div id="${config.id}-coding-tool" class="ctw-window icd11-coding-tool" data-ctw-ino="${config.id}"></div>
+        <% } else { %>
+            <div class="icd11-status">ICD-11 integration is disabled.</div>
+        <% } %>
     <% } %>
     <table class="icd11-selected">
         <thead>
@@ -23,112 +28,143 @@
         </thead>
         <tbody id="${config.id}-selected"></tbody>
     </table>
-    <% if (!config.readOnly) { %>
-        <div id="${config.id}-browser" class="icd11-browser-overlay" style="display: none;">
-            <div class="icd11-browser-dialog">
-                <div class="icd11-browser-header">
-                    <strong>ICD-11 for Mortality and Morbidity Statistics</strong>
-                    <button id="${config.id}-close-browser" type="button">Close</button>
-                    <div>
-                        <input id="${config.id}-browser-search" type="text" autocomplete="off"
-                               placeholder="Type for starting the search"/>
-                    </div>
-                </div>
-                <div class="icd11-browser-body">
-                    <div class="icd11-browser-tree">
-                        <div class="icd11-browser-column-title">Browse ICD-11 categories</div>
-                        <div id="${config.id}-browser-status" class="icd11-status"></div>
-                        <ul id="${config.id}-browser-tree"></ul>
-                    </div>
-                    <div class="icd11-browser-details">
-                        <div id="${config.id}-browser-details">
-                            <h3>Select an ICD-11 category</h3>
-                            <p>Expand the code tree or search to view diagnosis details.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    <% } %>
 </div>
 
 <style>
-    #${config.id} .icd11-results { margin: 0.25rem 0 1rem; padding: 0; list-style: none; }
-    #${config.id} .icd11-results li { border-bottom: 1px solid #ddd; padding: 0.35rem; }
-    #${config.id} .icd11-selected { width: 100%; margin-top: 0.5rem; }
-    #${config.id} .icd11-selected td, #${config.id} .icd11-selected th { padding: 0.35rem; text-align: left; }
-    #${config.id} .icd11-status { color: #666; min-height: 1.2rem; }
-    #${config.id} .icd11-open-browser { margin-left: 0.5rem; }
-    #${config.id} .icd11-browser-overlay { background: rgba(0, 0, 0, 0.45); bottom: 0; left: 0; position: fixed; right: 0; top: 0; z-index: 10000; }
-    #${config.id} .icd11-browser-dialog { background: #fff; height: 82vh; margin: 4vh auto; max-width: 1400px; width: 92vw; }
-    #${config.id} .icd11-browser-header { background: #2f008c; color: #fff; font-size: 1.25rem; padding: 0.75rem 1rem; }
-    #${config.id} .icd11-browser-header button { float: right; }
-    #${config.id} .icd11-browser-header input { margin-top: 0.55rem; width: 31rem; }
-    #${config.id} .icd11-browser-body { display: flex; height: calc(82vh - 78px); }
-    #${config.id} .icd11-browser-tree { border-right: 1px solid #ccc; box-sizing: border-box; overflow: auto; padding: 0.75rem; width: 44%; }
-    #${config.id} .icd11-browser-details { box-sizing: border-box; overflow: auto; padding: 1rem 1.25rem; width: 56%; }
-    #${config.id} .icd11-browser-column-title { border-bottom: 1px solid #ddd; font-weight: bold; margin-bottom: 0.5rem; padding-bottom: 0.4rem; }
-    #${config.id} .icd11-browser-tree ul { list-style: none; margin: 0; padding-left: 1rem; }
-    #${config.id} .icd11-browser-tree li { margin: 0.15rem 0; }
-    #${config.id} .icd11-tree-toggle { background: transparent; border: 0; min-width: 1.25rem; padding: 0; }
-    #${config.id} .icd11-tree-label { background: transparent; border: 0; color: #222; padding: 0.15rem; text-align: left; }
-    #${config.id} .icd11-tree-label:hover { background: #fff1d8; }
-    #${config.id} .icd11-code-card { background: #fff7e7; border: 1px solid #e1cda8; margin: 1rem 0; padding: 0.75rem; }
-    #${config.id} .icd11-detail-section { margin-top: 1rem; }
-    #${config.id} .icd11-detail-section h4 { margin-bottom: 0.35rem; }
-    #${config.id} .icd11-detail-list { margin: 0.25rem 0; padding-left: 1.25rem; }
-    #${config.id} .icd11-detail-uri { color: #777; float: right; font-size: 0.75rem; }
-    #${config.id} .icd11-postcoordination { background: #f7f7f7; border-left: 2px solid #ed7d31; margin: 0.5rem 0; padding: 0.6rem; }
-    #${config.id} .icd11-browser-search-results { list-style: none; padding: 0; }
-    #${config.id} .icd11-browser-search-results li { border-bottom: 1px solid #ddd; padding: 0.35rem 0; }
+    #${config.id} .icd11-search {
+        box-sizing: border-box;
+        margin-bottom: 0.35rem;
+        max-width: 42rem;
+        width: 100%;
+    }
+    #${config.id} .icd11-status {
+        color: #666;
+        min-height: 1.2rem;
+    }
+    #${config.id} .icd11-coding-tool {
+        box-sizing: border-box;
+        margin-bottom: 1rem;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: visible;
+        width: 100%;
+    }
+    #${config.id} .icd11-coding-tool .ectComponent {
+        min-width: 820px;
+    }
+    #${config.id} .icd11-coding-tool .ectComponent .wordlist ul,
+    #${config.id} .icd11-coding-tool .ectComponent .entitylist ul.toplevel {
+        margin-left: 0;
+        padding-left: 0;
+    }
+    #${config.id} .icd11-coding-tool .ectComponent .wordlist li {
+        box-sizing: border-box;
+        min-width: 140px;
+        padding-left: 0;
+        text-indent: 0;
+        width: auto;
+    }
+    #${config.id} .icd11-selected {
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+    #${config.id} .icd11-selected td,
+    #${config.id} .icd11-selected th {
+        padding: 0.35rem;
+        text-align: left;
+        vertical-align: top;
+    }
+    #${config.id} .icd11-selected select {
+        max-width: 10rem;
+        width: 100%;
+    }
+    #${config.id} .icd11-empty {
+        color: #777;
+    }
 </style>
 
+<% if (!config.readOnly && config.enabled) { %>
+    <script src="https://icdcdn.who.int/embeddedct/icd11ect-1.8.js"></script>
+<% } %>
 <script type="text/javascript">
     (function(jq) {
         var widget = jq("#${config.id}");
         var hidden = widget.find("input[name='icd11DiagnosesJson']");
         var selected = [];
-        var timer;
-        var browserTimer;
-        var browserLoaded = false;
-        var browserSelection;
         var readOnly = ${config.readOnly ? "true" : "false"};
+        var enabled = ${config.enabled ? "true" : "false"};
+        var ectId = "${config.id}";
+
+        function decodeBase64Json(value) {
+            if (!value) {
+                return null;
+            }
+            try {
+                return JSON.parse(decodeURIComponent(escape(window.atob(value))));
+            }
+            catch (e) {
+                return null;
+            }
+        }
 
         function decodeInitial() {
             var value = hidden.val();
-            if (!value) {
-                value = decodeURIComponent(escape(window.atob("${config.initialDiagnosesBase64}")));
+            if (value) {
+                try {
+                    return JSON.parse(value);
+                }
+                catch (e) {
+                    return [];
+                }
             }
-            try {
-                return value ? JSON.parse(value) : [];
-            }
-            catch (e) {
-                return [];
-            }
+            return decodeBase64Json("${config.initialDiagnosesBase64}") || [];
         }
 
         function sync() {
             hidden.val(JSON.stringify(selected));
         }
 
+        function displayLabel(diagnosis) {
+            return (diagnosis.icd11Code ? diagnosis.icd11Code + " - " : "") + (diagnosis.title || "");
+        }
+
         function renderSelected() {
             var tbody = widget.find("#${config.id}-selected").empty();
+            if (!selected.length) {
+                var emptyRow = jq("<tr>");
+                jq("<td colspan='" + (readOnly ? "3" : "4") + "' class='icd11-empty'>")
+                    .text("No ICD-11 diagnosis selected")
+                    .appendTo(emptyRow);
+                tbody.append(emptyRow);
+                sync();
+                return;
+            }
             selected.forEach(function(diagnosis, index) {
                 var row = jq("<tr>");
-                jq("<td>").text((diagnosis.icd11Code ? diagnosis.icd11Code + " - " : "") + diagnosis.title).appendTo(row);
+                jq("<td>").text(displayLabel(diagnosis)).appendTo(row);
                 if (readOnly) {
-                    jq("<td>").text(diagnosis.diagnosisType).appendTo(row);
-                    jq("<td>").text(diagnosis.certainty).appendTo(row);
+                    jq("<td>").text(diagnosis.diagnosisType || "").appendTo(row);
+                    jq("<td>").text(diagnosis.certainty || "").appendTo(row);
                 }
                 else {
                     var type = jq("<select>").append("<option value='primary'>Primary</option>")
-                        .append("<option value='secondary'>Secondary</option>").val(diagnosis.diagnosisType);
-                    type.change(function() { diagnosis.diagnosisType = jq(this).val(); sync(); });
+                        .append("<option value='secondary'>Secondary</option>")
+                        .val(diagnosis.diagnosisType || "secondary");
+                    type.change(function() {
+                        diagnosis.diagnosisType = jq(this).val();
+                        sync();
+                    });
                     jq("<td>").append(type).appendTo(row);
+
                     var certainty = jq("<select>").append("<option value='confirmed'>Confirmed</option>")
-                        .append("<option value='presumed'>Presumed</option>").val(diagnosis.certainty);
-                    certainty.change(function() { diagnosis.certainty = jq(this).val(); sync(); });
+                        .append("<option value='presumed'>Presumed</option>")
+                        .val(diagnosis.certainty || "confirmed");
+                    certainty.change(function() {
+                        diagnosis.certainty = jq(this).val();
+                        sync();
+                    });
                     jq("<td>").append(certainty).appendTo(row);
+
                     var remove = jq("<button type='button'>").text("Remove").click(function() {
                         selected.splice(index, 1);
                         sync();
@@ -143,7 +179,7 @@
 
         function addDiagnosis(result) {
             var alreadySelected = selected.some(function(diagnosis) {
-                return diagnosis.entityUri === result.entityUri;
+                return diagnosis.entityUri === result.entityUri && diagnosis.title === result.title;
             });
             if (!alreadySelected) {
                 selected.push({
@@ -151,243 +187,158 @@
                     entityUri: result.entityUri,
                     foundationUri: result.foundationUri,
                     title: result.title,
-                    linearization: result.linearization,
+                    linearization: result.linearization || "mms",
                     diagnosisType: selected.length === 0 ? "primary" : "secondary",
-                    certainty: "confirmed",
-                    conceptUuid: result.conceptUuid
+                    certainty: "confirmed"
                 });
                 sync();
                 renderSelected();
             }
         }
 
-        function renderResults(results) {
-            var list = widget.find("#${config.id}-results").empty();
-            results.forEach(function(result) {
-                var add = jq("<button type='button'>").text("Add").click(function() { addDiagnosis(result); });
-                jq("<li>").append(jq("<span>").text((result.icd11Code ? result.icd11Code + " - " : "") + result.title + " "))
-                    .append(add).appendTo(list);
+        function addSelectedEntity(selectedEntity) {
+            if (!selectedEntity) {
+                return;
+            }
+            addDiagnosis({
+                icd11Code: selectedEntity.code,
+                entityUri: selectedEntity.linearizationUri || selectedEntity.uri,
+                foundationUri: selectedEntity.foundationUri,
+                title: selectedEntity.selectedText || selectedEntity.title || selectedEntity.bestMatchText,
+                linearization: "mms"
             });
+            widget.find("#${config.id}-status").text("");
+            if (window.ECT && window.ECT.Handler) {
+                window.ECT.Handler.clear(ectId);
+            }
         }
 
-        function search(query) {
-            widget.find("#${config.id}-status").text("Searching...");
-            jq.ajax({
-                url: openmrsContextPath + "/ws/rest/v1/rwandaemr/icd11/search",
-                data: { q: query },
-                dataType: "json"
-            }).done(function(response) {
-                renderResults(response.results || []);
-                widget.find("#${config.id}-status").text((response.results || []).length ? "" : "No diagnoses found");
-            }).fail(function(xhr) {
-                var message = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : "Unable to search ICD-11";
-                widget.find("#${config.id}-status").text(message);
-                renderResults([]);
-            });
-        }
+        function preventCodingToolSubmitButtons() {
+            var codingToolInteraction = false;
+            var form = hidden.closest("form");
+            var formElement = form.length ? form.get(0) : null;
+            var selector = "[data-ctw-ino='" + ectId + "'] button, "
+                + "button[data-ctw-ino='" + ectId + "'], "
+                + ".ctw-window button, .ctw-window input[type='submit'], "
+                + ".ctw-popup button, .ctw-popup input[type='submit'], "
+                + ".ctw-modal button, .ctw-modal input[type='submit'], "
+                + ".ectComponent button, .ectComponent input[type='submit'], "
+                + "[data-ctw-ino='" + ectId + "'] input[type='submit'], "
+                + "input[type='submit'][data-ctw-ino='" + ectId + "']";
 
-        function showBrowserDetails(result) {
-            browserSelection = result;
-            var details = widget.find("#${config.id}-browser-details").empty();
-            jq("<h3>").text((result.icd11Code ? result.icd11Code + " " : "") + result.title).appendTo(details);
-            if (result.foundationUri) {
-                jq("<div class='icd11-detail-uri'>").text("Foundation URI: " + result.foundationUri).appendTo(details);
+            function isCodingToolElement(element) {
+                return jq(element).closest(".ctw-window, .ctw-popup, .ctw-modal, .ectComponent, [data-ctw-ino='" + ectId + "']").length > 0
+                    && jq(element).closest(".icd11-selected").length === 0;
             }
-            jq("<div class='icd11-code-card'>").text("Code: " + (result.icd11Code || "Not assigned")).appendTo(details);
-            appendTextSection(details, "Fully specified name", result.fullySpecifiedName);
-            appendTextSection(details, "Description", result.definition);
-            appendTextSection(details, "Additional information", result.longDefinition);
-            appendTerms(details, "Inclusions", result.inclusions);
-            appendTerms(details, "Exclusions", result.exclusions);
-            appendTerms(details, "All index terms", result.indexTerms);
-            appendUriSection(details, "Related categories in maternal chapter", result.relatedEntitiesInMaternalChapter);
-            appendUriSection(details, "Related categories in perinatal chapter", result.relatedEntitiesInPerinatalChapter);
-            appendTextSection(details, "Coding note", result.codingNote);
-            appendPostcoordination(details, result.postcoordinationScales);
-            if (!result.remoteMetadata) {
-                jq("<p>").text("WHO metadata is currently unavailable. This local ICD-11 dictionary entry can still be selected.")
-                    .appendTo(details);
-            }
-            if (result.browserUrl) {
-                jq("<p>").append(jq("<a target='_blank' rel='noopener'>").attr("href", result.browserUrl)
-                    .text("Open this category in the WHO ICD-11 browser")).appendTo(details);
-            }
-            jq("<button type='button'>").text("Add diagnosis").click(function() {
-                addDiagnosis(browserSelection);
-                widget.find("#${config.id}-browser").hide();
-            }).appendTo(details);
-        }
 
-        function appendTextSection(details, title, text) {
-            if (!text) {
-                return;
-            }
-            var section = jq("<div class='icd11-detail-section'>").appendTo(details);
-            jq("<h4>").text(title).appendTo(section);
-            jq("<p>").text(text).appendTo(section);
-        }
-
-        function appendTerms(details, title, terms) {
-            if (!terms || !terms.length) {
-                return;
-            }
-            var section = jq("<div class='icd11-detail-section'>").appendTo(details);
-            jq("<h4>").text(title + " (" + terms.length + ")").appendTo(section);
-            var list = jq("<ul class='icd11-detail-list'>").appendTo(section);
-            terms.forEach(function(term) {
-                jq("<li>").text(term.label || term.linearizationReference || term.foundationReference).appendTo(list);
-            });
-        }
-
-        function appendUriSection(details, title, values) {
-            if (!values || !values.length) {
-                return;
-            }
-            var section = jq("<div class='icd11-detail-section'>").appendTo(details);
-            jq("<h4>").text(title).appendTo(section);
-            var list = jq("<ul class='icd11-detail-list'>").appendTo(section);
-            values.forEach(function(value) { jq("<li>").text(value).appendTo(list); });
-        }
-
-        function appendPostcoordination(details, scales) {
-            if (!scales || !scales.length) {
-                return;
-            }
-            var section = jq("<div class='icd11-detail-section'>").appendTo(details);
-            jq("<h4>").text("Postcoordination").appendTo(section);
-            scales.forEach(function(scale) {
-                var axis = jq("<div class='icd11-postcoordination'>").appendTo(section);
-                jq("<strong>").text(readableAxisName(scale.axisName)
-                    + (scale.required ? " (required)" : " (optional)")).appendTo(axis);
-                if (scale.scaleEntities && scale.scaleEntities.length) {
-                    jq("<div>").text("Allowed value sets: " + scale.scaleEntities.join(", ")).appendTo(axis);
+            jq(document).on("mousedown keydown", function(event) {
+                if (isCodingToolElement(event.target)) {
+                    codingToolInteraction = true;
+                    window.setTimeout(function() {
+                        codingToolInteraction = false;
+                    }, 500);
                 }
             });
-        }
 
-        function readableAxisName(axisName) {
-            if (!axisName) {
-                return "Additional detail";
-            }
-            return axisName.substring(axisName.lastIndexOf("/") + 1).replace(/([A-Z])/g, " \$1").trim();
-        }
-
-        function loadBrowserCode(code) {
-            widget.find("#${config.id}-browser-status").text("Loading diagnosis...");
-            jq.ajax({
-                url: openmrsContextPath + "/ws/rest/v1/rwandaemr/icd11/code/" + encodeURIComponent(code),
-                dataType: "json"
-            }).done(function(result) {
-                widget.find("#${config.id}-browser-status").text("");
-                showBrowserDetails(result);
-            }).fail(function() {
-                widget.find("#${config.id}-browser-status").text("Unable to load ICD-11 diagnosis details");
-            });
-        }
-
-        function renderBrowserNodes(nodes, list) {
-            list.empty();
-            nodes.forEach(function(node) {
-                var item = jq("<li>");
-                var toggle = jq("<button type='button' class='icd11-tree-toggle'>")
-                    .text(node.hasChildren ? "\u25b8" : "");
-                var label = jq("<button type='button' class='icd11-tree-label'>")
-                    .text(node.code.indexOf("chapter:") === 0 ? node.title : node.code + (node.title ? " " + node.title : ""));
-                var children = jq("<ul style='display: none;'>");
-                function expand() {
-                    if (!node.hasChildren) {
-                        return;
-                    }
-                    if (children.data("loaded")) {
-                        children.toggle();
-                        toggle.text(children.is(":visible") ? "\u25be" : "\u25b8");
-                        return;
-                    }
-                    toggle.text("\u25be");
-                    children.show().data("loaded", true);
-                    loadBrowserBranch(node.code, children);
+            jq(document).on("click", selector, function(event) {
+                if (isCodingToolElement(event.target)) {
+                    codingToolInteraction = true;
+                    event.preventDefault();
+                    window.setTimeout(function() {
+                        codingToolInteraction = false;
+                    }, 500);
                 }
-                toggle.click(expand);
-                label.click(function() {
-                    if (node.code.indexOf("chapter:") !== 0) {
-                        loadBrowserCode(node.code);
+            });
+
+            if (formElement) {
+                formElement.addEventListener("submit", function(event) {
+                    if (codingToolInteraction || isCodingToolElement(document.activeElement)) {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
                     }
-                    expand();
+                }, true);
+            }
+
+            form.on("submit.icd11CodingTool", function(event) {
+                if (codingToolInteraction || isCodingToolElement(document.activeElement)) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    return false;
+                }
+                sync();
+            });
+
+            function markButtonsAsNonSubmit() {
+                jq(selector).each(function() {
+                    var control = jq(this);
+                    if (control.is("button") && !control.attr("type")) {
+                        control.attr("type", "button");
+                    }
+                    if (control.is("input[type='submit']")) {
+                        control.attr("type", "button");
+                    }
                 });
-                item.append(toggle).append(label).append(children).appendTo(list);
-            });
-        }
+            }
 
-        function loadBrowserBranch(parent, list) {
-            widget.find("#${config.id}-browser-status").text("Loading ICD-11 categories...");
-            jq.ajax({
-                url: openmrsContextPath + "/ws/rest/v1/rwandaemr/icd11/browse",
-                data: parent ? { parent: parent } : {},
-                dataType: "json"
-            }).done(function(response) {
-                widget.find("#${config.id}-browser-status").text("");
-                renderBrowserNodes(response.results || [], list);
-            }).fail(function() {
-                widget.find("#${config.id}-browser-status").text("Unable to load ICD-11 categories");
-            });
-        }
-
-        function browserSearch(query) {
-            var details = widget.find("#${config.id}-browser-details").empty();
-            details.append(jq("<h3>").text("Search results"));
-            var list = jq("<ul class='icd11-browser-search-results'>").appendTo(details);
-            jq.ajax({
-                url: openmrsContextPath + "/ws/rest/v1/rwandaemr/icd11/search",
-                data: { q: query },
-                dataType: "json"
-            }).done(function(response) {
-                var results = response.results || [];
-                if (!results.length) {
-                    list.append(jq("<li>").text("No diagnoses found"));
-                }
-                results.forEach(function(result) {
-                    var item = jq("<li>");
-                    jq("<button type='button' class='icd11-tree-label'>")
-                        .text((result.icd11Code ? result.icd11Code + " " : "") + result.title)
-                        .click(function() { showBrowserDetails(result); }).appendTo(item);
-                    item.appendTo(list);
+            markButtonsAsNonSubmit();
+            if (window.MutationObserver) {
+                new MutationObserver(markButtonsAsNonSubmit).observe(document.body, {
+                    childList: true,
+                    subtree: true
                 });
-            }).fail(function() {
-                list.append(jq("<li>").text("Unable to search ICD-11 diagnoses"));
-            });
+            }
+        }
+
+        function configureEmbeddedCodingTool() {
+            if (!enabled || readOnly) {
+                return;
+            }
+            if (!window.ECT || !window.ECT.Handler) {
+                widget.find("#${config.id}-status").text("Unable to load the WHO ICD-11 Coding Tool.");
+                return;
+            }
+
+            window.rwandaEmrIcd11 = window.rwandaEmrIcd11 || {};
+            window.rwandaEmrIcd11.widgets = window.rwandaEmrIcd11.widgets || {};
+            window.rwandaEmrIcd11.widgets[ectId] = {
+                addSelectedEntity: addSelectedEntity
+            };
+
+            var settings = decodeBase64Json("${config.ectSettingsBase64}") || {};
+            var callbacks = {
+                selectedEntityFunction: function(selectedEntity) {
+                    var target = selectedEntity && window.rwandaEmrIcd11.widgets[selectedEntity.iNo];
+                    if (target) {
+                        target.addSelectedEntity(selectedEntity);
+                    }
+                },
+                getNewTokenFunction: async function() {
+                    var response = await fetch(openmrsContextPath + "/ws/rest/v1/rwandaemr/icd11/token", {
+                        credentials: "same-origin",
+                        headers: {
+                            "Accept": "application/json"
+                        }
+                    });
+                    if (!response.ok) {
+                        throw new Error("Unable to retrieve ICD-11 token");
+                    }
+                    var result = await response.json();
+                    return result.token;
+                },
+                searchStartedFunction: function() {
+                    widget.find("#${config.id}-status").text("Searching...");
+                },
+                searchEndedFunction: function() {
+                    widget.find("#${config.id}-status").text("");
+                }
+            };
+
+            window.ECT.Handler.configure(settings, callbacks);
         }
 
         selected = decodeInitial();
         renderSelected();
-        if (!readOnly) {
-            widget.find("#${config.id}-open-browser").click(function() {
-                widget.find("#${config.id}-browser").show();
-                if (!browserLoaded) {
-                    browserLoaded = true;
-                    loadBrowserBranch("", widget.find("#${config.id}-browser-tree"));
-                }
-            });
-            widget.find("#${config.id}-close-browser").click(function() {
-                widget.find("#${config.id}-browser").hide();
-            });
-            widget.find("#${config.id}-browser-search").on("input", function() {
-                var query = jq(this).val().trim();
-                clearTimeout(browserTimer);
-                if (query.length < 3) {
-                    return;
-                }
-                browserTimer = setTimeout(function() { browserSearch(query); }, 300);
-            });
-            widget.find("#${config.id}-search").on("input", function() {
-                var query = jq(this).val().trim();
-                clearTimeout(timer);
-                if (query.length < 3) {
-                    renderResults([]);
-                    widget.find("#${config.id}-status").text("");
-                    return;
-                }
-                timer = setTimeout(function() { search(query); }, 300);
-            });
-        }
+        preventCodingToolSubmitButtons();
+        configureEmbeddedCodingTool();
     }(jQuery));
 </script>

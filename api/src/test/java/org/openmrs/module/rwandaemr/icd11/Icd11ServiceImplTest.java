@@ -162,6 +162,22 @@ public class Icd11ServiceImplTest {
 		assertEquals("presumed", diagnoses.get(0).getCertainty());
 	}
 
+	@Test
+	public void shouldSavePostcoordinatedDiagnosisWithoutLocalConceptMatch() {
+		dao.localConceptAvailable = false;
+		Patient patient = new Patient();
+		Encounter encounter = new Encounter();
+		encounter.setPatient(patient);
+		Icd11DiagnosisSelection diagnosis = selection("CA0A.Z&XK9J&XN74M", "sinus-infection",
+				"sinus infection NOS [Bilateral] [Maxillary sinus] [Bacterial]", "primary", "confirmed");
+
+		service.replaceDiagnoses(patient, encounter, Collections.singletonList(diagnosis));
+
+		List<Icd11PatientDiagnosis> diagnoses = service.getDiagnoses(patient, encounter);
+		assertEquals(1, diagnoses.size());
+		assertEquals("CA0A.Z&XK9J&XN74M", diagnoses.get(0).getIcd11Code());
+	}
+
 	private Icd11DiagnosisSelection selection(String code, String uri, String title, String diagnosisType, String certainty) {
 		Icd11DiagnosisSelection selection = new Icd11DiagnosisSelection();
 		selection.setIcd11Code(code);
@@ -237,6 +253,8 @@ public class Icd11ServiceImplTest {
 
 		private List<Icd11BrowserNode> browserNodes = Collections.emptyList();
 
+		private boolean localConceptAvailable = true;
+
 		@Override
 		public Icd11CodeCache getCodeCacheByKey(String cacheKey) {
 			if (cacheReadError != null) {
@@ -289,7 +307,7 @@ public class Icd11ServiceImplTest {
 
 		@Override
 		public Concept getLocalConceptByCode(String code) {
-			return new Concept();
+			return localConceptAvailable ? new Concept() : null;
 		}
 
 		@Override

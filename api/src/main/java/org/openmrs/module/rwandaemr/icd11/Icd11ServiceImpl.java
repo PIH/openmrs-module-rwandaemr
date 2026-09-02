@@ -356,8 +356,8 @@ public class Icd11ServiceImpl extends BaseOpenmrsService implements Icd11Service
 				&& !"presumed".equalsIgnoreCase(selection.getCertainty())) {
 			throw new IllegalArgumentException("ICD-11 diagnosis certainty must be confirmed or presumed");
 		}
-		if (StringUtils.isBlank(selection.getIcd11Code()) || dao.getLocalConceptByCode(selection.getIcd11Code()) == null) {
-			throw new IllegalArgumentException("Selected ICD-11 diagnosis is not available in the local concept dictionary");
+		if (StringUtils.isBlank(selection.getIcd11Code())) {
+			throw new IllegalArgumentException("Each ICD-11 diagnosis requires a code");
 		}
 	}
 
@@ -382,7 +382,9 @@ public class Icd11ServiceImpl extends BaseOpenmrsService implements Icd11Service
 		}
 		Concept diagnosisValue = dao.getLocalConceptByCode(diagnosis.getIcd11Code());
 		if (diagnosisValue == null) {
-			throw new IllegalArgumentException("Selected ICD-11 diagnosis is not available in the local concept dictionary");
+			log.warn("Skipping OpenMRS coded diagnosis obs for ICD-11 code " + diagnosis.getIcd11Code()
+					+ " because it is not available in the local concept dictionary");
+			return;
 		}
 		Encounter encounter = diagnosis.getEncounter();
 		Date obsDatetime = encounter.getEncounterDatetime() == null ? new Date() : encounter.getEncounterDatetime();

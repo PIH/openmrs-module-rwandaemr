@@ -300,7 +300,10 @@ public class Icd11ApiClient {
 		return value.substring(value.lastIndexOf('/') + 1);
 	}
 
-	private String getAccessToken() throws Exception {
+	public String getAccessToken() throws Exception {
+		if (!config.hasApiCredentials()) {
+			throw new Icd11ApiException("WHO ICD-11 API credentials are not configured");
+		}
 		if (isAccessTokenValid()) {
 			return accessToken;
 		}

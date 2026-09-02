@@ -12,6 +12,7 @@ import org.openmrs.module.htmlformentry.element.HtmlGeneratorElement;
 import org.openmrs.module.htmlformentry.widget.ErrorWidget;
 import org.openmrs.module.htmlformentry.widget.HiddenFieldWidget;
 import org.openmrs.module.rwandaemr.htmlformentry.Icd11DiagnosesSubmissionAction;
+import org.openmrs.module.rwandaemr.icd11.Icd11Config;
 import org.openmrs.module.rwandaemr.icd11.Icd11Service;
 import org.openmrs.module.rwandaemr.icd11.model.Icd11DiagnosisSelection;
 import org.openmrs.module.rwandaemr.icd11.model.Icd11PatientDiagnosis;
@@ -67,6 +68,10 @@ public class Icd11DiagnosesElement implements HtmlGeneratorElement, FormSubmissi
 		fragmentConfig.put("initialDiagnosesBase64", Base64.getEncoder().encodeToString(
 				initialDiagnosesJson.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
 		fragmentConfig.put("readOnly", FormEntryContext.Mode.VIEW == context.getMode());
+		Icd11Config icd11Config = getIcd11Config();
+		fragmentConfig.put("enabled", icd11Config.isEnabled());
+		fragmentConfig.put("ectSettingsBase64", Base64.getEncoder().encodeToString(
+				toJson(getEmbeddedCodingToolSettings(icd11Config)).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
 		try {
 			return errorWidget.generateHtml(context)
 					+ uiUtils.includeFragment("rwandaemr", "field/patient/icd11Diagnoses", fragmentConfig);
@@ -151,5 +156,32 @@ public class Icd11DiagnosesElement implements HtmlGeneratorElement, FormSubmissi
 		catch (Exception e) {
 			throw new IllegalStateException("Unable to render ICD-11 diagnoses widget", e);
 		}
+	}
+
+	private String toJson(Map<String, Object> values) {
+		try {
+			return OBJECT_MAPPER.writeValueAsString(values);
+		}
+		catch (Exception e) {
+			throw new IllegalStateException("Unable to render ICD-11 diagnoses widget", e);
+		}
+	}
+
+	private Map<String, Object> getEmbeddedCodingToolSettings(Icd11Config icd11Config) {
+		Map<String, Object> settings = new HashMap<>();
+		settings.put("apiServerUrl", icd11Config.getBaseUrl());
+		settings.put("apiSecured", true);
+		settings.put("source", icd11Config.getDefaultLinearization());
+		settings.put("language", icd11Config.getLanguage());
+		settings.put("minorVersion", icd11Config.getDefaultReleaseId());
+		settings.put("sourceApp", "RwandaEMR");
+		settings.put("searchByCodeOrURI", true);
+		settings.put("height", "45vh");
+		return settings;
+	}
+
+	private Icd11Config getIcd11Config() {
+		List<Icd11Config> components = Context.getRegisteredComponents(Icd11Config.class);
+		return components.isEmpty() ? new Icd11Config() : components.get(0);
 	}
 }

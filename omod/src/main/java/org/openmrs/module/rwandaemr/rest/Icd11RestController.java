@@ -14,6 +14,8 @@ import org.openmrs.api.EncounterService;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.rwandaemr.icd11.Icd11ApiException;
+import org.openmrs.module.rwandaemr.icd11.Icd11ApiClient;
+import org.openmrs.module.rwandaemr.icd11.Icd11Config;
 import org.openmrs.module.rwandaemr.icd11.Icd11Service;
 import org.openmrs.module.rwandaemr.icd11.model.Icd11PatientDiagnosis;
 import org.openmrs.util.PrivilegeConstants;
@@ -49,6 +51,12 @@ public class Icd11RestController {
 	private Icd11Service icd11Service;
 
 	@Autowired
+	private Icd11Config icd11Config;
+
+	@Autowired
+	private Icd11ApiClient icd11ApiClient;
+
+	@Autowired
 	private PatientService patientService;
 
 	@Autowired
@@ -56,6 +64,30 @@ public class Icd11RestController {
 
 	@Autowired
 	private ConceptService conceptService;
+
+	@RequestMapping(value = "/token", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public ResponseEntity<?> getEmbeddedCodingToolToken() {
+		if (!Context.hasPrivilege(PrivilegeConstants.GET_DIAGNOSES)) {
+			return forbidden(PrivilegeConstants.GET_DIAGNOSES);
+		}
+		if (!icd11Config.isEnabled()) {
+			return serviceUnavailable("ICD-11 integration is disabled");
+		}
+		try {
+			Map<String, Object> response = new LinkedHashMap<>();
+			response.put("token", icd11ApiClient.getAccessToken());
+			return ResponseEntity.ok(response);
+		}
+		catch (Icd11ApiException e) {
+			log.warn("Unable to provide ICD-11 Embedded Coding Tool token", e);
+			return serviceUnavailable(e.getMessage());
+		}
+		catch (Exception e) {
+			log.warn("Unable to provide ICD-11 Embedded Coding Tool token", e);
+			return serviceUnavailable("Unable to retrieve WHO ICD-11 API token");
+		}
+	}
 
 	@RequestMapping(value = "/search", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
