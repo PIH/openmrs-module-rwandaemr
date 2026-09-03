@@ -33,6 +33,7 @@ import org.openmrs.api.EncounterService;
 import org.openmrs.api.ProviderService;
 import org.openmrs.module.appui.UiSessionContext;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
+import org.openmrs.module.rwandaemr.queue.QueueAssignmentFilter;
 import org.openmrs.module.rwandaemr.queue.QueueService;
 import org.openmrs.module.rwandaemr.queue.QueueStatus;
 import org.openmrs.module.rwandaemr.queue.model.QueueEntry;
@@ -83,6 +84,16 @@ public class QueueDashboardPageControllerTest {
         assertEquals(2026, yesterday.get(Calendar.YEAR));
         assertEquals(Calendar.AUGUST, yesterday.get(Calendar.MONTH));
         assertEquals(18, yesterday.get(Calendar.DAY_OF_MONTH));
+    }
+
+    @Test
+    public void shouldNormalizeProviderAssignmentFilter() {
+        assertEquals(QueueAssignmentFilter.ALL,
+                QueueDashboardPageController.normalizeAssignmentFilter(null));
+        assertEquals(QueueAssignmentFilter.ALL,
+                QueueDashboardPageController.normalizeAssignmentFilter("unsupported"));
+        assertEquals(QueueAssignmentFilter.ASSIGNED_TO_ME,
+                QueueDashboardPageController.normalizeAssignmentFilter("assigned_to_me"));
     }
 
     @Test
@@ -157,7 +168,7 @@ public class QueueDashboardPageControllerTest {
 
             @Override
             protected Set<Integer> getCurrentProviderIds(ProviderService providerService) {
-                return Collections.emptySet();
+                return Collections.singleton(77);
             }
         };
         QueueService queueService = mock(QueueService.class);
@@ -171,26 +182,31 @@ public class QueueDashboardPageControllerTest {
         when(queueService.getServicePointLocations()).thenReturn(Collections.singletonList(reception));
         when(queueService.isLaboratoryServicePoint(reception)).thenReturn(true);
         when(queueService.countQueueEntriesByLocation(
-                eq(reception), eq(QueueStatus.WAITING), any(Date.class), any(Date.class), eq("Aline Uwase")))
+                eq(reception), eq(QueueStatus.WAITING), any(Date.class), any(Date.class), eq("Aline Uwase"),
+                eq(QueueAssignmentFilter.ASSIGNED_TO_ME), eq(Collections.singleton(77))))
                 .thenReturn(21);
         when(queueService.getQueueEntriesByLocation(
                 eq(reception), eq(QueueStatus.WAITING), any(Date.class), any(Date.class), eq("Aline Uwase"),
+                eq(QueueAssignmentFilter.ASSIGNED_TO_ME), eq(Collections.singleton(77)),
                 eq(10), eq(10)))
                 .thenReturn(Collections.singletonList(displayedEntry));
         when(queueService.getQueueEntriesByVisits(Collections.emptySet())).thenReturn(Collections.<QueueEntry>emptyList());
 
         controller.get(model, sessionContext, queueService, rwandaEmrConfig, encounterService, providerService,
-                null, "WAITING", "YESTERDAY", "  Aline Uwase  ", 2, 10);
+                null, "WAITING", "YESTERDAY", "  Aline Uwase  ", "ASSIGNED_TO_ME", 2, 10);
 
         verify(queueService).countQueueEntriesByLocation(
-                eq(reception), eq(QueueStatus.WAITING), any(Date.class), any(Date.class), eq("Aline Uwase"));
+                eq(reception), eq(QueueStatus.WAITING), any(Date.class), any(Date.class), eq("Aline Uwase"),
+                eq(QueueAssignmentFilter.ASSIGNED_TO_ME), eq(Collections.singleton(77)));
         verify(queueService).getQueueEntriesByLocation(
                 eq(reception), eq(QueueStatus.WAITING), any(Date.class), any(Date.class), eq("Aline Uwase"),
+                eq(QueueAssignmentFilter.ASSIGNED_TO_ME), eq(Collections.singleton(77)),
                 eq(10), eq(10));
         verify(queueService, never()).getQueueEntriesByLocation(
                 eq(reception), eq(QueueStatus.WAITING), any(Date.class));
         verify(model).addAttribute("selectedArrivalDay", "YESTERDAY");
         verify(model).addAttribute("patientName", "Aline Uwase");
+        verify(model).addAttribute("selectedAssignment", "ASSIGNED_TO_ME");
         verify(model).addAttribute("laboratoryLocation", true);
         verify(providerService, never()).getAllProviders(false);
     }
@@ -212,7 +228,7 @@ public class QueueDashboardPageControllerTest {
 
         String redirect = controller.post(ui, sessionContext, queueService, encounterService, providerService,
                 "openLabOrders", 45, null, null, null, null, null, null,
-                "ALL", "TODAY", "", 1, 10);
+                "ALL", "TODAY", "", "ALL", 1, 10);
 
         assertEquals("redirect:/pihapps/labs/labOrderList.page", redirect);
         verify(queueService).callPatient(entry);
@@ -235,9 +251,9 @@ public class QueueDashboardPageControllerTest {
         when(queueService.getQueueEntry(42)).thenReturn(cancelledEntry);
 
         controller.post(ui, sessionContext, queueService, encounterService, providerService, "complete", 41,
-                null, 1, null, null, null, null, "ALL", "TODAY", "Aline", 1, 10);
+                null, 1, null, null, null, null, "ALL", "TODAY", "Aline", "ALL", 1, 10);
         controller.post(ui, sessionContext, queueService, encounterService, providerService, "cancel", 42,
-                null, 1, null, null, null, "Cancelled from queue dashboard", "ALL", "TODAY", "Aline", 1, 10);
+                null, 1, null, null, null, "Cancelled from queue dashboard", "ALL", "TODAY", "Aline", "ALL", 1, 10);
 
         verify(queueService).completeService(completedEntry);
         verify(queueService).cancelQueueEntry(cancelledEntry, "Cancelled from queue dashboard");
@@ -268,9 +284,31 @@ public class QueueDashboardPageControllerTest {
         when(providerService.getProvider(19)).thenReturn(provider);
 
         controller.post(ui, sessionContext, queueService, encounterService, providerService, "transfer", 44,
-                null, 1, 8, 19, null, "Needs consultation", "ALL", "YESTERDAY", "Aline", 1, 10);
+                null, 1, 8, 19, null, "Needs consultation", "ALL", "YESTERDAY", "Aline", "ALL", 1, 10);
 
         verify(queueService).transferPatient(entry, destination, "Needs consultation", provider);
+    }
+
+    @Test
+    public void shouldUpdateAssignedProviderFromTheDashboard() {
+        QueueDashboardPageController controller = new QueueDashboardPageController();
+        QueueService queueService = mock(QueueService.class);
+        UiUtils ui = mock(UiUtils.class);
+        UiSessionContext sessionContext = mock(UiSessionContext.class);
+        HttpSession session = mock(HttpSession.class);
+        EncounterService encounterService = mock(EncounterService.class);
+        ProviderService providerService = mock(ProviderService.class);
+        QueueEntry entry = new QueueEntry();
+        Provider provider = new Provider(19);
+        when(sessionContext.getSession()).thenReturn(session);
+        when(ui.pageLink("rwandaemr", "queue/queueDashboard")).thenReturn("/queue-dashboard");
+        when(queueService.getQueueEntry(44)).thenReturn(entry);
+        when(providerService.getProvider(19)).thenReturn(provider);
+
+        controller.post(ui, sessionContext, queueService, encounterService, providerService, "updateProvider", 44,
+                null, 1, null, 19, null, null, "ALL", "TODAY", "Aline", "ASSIGNED_TO_ME", 1, 10);
+
+        verify(queueService).updateAssignedProvider(entry, provider);
     }
 
     @Test
@@ -279,7 +317,8 @@ public class QueueDashboardPageControllerTest {
                 "src/main/webapp/pages/queue/queueDashboard.gsp",
                 "src/main/webapp/pages/queue/providerQueue.gsp",
                 "src/main/webapp/pages/queue/servicePointQueue.gsp",
-                "src/main/webapp/fragments/queue/transferReasonDialog.gsp")) {
+                "src/main/webapp/fragments/queue/transferReasonDialog.gsp",
+                "src/main/webapp/fragments/queue/providerAssignmentDialog.gsp")) {
             File template = new File(templatePath);
             assertTrue(template.isFile(), templatePath);
             new SimpleTemplateEngine().createTemplate(template);
