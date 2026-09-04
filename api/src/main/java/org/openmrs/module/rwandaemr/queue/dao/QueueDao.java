@@ -8,6 +8,7 @@ import org.openmrs.Concept;
 import org.openmrs.Location;
 import org.openmrs.Patient;
 import org.openmrs.Visit;
+import org.openmrs.module.rwandaemr.queue.QueueAssignmentFilter;
 import org.openmrs.module.rwandaemr.queue.QueueStatus;
 import org.openmrs.module.rwandaemr.queue.model.QueueEntry;
 import org.openmrs.module.rwandaemr.queue.model.QueueServicePointConceptMap;
@@ -40,11 +41,13 @@ public interface QueueDao {
     List<QueueEntry> getQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay);
 
     int countQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay,
-                          Date currentDayStart, List<QueueStatus> activeStatuses, String patientName);
+                          Date currentDayStart, List<QueueStatus> activeStatuses, String patientName,
+                          QueueAssignmentFilter assignmentFilter, Collection<Integer> currentProviderIds);
 
     List<QueueEntry> getQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay,
                                      Date currentDayStart, List<QueueStatus> activeStatuses,
-                                     String patientName, int firstResult, int maxResults);
+                                     String patientName, QueueAssignmentFilter assignmentFilter,
+                                     Collection<Integer> currentProviderIds, int firstResult, int maxResults);
 
     List<QueueEntry> getQueueEntriesByServicePoint(Location servicePoint, Location visibleLocation,
                                                    QueueStatus status, Date startOfDay, Date endOfDay);

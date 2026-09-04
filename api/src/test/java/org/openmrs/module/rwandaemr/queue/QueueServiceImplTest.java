@@ -855,6 +855,54 @@ public class QueueServiceImplTest {
     }
 
     @Test
+    public void shouldFilterExactArrivalDateEntriesByCurrentProviderAssignment() {
+        Date today = todayAt(12, 0);
+        Provider currentProvider = new Provider(7);
+        Provider secondCurrentProvider = new Provider(9);
+        Provider otherProvider = new Provider(11);
+        QueueEntry assignedToCurrent = queueEntry(
+                "assigned-current", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        assignedToCurrent.setAssignedProvider(secondCurrentProvider);
+        QueueEntry assignedToOther = queueEntry(
+                "assigned-other", triageLocation, QueuePriority.NORMAL, todayAt(9, 0));
+        assignedToOther.setAssignedProvider(otherProvider);
+        QueueEntry unassigned = queueEntry(
+                "unassigned", triageLocation, QueuePriority.NORMAL, todayAt(10, 0));
+        dao.entries.add(assignedToCurrent);
+        dao.entries.add(assignedToOther);
+        dao.entries.add(unassigned);
+        List<Integer> currentProviderIds = Arrays.asList(currentProvider.getId(), secondCurrentProvider.getId());
+
+        List<QueueEntry> assignedEntries = service.getQueueEntriesByLocation(
+                triageLocation, null, today, today, null, QueueAssignmentFilter.ASSIGNED_TO_ME,
+                currentProviderIds, 0, 10);
+        List<QueueEntry> notAssignedEntries = service.getQueueEntriesByLocation(
+                triageLocation, null, today, today, null, QueueAssignmentFilter.NOT_ASSIGNED_TO_ME,
+                currentProviderIds, 0, 10);
+
+        assertEquals(Collections.singletonList(assignedToCurrent), assignedEntries);
+        assertEquals(Arrays.asList(assignedToOther, unassigned), notAssignedEntries);
+    }
+
+    @Test
+    public void shouldAssignChangeAndClearQueueEntryProvider() {
+        QueueEntry entry = queueEntry("queue-provider", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        Provider firstProvider = new Provider(7);
+        Provider secondProvider = new Provider(9);
+
+        assertSame(entry, service.updateAssignedProvider(entry, firstProvider));
+        assertSame(firstProvider, entry.getAssignedProvider());
+        assertSame(user, entry.getChangedBy());
+        assertNotNull(entry.getDateChanged());
+
+        service.updateAssignedProvider(entry, secondProvider);
+        assertSame(secondProvider, entry.getAssignedProvider());
+
+        service.updateAssignedProvider(entry, null);
+        assertNull(entry.getAssignedProvider());
+    }
+
+    @Test
     public void shouldFindLatestActiveQueueEntryForVisitAcrossDates() {
         Visit visit = new Visit();
         QueueEntry earlier = queueEntry("queue-a", triageLocation, QueuePriority.NORMAL, dayAt(-1, 23, 55));
@@ -1251,18 +1299,22 @@ public class QueueServiceImplTest {
 
         @Override
         public int countQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay,
-                                     Date currentDayStart, List<QueueStatus> activeStatuses, String patientName) {
+                                     Date currentDayStart, List<QueueStatus> activeStatuses, String patientName,
+                                     QueueAssignmentFilter assignmentFilter,
+                                     Collection<Integer> currentProviderIds) {
             return getPagedQueueEntries(location, status, startOfDay, endOfDay,
-                    currentDayStart, activeStatuses, patientName).size();
+                    currentDayStart, activeStatuses, patientName, assignmentFilter, currentProviderIds).size();
         }
 
         @Override
         public List<QueueEntry> getQueueEntries(Location location, QueueStatus status,
                                                 Date startOfDay, Date endOfDay, Date currentDayStart,
                                                 List<QueueStatus> activeStatuses, String patientName,
+                                                QueueAssignmentFilter assignmentFilter,
+                                                Collection<Integer> currentProviderIds,
                                                 int firstResult, int maxResults) {
             List<QueueEntry> matches = getPagedQueueEntries(location, status, startOfDay, endOfDay,
-                    currentDayStart, activeStatuses, patientName);
+                    currentDayStart, activeStatuses, patientName, assignmentFilter, currentProviderIds);
             int fromIndex = Math.min(firstResult, matches.size());
             int toIndex = Math.min(fromIndex + maxResults, matches.size());
             return new ArrayList<QueueEntry>(matches.subList(fromIndex, toIndex));
@@ -1340,7 +1392,9 @@ public class QueueServiceImplTest {
 
         private List<QueueEntry> getPagedQueueEntries(Location location, QueueStatus status,
                                                        Date startOfDay, Date endOfDay, Date currentDayStart,
-                                                       List<QueueStatus> activeStatuses, String patientName) {
+                                                       List<QueueStatus> activeStatuses, String patientName,
+                                                       QueueAssignmentFilter assignmentFilter,
+                                                       Collection<Integer> currentProviderIds) {
             List<QueueEntry> matches = getQueueEntries(location, status, startOfDay, endOfDay);
             if (status == null && currentDayStart != null && activeStatuses != null) {
                 List<QueueEntry> liveMatches = new ArrayList<QueueEntry>();
@@ -1360,6 +1414,21 @@ public class QueueServiceImplTest {
                     }
                 }
                 matches = nameMatches;
+            }
+            if (QueueAssignmentFilter.ASSIGNED_TO_ME.equals(assignmentFilter)
+                    || QueueAssignmentFilter.NOT_ASSIGNED_TO_ME.equals(assignmentFilter)) {
+                List<QueueEntry> assignmentMatches = new ArrayList<QueueEntry>();
+                for (QueueEntry entry : matches) {
+                    Integer assignedProviderId = entry.getAssignedProvider() == null
+                            ? null : entry.getAssignedProvider().getId();
+                    boolean assignedToCurrentProvider = assignedProviderId != null && currentProviderIds != null
+                            && currentProviderIds.contains(assignedProviderId);
+                    if (QueueAssignmentFilter.ASSIGNED_TO_ME.equals(assignmentFilter)
+                            ? assignedToCurrentProvider : !assignedToCurrentProvider) {
+                        assignmentMatches.add(entry);
+                    }
+                }
+                matches = assignmentMatches;
             }
             Collections.sort(matches, new Comparator<QueueEntry>() {
                 @Override
