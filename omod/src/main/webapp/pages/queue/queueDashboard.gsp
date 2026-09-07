@@ -939,6 +939,20 @@
         <button type="submit" class="button"><i class="icon-filter"></i> Filter</button>
     </form>
 
+    <% if (canCallPatient) { %>
+        <form id="queue-call-next-form" class="queue-toolbar" method="post"
+              action="${ ui.pageLink("rwandaemr", "queue/queueDashboard") }">
+            <input type="hidden" name="action" value="callNext" />
+            <input type="hidden" name="locationId" value="${ selectedLocation?.id ?: "" }" />
+            <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
+            <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
+            <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
+            <input type="hidden" name="page" value="${ currentPage }" />
+            <input type="hidden" name="pageSize" value="${ pageSize }" />
+            <button type="submit" class="button confirm"><i class="icon-bullhorn"></i> Call next</button>
+        </form>
+    <% } %>
+
     <div id="queue-live-region" data-refresh-url="${ ui.escapeAttribute(queueReturnUrl) }">
         <% if (entries.isEmpty()) { %>
             <div class="note-container"><div class="note">No queue entries found.</div></div>
@@ -1082,7 +1096,9 @@
                                             <select id="queue-status-action-${ entry.id }" name="action" required="required">
                                                 <option value="" selected="selected" disabled="disabled">Choose status</option>
                                                 <% if (canCallPatient) { %>
+                                                    <option value="start">In progress</option>
                                                     <option value="complete">Completed</option>
+                                                    <option value="hold">On hold</option>
                                                 <% } %>
                                                 <% if (canManageQueue) { %>
                                                     <option value="cancel">Cancelled</option>

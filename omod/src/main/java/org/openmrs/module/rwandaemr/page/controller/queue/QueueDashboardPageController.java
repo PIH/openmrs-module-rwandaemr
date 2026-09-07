@@ -165,6 +165,22 @@ public class QueueDashboardPageController extends QueuePageSupport {
         return null;
     }
 
+    /**
+     * Read-only counterpart to the location resolution in get(): figures out which location the
+     * dashboard is currently showing without switching the user's session location as a side
+     * effect (unlike get(), which does switch it when a privileged user picks a different one).
+     */
+    private Location resolveViewedLocation(UiSessionContext sessionContext, QueueService queueService,
+                                           Integer locationId) {
+        if (canViewAllLocations() && locationId != null) {
+            Location requested = findLoginLocation(queueService.getServicePointLocations(), locationId);
+            if (requested != null) {
+                return requested;
+            }
+        }
+        return sessionContext.getSessionLocation();
+    }
+
     public String post(UiUtils ui,
                        UiSessionContext sessionContext,
                        @SpringBean QueueService queueService,
@@ -199,9 +215,20 @@ public class QueueDashboardPageController extends QueuePageSupport {
                 setToast(sessionContext, "Vitals saved. Patient status changed to Called");
                 return dashboardRedirect(ui, locationId, status, arrivalDay, patientName, page, pageSize);
             }
+            if ("callNext".equals(action)) {
+                Location callAtLocation = resolveViewedLocation(sessionContext, queueService, locationId);
+                queueService.callNextPatient(callAtLocation, sessionContext.getSessionLocation());
+                setToast(sessionContext, "Queue updated");
+                return dashboardRedirect(ui, locationId, status, arrivalDay, patientName, page, pageSize);
+            }
             if (!"transfer".equals(action) && !"updatePriority".equals(action)
-                    && !"complete".equals(action) && !"cancel".equals(action)) {
+                    && !"complete".equals(action) && !"cancel".equals(action)
+                    && !"start".equals(action) && !"hold".equals(action)) {
                 throw new IllegalArgumentException("Unsupported queue action: " + action);
+            }
+            if ("hold".equals(action)) {
+                // Fixed reason, matching My Location Queue's Hold button - no extra prompt for a one-click action.
+                reason = "Put on hold from queue dashboard";
             }
             processEntryAction(queueService, providerService, action, entryId, destinationServicePointId,
                     assignedProviderId, priority, reason);
