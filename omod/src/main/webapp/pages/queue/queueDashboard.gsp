@@ -16,8 +16,21 @@
             return;
         }
 
-        jq("#queue-location-filter").change(function() {
+        jq("#queue-location-filter, #queue-assignment-filter").change(function() {
             filterForm.get(0).submit();
+        });
+
+        var patientNameFilter = jq("#queue-patient-name-filter");
+        var patientNameFilterTimer = null;
+        patientNameFilter.on("input", function() {
+            window.clearTimeout(patientNameFilterTimer);
+            patientNameFilterTimer = window.setTimeout(function() {
+                filterForm.get(0).submit();
+            }, 350);
+        }).on("keydown", function(event) {
+            if (event.which === 13) {
+                window.clearTimeout(patientNameFilterTimer);
+            }
         });
 
         jq("#queue-page-size").change(function() {
@@ -36,6 +49,7 @@
             var status = jq("#queue-status-filter").val() || "ALL";
             var arrivalDay = jq("#queue-arrival-day-filter").val() || "TODAY";
             var patientName = jq("#queue-patient-name-filter").val() || "";
+            var assignment = jq("#queue-assignment-filter").val() || "ALL";
             var pageSize = jq("#queue-page-size").val() || "10";
             var selectedLocationId = pendingSessionLocationId
                     || jq("#session-location ul.select li.selected").first().attr("locationId");
@@ -46,6 +60,7 @@
             var query = "?status=" + encodeURIComponent(status)
                     + "&arrivalDay=" + encodeURIComponent(arrivalDay)
                     + "&patientName=" + encodeURIComponent(patientName)
+                    + "&assignment=" + encodeURIComponent(assignment)
                     + "&pageSize=" + encodeURIComponent(pageSize);
             if (selectedLocationId) {
                 query += "&locationId=" + encodeURIComponent(selectedLocationId);
@@ -119,6 +134,7 @@
             return document.hidden
                     || jq(document.activeElement).closest("#queue-live-region").length > 0
                     || jq("#queue-transfer-reason-dialog:visible").length > 0
+                    || jq("#queue-provider-assignment-dialog:visible").length > 0
                     || (vitalsFrameSource && vitalsFrameSource !== "about:blank");
         }
 
@@ -545,6 +561,41 @@
         overflow-wrap: anywhere;
     }
 
+    .queue-provider-detail {
+        align-items: baseline;
+        display: flex;
+        gap: 6px;
+    }
+
+    .queue-provider-name {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .queue-provider-inline-form {
+        flex: none;
+        margin: 0;
+    }
+
+    button.queue-provider-link {
+        background: none;
+        border: 0;
+        box-shadow: none;
+        color: #007b8a;
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.85em;
+        padding: 0;
+        text-decoration: underline;
+    }
+
+    button.queue-provider-link:hover,
+    button.queue-provider-link:focus {
+        background: none;
+        color: #005f69;
+        text-decoration: none;
+    }
+
     .queue-state-list {
         grid-template-columns: 1fr;
     }
@@ -886,6 +937,7 @@
                 status: selectedStatus,
                 arrivalDay: selectedArrivalDay,
                 patientName: patientName,
+                assignment: selectedAssignment,
                 page: currentPage,
                 pageSize: pageSize
         ])
@@ -911,6 +963,14 @@
             <label for="queue-patient-name-filter">Patient name</label>
             <input id="queue-patient-name-filter" type="search" name="patientName"
                    value="${ ui.escapeAttribute(patientName) }" />
+        </div>
+        <div class="queue-filter-field">
+            <label for="queue-assignment-filter">Provider assignment</label>
+            <select id="queue-assignment-filter" name="assignment">
+                <option value="ALL" ${ selectedAssignment == "ALL" ? "selected=\"selected\"" : "" }>All assignments</option>
+                <option value="ASSIGNED_TO_ME" ${ selectedAssignment == "ASSIGNED_TO_ME" ? "selected=\"selected\"" : "" }>Assigned to me</option>
+                <option value="NOT_ASSIGNED_TO_ME" ${ selectedAssignment == "NOT_ASSIGNED_TO_ME" ? "selected=\"selected\"" : "" }>Not assigned to me</option>
+            </select>
         </div>
         <div class="queue-filter-field">
             <label for="queue-status-filter">Status</label>
@@ -1030,6 +1090,7 @@
                                                 <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
                                                 <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
                                                 <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
+                                                <input type="hidden" name="assignment" value="${ ui.escapeAttribute(selectedAssignment) }" />
                                                 <button type="submit" class="queue-patient-link"><i class="icon-user"></i> Dashboard</button>
                                             </form>
                                         <% } %>
@@ -1051,7 +1112,31 @@
                                     <dt>Requested</dt>
                                     <dd>${ ui.encodeHtmlContent(entry.serviceRequestedConcept?.name?.name ?: entry.serviceRequestedConcept?.uuid ?: "-") }</dd>
                                     <dt>Provider</dt>
-                                    <dd>${ ui.encodeHtmlContent(entry.assignedProvider?.name ?: entry.assignedProvider?.identifier ?: "Unassigned") }</dd>
+                                    <dd class="queue-provider-detail">
+                                        <span class="queue-provider-name">${ ui.encodeHtmlContent(entry.assignedProvider?.name ?: entry.assignedProvider?.identifier ?: "Unassigned") }</span>
+                                        <% if (canManageQueue) { %>
+                                            <form class="queue-provider-inline-form queue-provider-form" method="post"
+                                                  action="${ ui.pageLink("rwandaemr", "queue/queueDashboard") }"
+                                                  data-patient-name="${ ui.escapeAttribute(patient?.personName?.fullName ?: "Patient") }"
+                                                  data-provider-id="${ entry.assignedProvider?.id ?: "" }"
+                                                  data-provider-name="${ ui.escapeAttribute(entry.assignedProvider?.name ?: entry.assignedProvider?.identifier ?: "") }">
+                                                <input type="hidden" name="action" value="updateProvider" />
+                                                <input type="hidden" name="entryId" value="${ entry.id }" />
+                                                <input type="hidden" name="assignedProviderId" value="" />
+                                                <input type="hidden" name="locationId" value="${ selectedLocation?.id ?: "" }" />
+                                                <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
+                                                <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
+                                                <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
+                                                <input type="hidden" name="assignment" value="${ ui.escapeAttribute(selectedAssignment) }" />
+                                                <input type="hidden" name="page" value="${ currentPage }" />
+                                                <input type="hidden" name="pageSize" value="${ pageSize }" />
+                                                <button type="submit" class="queue-provider-link">
+                                                    <i class="${ entry.assignedProvider ? 'icon-pencil' : 'icon-user' }"></i>
+                                                    ${ entry.assignedProvider ? "Edit provider" : "Assign provider" }
+                                                </button>
+                                            </form>
+                                        <% } %>
+                                    </dd>
                                     <dt>Previous</dt>
                                     <dd>${ ui.encodeHtmlContent(entry.previousServicePoint?.name ?: "-") }</dd>
                                     <dt>Transfer reason</dt>
@@ -1089,6 +1174,7 @@
                                             <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
                                             <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
                                             <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
+                                            <input type="hidden" name="assignment" value="${ ui.escapeAttribute(selectedAssignment) }" />
                                             <input type="hidden" name="page" value="${ currentPage }" />
                                             <input type="hidden" name="pageSize" value="${ pageSize }" />
                                             <input type="hidden" name="reason" value="Cancelled from queue dashboard" />
@@ -1116,6 +1202,7 @@
                                             <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
                                             <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
                                             <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
+                                            <input type="hidden" name="assignment" value="${ ui.escapeAttribute(selectedAssignment) }" />
                                             <input type="hidden" name="page" value="${ currentPage }" />
                                             <input type="hidden" name="pageSize" value="${ pageSize }" />
                                             <label for="priority-${ entry.id }">Priority</label>
@@ -1138,6 +1225,7 @@
                                             <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
                                             <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
                                             <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
+                                            <input type="hidden" name="assignment" value="${ ui.escapeAttribute(selectedAssignment) }" />
                                             <input type="hidden" name="page" value="${ currentPage }" />
                                             <input type="hidden" name="pageSize" value="${ pageSize }" />
                                             <label for="destination-${ entry.id }">Send to</label>
@@ -1167,7 +1255,7 @@
                     <nav class="queue-page-links" aria-label="Queue pages">
                         <% if (currentPage > 1) { %>
                             <a class="queue-page-link" aria-label="Previous page" title="Previous page"
-                               href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, page: currentPage - 1, pageSize: pageSize]) }">
+                               href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, assignment: selectedAssignment, page: currentPage - 1, pageSize: pageSize]) }">
                                 <i class="icon-chevron-left" aria-hidden="true"></i>
                             </a>
                         <% } else { %>
@@ -1175,24 +1263,24 @@
                         <% } %>
 
                         <% if (pageNumbers[0] > 1) { %>
-                            <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, page: 1, pageSize: pageSize]) }">1</a>
+                            <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, assignment: selectedAssignment, page: 1, pageSize: pageSize]) }">1</a>
                             <% if (pageNumbers[0] > 2) { %><span class="queue-page-ellipsis">...</span><% } %>
                         <% } %>
                         <% pageNumbers.each { pageNumber -> %>
                             <% if (pageNumber == currentPage) { %>
                                 <span class="queue-page-link current" aria-current="page">${ pageNumber }</span>
                             <% } else { %>
-                                <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, page: pageNumber, pageSize: pageSize]) }">${ pageNumber }</a>
+                                <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, assignment: selectedAssignment, page: pageNumber, pageSize: pageSize]) }">${ pageNumber }</a>
                             <% } %>
                         <% } %>
                         <% if (pageNumbers[pageNumbers.size() - 1] < totalPages) { %>
                             <% if (pageNumbers[pageNumbers.size() - 1] < totalPages - 1) { %><span class="queue-page-ellipsis">...</span><% } %>
-                            <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, page: totalPages, pageSize: pageSize]) }">${ totalPages }</a>
+                            <a class="queue-page-link" href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, assignment: selectedAssignment, page: totalPages, pageSize: pageSize]) }">${ totalPages }</a>
                         <% } %>
 
                         <% if (currentPage < totalPages) { %>
                             <a class="queue-page-link" aria-label="Next page" title="Next page"
-                               href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, page: currentPage + 1, pageSize: pageSize]) }">
+                               href="${ ui.pageLink("rwandaemr", "queue/queueDashboard", [locationId: selectedLocation?.id, status: selectedStatus, arrivalDay: selectedArrivalDay, patientName: patientName, assignment: selectedAssignment, page: currentPage + 1, pageSize: pageSize]) }">
                                 <i class="icon-chevron-right" aria-hidden="true"></i>
                             </a>
                         <% } else { %>
@@ -1256,8 +1344,10 @@
         <input type="hidden" name="status" value="${ ui.encodeHtmlContent(selectedStatus) }" />
         <input type="hidden" name="arrivalDay" value="${ ui.encodeHtmlContent(selectedArrivalDay) }" />
         <input type="hidden" name="patientName" value="${ ui.escapeAttribute(patientName) }" />
+        <input type="hidden" name="assignment" value="${ ui.escapeAttribute(selectedAssignment) }" />
         <input type="hidden" name="page" value="${ currentPage }" />
         <input type="hidden" name="pageSize" value="${ pageSize }" />
     </form>
     <%= ui.includeFragment("rwandaemr", "queue/transferReasonDialog") %>
+    <%= ui.includeFragment("rwandaemr", "queue/providerAssignmentDialog") %>
 <% } %>

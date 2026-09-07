@@ -230,7 +230,8 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         Date dayStart = startOfDay(referenceDate);
         Date rangeStart = isActiveStatus(status) || status == null ? activeQueueStart(referenceDate) : dayStart;
         return dao.countQueueEntries(location, status, rangeStart, endOfDay(referenceDate),
-                status == null ? dayStart : null, status == null ? ACTIVE_STATUSES : null, null);
+                status == null ? dayStart : null, status == null ? ACTIVE_STATUSES : null, null,
+                QueueAssignmentFilter.ALL, null);
     }
 
     @Override
@@ -244,7 +245,7 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         Date rangeStart = isActiveStatus(status) || status == null ? activeQueueStart(referenceDate) : dayStart;
         return dao.getQueueEntries(location, status, rangeStart, endOfDay(referenceDate),
                 status == null ? dayStart : null, status == null ? ACTIVE_STATUSES : null,
-                null, firstResult, maxResults);
+                null, QueueAssignmentFilter.ALL, null, firstResult, maxResults);
     }
 
     @Override
@@ -270,9 +271,20 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     @Authorized(QueuePrivileges.VIEW)
     public int countQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate,
                                            String patientName) {
+        return countQueueEntriesByLocation(location, status, startDate, endDate, patientName,
+                QueueAssignmentFilter.ALL, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(QueuePrivileges.VIEW)
+    public int countQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate,
+                                           String patientName, QueueAssignmentFilter assignmentFilter,
+                                           Collection<Integer> currentProviderIds) {
         validateDateRange(startDate, endDate);
         return dao.countQueueEntries(location, status, startOfDay(startDate), endOfDay(endDate),
-                null, null, normalizePatientName(patientName));
+                null, null, normalizePatientName(patientName), normalizeAssignmentFilter(assignmentFilter),
+                currentProviderIds);
     }
 
     @Override
@@ -289,10 +301,23 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     public List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date startDate,
                                                        Date endDate, String patientName,
                                                        int firstResult, int maxResults) {
+        return getQueueEntriesByLocation(location, status, startDate, endDate, patientName,
+                QueueAssignmentFilter.ALL, null, firstResult, maxResults);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(QueuePrivileges.VIEW)
+    public List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date startDate,
+                                                       Date endDate, String patientName,
+                                                       QueueAssignmentFilter assignmentFilter,
+                                                       Collection<Integer> currentProviderIds,
+                                                       int firstResult, int maxResults) {
         validatePage(firstResult, maxResults);
         validateDateRange(startDate, endDate);
         return dao.getQueueEntries(location, status, startOfDay(startDate), endOfDay(endDate),
-                null, null, normalizePatientName(patientName), firstResult, maxResults);
+                null, null, normalizePatientName(patientName), normalizeAssignmentFilter(assignmentFilter),
+                currentProviderIds, firstResult, maxResults);
     }
 
     @Override
@@ -564,6 +589,26 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
 
     @Override
     @Transactional
+    @Authorized(QueuePrivileges.MANAGE)
+    public QueueEntry updateAssignedProvider(QueueEntry queueEntry, Provider assignedProvider) {
+        if (queueEntry == null) {
+            throw new IllegalArgumentException("Queue entry is required");
+        }
+        if (assignedProvider != null && Boolean.TRUE.equals(assignedProvider.getRetired())) {
+            throw new IllegalArgumentException("Assigned provider must be active");
+        }
+        if (assignedProvider == null ? queueEntry.getAssignedProvider() == null
+                : assignedProvider.equals(queueEntry.getAssignedProvider())) {
+            return queueEntry;
+        }
+        queueEntry.setAssignedProvider(assignedProvider);
+        queueEntry.setChangedBy(getAuthenticatedUser());
+        queueEntry.setDateChanged(new Date());
+        return dao.saveQueueEntry(queueEntry);
+    }
+
+    @Override
+    @Transactional
     public QueueStatusHistory createQueueStatusHistory(QueueEntry queueEntry, QueueStatus previousStatus,
                                                        QueueStatus newStatus, String reason) {
         QueueStatusHistory history = new QueueStatusHistory();
@@ -740,8 +785,16 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         if (webhookNotifier != null) {
             return webhookNotifier;
         }
-        List<QueueWebhookNotifier> components = Context.getRegisteredComponents(QueueWebhookNotifier.class);
-        return (components == null || components.isEmpty()) ? null : components.get(0);
+        try {
+            List<QueueWebhookNotifier> components = Context.getRegisteredComponents(QueueWebhookNotifier.class);
+            return (components == null || components.isEmpty()) ? null : components.get(0);
+        }
+        catch (Exception e) {
+            // A failed lookup (e.g. no Spring application context, as in a plain unit test) must
+            // never break the queue operation that triggered it - the webhook is a side effect.
+            log.debug("Unable to look up QueueWebhookNotifier: " + e.getMessage());
+            return null;
+        }
     }
 
     private QueueEntry changeStatus(QueueEntry queueEntry, QueueStatus newStatus, String reason) {
@@ -759,9 +812,15 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     }
 
     private void notifyWebhook(QueueEntry queueEntry, String event) {
-        QueueWebhookNotifier notifier = getWebhookNotifier();
-        if (notifier != null) {
-            notifier.notifyChanged(queueEntry, event);
+        try {
+            QueueWebhookNotifier notifier = getWebhookNotifier();
+            if (notifier != null) {
+                notifier.notifyChanged(queueEntry, event);
+            }
+        }
+        catch (Exception e) {
+            log.warn("Failed to notify queue webhook for entry "
+                    + (queueEntry == null ? "null" : queueEntry.getUuid()), e);
         }
     }
 
@@ -835,6 +894,10 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
 
     private String normalizePatientName(String patientName) {
         return StringUtils.trimToNull(patientName);
+    }
+
+    private QueueAssignmentFilter normalizeAssignmentFilter(QueueAssignmentFilter assignmentFilter) {
+        return assignmentFilter == null ? QueueAssignmentFilter.ALL : assignmentFilter;
     }
 
     private void validatePage(int firstResult, int maxResults) {

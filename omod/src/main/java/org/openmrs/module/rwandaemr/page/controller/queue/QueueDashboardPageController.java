@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -25,6 +26,7 @@ import org.openmrs.api.ProviderService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.appui.UiSessionContext;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
+import org.openmrs.module.rwandaemr.queue.QueueAssignmentFilter;
 import org.openmrs.module.rwandaemr.queue.QueuePriority;
 import org.openmrs.module.rwandaemr.queue.QueueService;
 import org.openmrs.module.rwandaemr.queue.QueueStatus;
@@ -58,6 +60,7 @@ public class QueueDashboardPageController extends QueuePageSupport {
                     @RequestParam(value = "status", required = false) String status,
                     @RequestParam(value = "arrivalDay", required = false) String arrivalDay,
                     @RequestParam(value = "patientName", required = false) String patientName,
+                    @RequestParam(value = "assignment", required = false) String assignment,
                     @RequestParam(value = "page", required = false) Integer page,
                     @RequestParam(value = "pageSize", required = false) Integer pageSize) {
         if (!canViewQueue()) {
@@ -81,17 +84,19 @@ public class QueueDashboardPageController extends QueuePageSupport {
         String selectedArrivalDay = normalizeArrivalDay(arrivalDay);
         Date selectedArrivalDate = getArrivalDate(selectedArrivalDay, referenceTime);
         String selectedPatientName = StringUtils.trimToEmpty(patientName);
+        QueueAssignmentFilter selectedAssignment = normalizeAssignmentFilter(assignment);
+        Set<Integer> currentProviderIds = getCurrentProviderIds(providerService);
         int selectedPageSize = normalizePageSize(pageSize);
         int totalEntries = countEntriesForLocation(
                 queueService, location, selectedStatus, selectedArrivalDate, selectedArrivalDate,
-                selectedPatientName);
+                selectedPatientName, selectedAssignment, currentProviderIds);
         int totalPages = calculateTotalPages(totalEntries, selectedPageSize);
         int currentPage = normalizePage(page, totalPages);
         int firstEntryIndex = (currentPage - 1) * selectedPageSize;
         int lastEntryIndex = Math.min(firstEntryIndex + selectedPageSize, totalEntries);
         List<QueueEntry> entries = getEntryPageForLocation(
                 queueService, location, selectedStatus, selectedArrivalDate, selectedArrivalDate,
-                selectedPatientName, firstEntryIndex, selectedPageSize);
+                selectedPatientName, selectedAssignment, currentProviderIds, firstEntryIndex, selectedPageSize);
         model.addAttribute("authorized", true);
         model.addAttribute("canViewAllLocations", viewAllLocations);
         model.addAttribute("canManageQueue", canManageQueue());
@@ -102,11 +107,12 @@ public class QueueDashboardPageController extends QueuePageSupport {
         model.addAttribute("selectedStatus", selectedStatus == null ? "ALL" : selectedStatus.name());
         model.addAttribute("selectedArrivalDay", selectedArrivalDay);
         model.addAttribute("patientName", selectedPatientName);
+        model.addAttribute("selectedAssignment", selectedAssignment.name());
         model.addAttribute("statuses", QueueStatus.values());
         model.addAttribute("priorities", QueuePriority.values());
         model.addAttribute("servicePoints", loginLocations);
         model.addAttribute("laboratoryLocation", queueService.isLaboratoryServicePoint(location));
-        model.addAttribute("currentProviderIds", getCurrentProviderIds(providerService));
+        model.addAttribute("currentProviderIds", currentProviderIds);
         model.addAttribute("entries", entries);
         model.addAttribute("totalEntries", totalEntries);
         model.addAttribute("pageStart", totalEntries == 0 ? 0 : firstEntryIndex + 1);
@@ -197,6 +203,7 @@ public class QueueDashboardPageController extends QueuePageSupport {
                        @RequestParam(value = "status", required = false) String status,
                        @RequestParam(value = "arrivalDay", required = false) String arrivalDay,
                        @RequestParam(value = "patientName", required = false) String patientName,
+                       @RequestParam(value = "assignment", required = false) String assignment,
                        @RequestParam(value = "page", required = false) Integer page,
                        @RequestParam(value = "pageSize", required = false) Integer pageSize) {
         try {
@@ -213,17 +220,17 @@ public class QueueDashboardPageController extends QueuePageSupport {
                 }
                 queueService.callPatientAfterVitals(queueService.getQueueEntry(entryId), vitalsEncounter);
                 setToast(sessionContext, "Vitals saved. Patient status changed to Called");
-                return dashboardRedirect(ui, locationId, status, arrivalDay, patientName, page, pageSize);
+                return dashboardRedirect(ui, locationId, status, arrivalDay, patientName, assignment, page, pageSize);
             }
             if ("callNext".equals(action)) {
                 Location callAtLocation = resolveViewedLocation(sessionContext, queueService, locationId);
                 queueService.callNextPatient(callAtLocation, sessionContext.getSessionLocation());
                 setToast(sessionContext, "Queue updated");
-                return dashboardRedirect(ui, locationId, status, arrivalDay, patientName, page, pageSize);
+                return dashboardRedirect(ui, locationId, status, arrivalDay, patientName, assignment, page, pageSize);
             }
             if (!"transfer".equals(action) && !"updatePriority".equals(action)
-                    && !"complete".equals(action) && !"cancel".equals(action)
-                    && !"start".equals(action) && !"hold".equals(action)) {
+                    && !"updateProvider".equals(action) && !"complete".equals(action)
+                    && !"cancel".equals(action) && !"start".equals(action) && !"hold".equals(action)) {
                 throw new IllegalArgumentException("Unsupported queue action: " + action);
             }
             if ("hold".equals(action)) {
@@ -237,16 +244,26 @@ public class QueueDashboardPageController extends QueuePageSupport {
         catch (Exception e) {
             setError(sessionContext, e.getMessage());
         }
-        return dashboardRedirect(ui, locationId, status, arrivalDay, patientName, page, pageSize);
+        return dashboardRedirect(ui, locationId, status, arrivalDay, patientName, assignment, page, pageSize);
     }
 
     private String dashboardRedirect(UiUtils ui, Integer locationId, String status, String arrivalDay,
-                                     String patientName,
+                                     String patientName, String assignment,
                                      Integer page, Integer pageSize) {
         return redirect(ui, "queue/queueDashboard", "locationId", locationId, "status", status,
                 "arrivalDay", normalizeArrivalDay(arrivalDay),
                 "patientName", StringUtils.trimToEmpty(patientName),
+                "assignment", normalizeAssignmentFilter(assignment).name(),
                 "page", page, "pageSize", normalizePageSize(pageSize));
+    }
+
+    static QueueAssignmentFilter normalizeAssignmentFilter(String assignment) {
+        try {
+            return QueueAssignmentFilter.valueOf(StringUtils.trimToEmpty(assignment).toUpperCase(Locale.ENGLISH));
+        }
+        catch (IllegalArgumentException e) {
+            return QueueAssignmentFilter.ALL;
+        }
     }
 
     static String normalizeArrivalDay(String arrivalDay) {

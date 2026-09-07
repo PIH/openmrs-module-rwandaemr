@@ -15,6 +15,7 @@ import org.openmrs.Patient;
 import org.openmrs.Visit;
 import org.openmrs.api.db.hibernate.DbSession;
 import org.openmrs.api.db.hibernate.DbSessionFactory;
+import org.openmrs.module.rwandaemr.queue.QueueAssignmentFilter;
 import org.openmrs.module.rwandaemr.queue.QueueStatus;
 import org.openmrs.module.rwandaemr.queue.model.QueueEntry;
 import org.openmrs.module.rwandaemr.queue.model.QueueServicePointConceptMap;
@@ -130,15 +131,17 @@ public class HibernateQueueDao implements QueueDao {
     @SuppressWarnings("unchecked")
     public List<QueueEntry> getQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay) {
         Query query = createQueueEntriesQuery("from QueueEntry q", location, status, startOfDay, endOfDay,
-                null, null, null, " order by q.arrivalTime");
+                null, null, null, QueueAssignmentFilter.ALL, null, " order by q.arrivalTime");
         return query.list();
     }
 
     @Override
     public int countQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay,
-                                 Date currentDayStart, List<QueueStatus> activeStatuses, String patientName) {
+                                 Date currentDayStart, List<QueueStatus> activeStatuses, String patientName,
+                                 QueueAssignmentFilter assignmentFilter, Collection<Integer> currentProviderIds) {
         Query query = createQueueEntriesQuery("select count(q.id) from QueueEntry q", location, status,
-                startOfDay, endOfDay, currentDayStart, activeStatuses, patientName, "");
+                startOfDay, endOfDay, currentDayStart, activeStatuses, patientName,
+                assignmentFilter, currentProviderIds, "");
         Number count = (Number) query.uniqueResult();
         return count == null ? 0 : count.intValue();
     }
@@ -147,12 +150,14 @@ public class HibernateQueueDao implements QueueDao {
     @SuppressWarnings("unchecked")
     public List<QueueEntry> getQueueEntries(Location location, QueueStatus status, Date startOfDay, Date endOfDay,
                                             Date currentDayStart, List<QueueStatus> activeStatuses,
-                                            String patientName, int firstResult, int maxResults) {
+                                            String patientName, QueueAssignmentFilter assignmentFilter,
+                                            Collection<Integer> currentProviderIds,
+                                            int firstResult, int maxResults) {
         String priorityOrder = " order by case q.priorityName " +
                 "when 'EMERGENCY' then 0 when 'ELDERLY' then 10 when 'PREGNANT' then 20 " +
                 "when 'CHILD' then 30 when 'DISABILITY' then 40 else 100 end, q.arrivalTime, q.id";
         Query query = createQueueEntriesQuery("from QueueEntry q", location, status, startOfDay, endOfDay,
-                currentDayStart, activeStatuses, patientName, priorityOrder);
+                currentDayStart, activeStatuses, patientName, assignmentFilter, currentProviderIds, priorityOrder);
         query.setFirstResult(Math.max(0, firstResult));
         query.setMaxResults(Math.max(1, maxResults));
         return query.list();
@@ -233,8 +238,13 @@ public class HibernateQueueDao implements QueueDao {
 
     private Query createQueueEntriesQuery(String select, Location location, QueueStatus status,
                                           Date startOfDay, Date endOfDay, Date currentDayStart,
-                                          List<QueueStatus> activeStatuses, String patientName, String orderBy) {
+                                          List<QueueStatus> activeStatuses, String patientName,
+                                          QueueAssignmentFilter assignmentFilter,
+                                          Collection<Integer> currentProviderIds, String orderBy) {
         List<String> patientNameTokens = patientNameTokens(patientName);
+        QueueAssignmentFilter normalizedAssignmentFilter = assignmentFilter == null
+                ? QueueAssignmentFilter.ALL : assignmentFilter;
+        List<Integer> normalizedProviderIds = providerIds(currentProviderIds);
         String hql = select + " where q.voided = false " +
                 "and q.arrivalTime >= :startOfDay and q.arrivalTime < :endOfDay";
         if (location != null) {
@@ -253,6 +263,14 @@ public class HibernateQueueDao implements QueueDao {
                     " or lower(patientName.familyName) like :patientName" + i +
                     " or lower(patientName.familyName2) like :patientName" + i + "))";
         }
+        if (QueueAssignmentFilter.ASSIGNED_TO_ME.equals(normalizedAssignmentFilter)) {
+            hql += normalizedProviderIds.isEmpty()
+                    ? " and 1 = 0"
+                    : " and q.assignedProvider.id in (:currentProviderIds)";
+        } else if (QueueAssignmentFilter.NOT_ASSIGNED_TO_ME.equals(normalizedAssignmentFilter)
+                && !normalizedProviderIds.isEmpty()) {
+            hql += " and (q.assignedProvider is null or q.assignedProvider.id not in (:currentProviderIds))";
+        }
         Query query = session().createQuery(hql + orderBy);
         query.setParameter("startOfDay", startOfDay);
         query.setParameter("endOfDay", endOfDay);
@@ -268,7 +286,22 @@ public class HibernateQueueDao implements QueueDao {
         for (int i = 0; i < patientNameTokens.size(); i++) {
             query.setParameter("patientName" + i, "%" + patientNameTokens.get(i) + "%");
         }
+        if (!QueueAssignmentFilter.ALL.equals(normalizedAssignmentFilter) && !normalizedProviderIds.isEmpty()) {
+            query.setParameterList("currentProviderIds", normalizedProviderIds);
+        }
         return query;
+    }
+
+    private List<Integer> providerIds(Collection<Integer> currentProviderIds) {
+        List<Integer> providerIds = new ArrayList<Integer>();
+        if (currentProviderIds != null) {
+            for (Integer providerId : currentProviderIds) {
+                if (providerId != null && !providerIds.contains(providerId)) {
+                    providerIds.add(providerId);
+                }
+            }
+        }
+        return providerIds;
     }
 
     private List<String> patientNameTokens(String patientName) {
