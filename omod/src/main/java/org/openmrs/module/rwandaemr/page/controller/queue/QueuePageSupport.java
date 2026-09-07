@@ -3,13 +3,20 @@ package org.openmrs.module.rwandaemr.page.controller.queue;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.Location;
+import org.openmrs.Provider;
+import org.openmrs.User;
+import org.openmrs.api.ProviderService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.appui.UiSessionContext;
+import org.openmrs.module.rwandaemr.queue.QueueAssignmentFilter;
 import org.openmrs.module.rwandaemr.queue.QueuePriority;
 import org.openmrs.module.rwandaemr.queue.QueuePrivileges;
 import org.openmrs.module.rwandaemr.queue.QueueService;
@@ -58,8 +65,9 @@ public abstract class QueuePageSupport {
         return locationId == null ? null : Context.getLocationService().getLocation(locationId);
     }
 
-    protected void processEntryAction(QueueService queueService, String action, Integer entryId,
-                                      Integer destinationServicePointId, String priority, String reason) {
+    protected void processEntryAction(QueueService queueService, ProviderService providerService,
+                                      String action, Integer entryId, Integer destinationServicePointId,
+                                      Integer assignedProviderId, String priority, String reason) {
         if ("callNext".equals(action)) {
             return;
         }
@@ -77,13 +85,47 @@ public abstract class QueuePageSupport {
             queueService.cancelQueueEntry(entry, reason);
         } else if ("transfer".equals(action)) {
             Location destinationServicePoint = getLocation(destinationServicePointId);
-            queueService.transferPatient(entry, destinationServicePoint, reason);
+            Provider assignedProvider = getProvider(providerService, assignedProviderId);
+            queueService.transferPatient(entry, destinationServicePoint, reason, assignedProvider);
         } else if ("updatePriority".equals(action)) {
             QueuePriority queuePriority = StringUtils.isBlank(priority) ? null : QueuePriority.valueOf(priority);
             queueService.updatePriority(entry, queuePriority);
+        } else if ("updateProvider".equals(action)) {
+            queueService.updateAssignedProvider(entry, getProvider(providerService, assignedProviderId));
         } else {
             throw new IllegalArgumentException("Unsupported queue action: " + action);
         }
+    }
+
+    protected Set<Integer> getCurrentProviderIds(ProviderService providerService) {
+        Set<Integer> providerIds = new LinkedHashSet<Integer>();
+        User user = Context.getAuthenticatedUser();
+        if (user == null || user.getPerson() == null) {
+            return providerIds;
+        }
+        Collection<Provider> providers = providerService.getProvidersByPerson(user.getPerson(), false);
+        if (providers != null) {
+            for (Provider provider : providers) {
+                if (provider.getId() != null) {
+                    providerIds.add(provider.getId());
+                }
+            }
+        }
+        return providerIds;
+    }
+
+    private Provider getProvider(ProviderService providerService, Integer providerId) {
+        if (providerId == null) {
+            return null;
+        }
+        Provider provider = providerService.getProvider(providerId);
+        if (provider == null) {
+            throw new IllegalArgumentException("Selected provider was not found");
+        }
+        if (Boolean.TRUE.equals(provider.getRetired())) {
+            throw new IllegalArgumentException("Selected provider is not active");
+        }
+        return provider;
     }
 
     protected String openPatientDashboard(UiUtils ui, QueueService queueService, Integer entryId) {
@@ -96,6 +138,19 @@ public abstract class QueuePageSupport {
         }
         queueService.callPatient(entry);
         return "redirect:" + ui.pageLink("coreapps", "clinicianfacing/patient") + "?patientId=" + entry.getPatient().getId();
+    }
+
+    protected String openLabOrderList(UiUtils ui, QueueService queueService, Integer entryId) {
+        QueueEntry entry = queueService.getQueueEntry(entryId);
+        if (entry == null) {
+            throw new IllegalArgumentException("Queue entry was not found");
+        }
+        if (entry.getPatient() == null || entry.getPatient().getPatientIdentifier() == null
+                || StringUtils.isBlank(entry.getPatient().getPatientIdentifier().getIdentifier())) {
+            throw new IllegalArgumentException("Queue patient has no identifier");
+        }
+        queueService.callPatient(entry);
+        return "redirect:" + ui.pageLink("pihapps", "labs/labOrderList");
     }
 
     protected String redirect(UiUtils ui, String page, Object... namesAndValues) {
@@ -120,7 +175,92 @@ public abstract class QueuePageSupport {
 
     protected List<QueueEntry> getEntriesForLocation(QueueService queueService, Location location, QueueStatus status,
                                                      Date date) {
-        return getEntriesForLocation(queueService, location, status, date, date);
+        if (canViewAllLocations() && location == null) {
+            return queueService.getQueueEntriesByLocation(null, status, date);
+        }
+        if (location == null) {
+            return new ArrayList<QueueEntry>();
+        }
+        return queueService.getQueueEntriesByLocation(location, status, date);
+    }
+
+    protected int countEntriesForLocation(QueueService queueService, Location location, QueueStatus status,
+                                          Date date) {
+        if (canViewAllLocations() && location == null) {
+            return queueService.countQueueEntriesByLocation(null, status, date);
+        }
+        if (location == null) {
+            return 0;
+        }
+        return queueService.countQueueEntriesByLocation(location, status, date);
+    }
+
+    protected int countEntriesForLocation(QueueService queueService, Location location, QueueStatus status,
+                                          Date startDate, Date endDate, String patientName) {
+        if (canViewAllLocations() && location == null) {
+            return queueService.countQueueEntriesByLocation(null, status, startDate, endDate, patientName);
+        }
+        if (location == null) {
+            return 0;
+        }
+        return queueService.countQueueEntriesByLocation(location, status, startDate, endDate, patientName);
+    }
+
+    protected int countEntriesForLocation(QueueService queueService, Location location, QueueStatus status,
+                                          Date startDate, Date endDate, String patientName,
+                                          QueueAssignmentFilter assignmentFilter,
+                                          Collection<Integer> currentProviderIds) {
+        if (canViewAllLocations() && location == null) {
+            return queueService.countQueueEntriesByLocation(null, status, startDate, endDate, patientName,
+                    assignmentFilter, currentProviderIds);
+        }
+        if (location == null) {
+            return 0;
+        }
+        return queueService.countQueueEntriesByLocation(location, status, startDate, endDate, patientName,
+                assignmentFilter, currentProviderIds);
+    }
+
+    protected List<QueueEntry> getEntryPageForLocation(QueueService queueService, Location location,
+                                                        QueueStatus status, Date date,
+                                                        int firstResult, int maxResults) {
+        if (canViewAllLocations() && location == null) {
+            return queueService.getQueueEntriesByLocation(null, status, date, firstResult, maxResults);
+        }
+        if (location == null) {
+            return new ArrayList<QueueEntry>();
+        }
+        return queueService.getQueueEntriesByLocation(location, status, date, firstResult, maxResults);
+    }
+
+    protected List<QueueEntry> getEntryPageForLocation(QueueService queueService, Location location,
+                                                        QueueStatus status, Date startDate, Date endDate, String patientName,
+                                                        int firstResult, int maxResults) {
+        if (canViewAllLocations() && location == null) {
+            return queueService.getQueueEntriesByLocation(
+                    null, status, startDate, endDate, patientName, firstResult, maxResults);
+        }
+        if (location == null) {
+            return new ArrayList<QueueEntry>();
+        }
+        return queueService.getQueueEntriesByLocation(
+                location, status, startDate, endDate, patientName, firstResult, maxResults);
+    }
+
+    protected List<QueueEntry> getEntryPageForLocation(QueueService queueService, Location location,
+                                                        QueueStatus status, Date startDate, Date endDate,
+                                                        String patientName, QueueAssignmentFilter assignmentFilter,
+                                                        Collection<Integer> currentProviderIds,
+                                                        int firstResult, int maxResults) {
+        if (canViewAllLocations() && location == null) {
+            return queueService.getQueueEntriesByLocation(null, status, startDate, endDate, patientName,
+                    assignmentFilter, currentProviderIds, firstResult, maxResults);
+        }
+        if (location == null) {
+            return new ArrayList<QueueEntry>();
+        }
+        return queueService.getQueueEntriesByLocation(location, status, startDate, endDate, patientName,
+                assignmentFilter, currentProviderIds, firstResult, maxResults);
     }
 
     protected List<QueueEntry> getEntriesForLocation(QueueService queueService, Location location, QueueStatus status,

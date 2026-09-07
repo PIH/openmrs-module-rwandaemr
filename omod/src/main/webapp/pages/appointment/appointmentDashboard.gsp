@@ -17,6 +17,12 @@
             button.find("i").attr("class", expanded ? "icon-chevron-right" : "icon-chevron-down");
             detail.toggle(!expanded);
         });
+
+        jq(".appointment-status-select").change(function() {
+            if (this.value) {
+                this.form.submit();
+            }
+        });
     });
 </script>
 
@@ -54,6 +60,12 @@
         width: 100%;
     }
 
+    .appointment-filter-actions {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 8px;
+    }
+
     .appointment-summary {
         align-items: stretch;
         background: #eef5f4;
@@ -88,7 +100,7 @@
     }
 
     .appointment-table {
-        min-width: 800px;
+        min-width: 900px;
         width: 100%;
     }
 
@@ -111,7 +123,7 @@
 
     .appointment-patient-table {
         margin: 0;
-        min-width: 680px;
+        min-width: 800px;
         width: 100%;
     }
 
@@ -134,6 +146,12 @@
         background: #e3f0ff;
         border-color: #8ab6e8;
         color: #245a91;
+    }
+
+    .appointment-status.present {
+        background: #e0f3f2;
+        border-color: #78b9b4;
+        color: #185f5a;
     }
 
     .appointment-status.completed {
@@ -172,6 +190,21 @@
         max-width: 150px;
         min-height: 32px;
     }
+
+    .appointment-booking-actions {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .appointment-registration-link {
+        white-space: nowrap;
+    }
+
+    .appointment-registration-form {
+        margin: 0;
+    }
 </style>
 
 <% if (!authorized) { %>
@@ -201,9 +234,14 @@
             <input id="appointment-dashboard-end" type="date" name="endDate"
                    value="${ ui.escapeAttribute(selectedEndDate) }"/>
         </div>
-        <button type="submit" class="button">
-            <i class="icon-filter" aria-hidden="true"></i> Filter
-        </button>
+        <div class="appointment-filter-actions">
+            <button type="submit" class="button">
+                <i class="icon-filter" aria-hidden="true"></i> Filter
+            </button>
+            <button type="submit" name="export" value="excel" class="button">
+                <i class="icon-download" aria-hidden="true"></i> Export Excel
+            </button>
+        </div>
     </form>
 
     <% if (dateRangeError) { %>
@@ -236,6 +274,7 @@
                 <th>Patients</th>
                 <th>Date</th>
                 <th>Service point</th>
+                <th>Provider</th>
                 <th>Booked</th>
                 <th>Maximum</th>
                 <th>Remaining</th>
@@ -244,7 +283,7 @@
             </thead>
             <tbody>
             <% if (scheduleSummaries.isEmpty()) { %>
-                <tr><td colspan="7">No appointment schedules match these filters.</td></tr>
+                <tr><td colspan="8">No appointment schedules match these filters.</td></tr>
             <% } %>
             <% scheduleSummaries.each { summary ->
                 def schedule = summary.schedule
@@ -262,6 +301,7 @@
                     </td>
                     <td>${ ui.format(schedule.scheduleDate) }</td>
                     <td>${ ui.encodeHtmlContent(schedule.servicePoint?.name ?: "") }</td>
+                    <td>${ ui.encodeHtmlContent(schedule.provider?.name ?: "") }</td>
                     <td>${ summary.bookedPatients }</td>
                     <td>${ schedule.maximumPatients }</td>
                     <td>${ summary.remainingCapacity }</td>
@@ -272,13 +312,14 @@
                     </td>
                 </tr>
                 <tr id="${ detailId }" class="appointment-detail-row">
-                    <td colspan="7">
+                    <td colspan="8">
                         <div class="appointment-detail-content">
                             <table class="appointment-patient-table">
                                 <thead>
                                 <tr>
                                     <th>Patient</th>
                                     <th>Identifier</th>
+                                    <th>Phone number</th>
                                     <th>Program</th>
                                     <th>Visit type</th>
                                     <th>Status</th>
@@ -289,19 +330,32 @@
                                 </thead>
                                 <tbody>
                                 <% if (bookings.isEmpty()) { %>
-                                    <tr><td colspan="8">No patients are booked for this schedule.</td></tr>
+                                    <tr><td colspan="9">No patients are booked for this schedule.</td></tr>
                                 <% } %>
                                 <% bookings.each { booking ->
                                     def statusName = booking.status?.name() ?: ""
                                     def statusClass = statusName.toLowerCase().replace("_", "-")
                                     def nextStatuses = []
-                                    if (statusName == "REQUESTED" || statusName == "CONFIRMED") {
+                                    if (statusName == "REQUESTED" || statusName == "CONFIRMED" ||
+                                            statusName == "PRESENT") {
                                         nextStatuses = ["COMPLETED", "CANCELLED"]
+                                    }
+                                    def canRegisterToday = statusName != "CANCELLED" &&
+                                            booking.patient?.id && todayScheduleIds.contains(schedule.id)
+                                    def registrationEncounterId = null
+                                    def registrationActionLabel = "Register"
+                                    if (canRegisterToday) {
+                                        registrationEncounterId =
+                                                registrationEncounterIdsByPatientId[booking.patient.id]
+                                        if (registrationEncounterId) {
+                                            registrationActionLabel = "Edit registration"
+                                        }
                                     }
                                 %>
                                     <tr>
                                         <td>${ ui.encodeHtmlContent(booking.patient?.personName?.fullName ?: "") }</td>
                                         <td>${ ui.encodeHtmlContent(booking.patient?.patientIdentifier?.identifier ?: "") }</td>
+                                        <td>${ ui.encodeHtmlContent(phoneNumberByPatientId[booking.patient?.id] ?: "") }</td>
                                         <td>${ ui.encodeHtmlContent(booking.program?.name ?: "") }</td>
                                         <td>${ ui.encodeHtmlContent(booking.visitType?.displayName ?: "") }</td>
                                         <td>
@@ -312,23 +366,42 @@
                                         <td>${ ui.format(booking.requestedAt) }</td>
                                         <td>${ ui.encodeHtmlContent(booking.notes ?: "") }</td>
                                         <td>
-                                            <% if (canManageAppointments && !nextStatuses.isEmpty()) { %>
-                                                <form class="appointment-status-form" method="post"
-                                                      action="${ ui.pageLink("rwandaemr", "appointment/appointmentDashboard") }">
-                                                    <input type="hidden" name="bookingId" value="${ booking.id }"/>
-                                                    <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
-                                                    <input type="hidden" name="startDate" value="${ ui.escapeAttribute(selectedStartDate) }"/>
-                                                    <input type="hidden" name="endDate" value="${ ui.escapeAttribute(selectedEndDate) }"/>
-                                                    <select name="appointmentStatus" required="required">
-                                                        <option value="">Change status</option>
-                                                        <% nextStatuses.each { nextStatus -> %>
-                                                            <option value="${ nextStatus }">${ nextStatus.toLowerCase().replace("_", " ").capitalize() }</option>
-                                                        <% } %>
-                                                    </select>
-                                                    <button type="submit" class="button" title="Update appointment status">
-                                                        <i class="icon-save" aria-hidden="true"></i>
-                                                    </button>
-                                                </form>
+                                            <% if (canRegisterToday || (canManageAppointments && !nextStatuses.isEmpty())) { %>
+                                                <div class="appointment-booking-actions">
+                                                    <% if (canRegisterToday) { %>
+                                                        <form class="appointment-registration-form" method="post"
+                                                              action="${ ui.pageLink("rwandaemr", "appointment/appointmentDashboard") }">
+                                                            <input type="hidden" name="action" value="register"/>
+                                                            <input type="hidden" name="bookingId" value="${ booking.id }"/>
+                                                            <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
+                                                            <input type="hidden" name="startDate" value="${ ui.escapeAttribute(selectedStartDate) }"/>
+                                                            <input type="hidden" name="endDate" value="${ ui.escapeAttribute(selectedEndDate) }"/>
+                                                            <button type="submit"
+                                                                    class="button appointment-registration-link"
+                                                                    title="${ ui.escapeAttribute(registrationActionLabel) }">
+                                                                <i class="${ registrationEncounterId ? "icon-pencil" : "icon-user" }"
+                                                                   aria-hidden="true"></i>
+                                                                ${ ui.encodeHtmlContent(registrationActionLabel) }
+                                                            </button>
+                                                        </form>
+                                                    <% } %>
+                                                    <% if (canManageAppointments && !nextStatuses.isEmpty()) { %>
+                                                        <form class="appointment-status-form" method="post"
+                                                              action="${ ui.pageLink("rwandaemr", "appointment/appointmentDashboard") }">
+                                                            <input type="hidden" name="bookingId" value="${ booking.id }"/>
+                                                            <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
+                                                            <input type="hidden" name="startDate" value="${ ui.escapeAttribute(selectedStartDate) }"/>
+                                                            <input type="hidden" name="endDate" value="${ ui.escapeAttribute(selectedEndDate) }"/>
+                                                            <select class="appointment-status-select"
+                                                                    name="appointmentStatus" required="required">
+                                                                <option value="">Change status</option>
+                                                                <% nextStatuses.each { nextStatus -> %>
+                                                                    <option value="${ nextStatus }">${ nextStatus.toLowerCase().replace("_", " ").capitalize() }</option>
+                                                                <% } %>
+                                                            </select>
+                                                        </form>
+                                                    <% } %>
+                                                </div>
                                             <% } %>
                                         </td>
                                     </tr>

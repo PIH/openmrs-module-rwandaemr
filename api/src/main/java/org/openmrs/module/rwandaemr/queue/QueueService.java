@@ -8,6 +8,7 @@ import org.openmrs.Concept;
 import org.openmrs.Encounter;
 import org.openmrs.Location;
 import org.openmrs.Patient;
+import org.openmrs.Provider;
 import org.openmrs.Visit;
 import org.openmrs.api.OpenmrsService;
 import org.openmrs.module.rwandaemr.queue.model.QueueEntry;
@@ -32,7 +33,32 @@ public interface QueueService extends OpenmrsService {
 
     List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date date);
 
+    int countQueueEntriesByLocation(Location location, QueueStatus status, Date date);
+
+    List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date date,
+                                                int firstResult, int maxResults);
+
     List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate);
+
+    int countQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate);
+
+    int countQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate,
+                                    String patientName);
+
+    int countQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate,
+                                    String patientName, QueueAssignmentFilter assignmentFilter,
+                                    Collection<Integer> currentProviderIds);
+
+    List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate,
+                                                int firstResult, int maxResults);
+
+    List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate,
+                                                String patientName, int firstResult, int maxResults);
+
+    List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate,
+                                                String patientName, QueueAssignmentFilter assignmentFilter,
+                                                Collection<Integer> currentProviderIds,
+                                                int firstResult, int maxResults);
 
     List<QueueEntry> getQueueEntriesByServicePoint(Location servicePoint, Location visibleLocation,
                                                    QueueStatus status, Date date);
@@ -51,6 +77,9 @@ public interface QueueService extends OpenmrsService {
 
     QueueEntry transferPatient(QueueEntry queueEntry, Location destinationServicePoint, String reason);
 
+    QueueEntry transferPatient(QueueEntry queueEntry, Location destinationServicePoint, String reason,
+                               Provider assignedProvider);
+
     QueueEntry markPatientTransferred(QueueEntry queueEntry, String reason);
 
     QueueEntry putOnHold(QueueEntry queueEntry, String reason);
@@ -58,6 +87,8 @@ public interface QueueService extends OpenmrsService {
     QueueEntry cancelQueueEntry(QueueEntry queueEntry, String reason);
 
     QueueEntry updatePriority(QueueEntry queueEntry, QueuePriority priority);
+
+    QueueEntry updateAssignedProvider(QueueEntry queueEntry, Provider assignedProvider);
 
     QueueStatusHistory createQueueStatusHistory(QueueEntry queueEntry, QueueStatus previousStatus,
                                                 QueueStatus newStatus, String reason);
@@ -69,6 +100,8 @@ public interface QueueService extends OpenmrsService {
     List<QueueStatusHistory> getQueueStatusHistory(QueueEntry queueEntry);
 
     List<Location> getServicePointLocations();
+
+    boolean isLaboratoryServicePoint(Location location);
 
     QueueServicePointConceptMap saveServicePointConceptMap(QueueServicePointConceptMap conceptMap);
 

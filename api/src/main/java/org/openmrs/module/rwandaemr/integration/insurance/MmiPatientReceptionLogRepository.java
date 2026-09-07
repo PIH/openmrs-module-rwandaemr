@@ -16,6 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Calendar;
+import java.util.Date;
+
 @Component
 public class MmiPatientReceptionLogRepository {
 
@@ -32,12 +35,63 @@ public class MmiPatientReceptionLogRepository {
 		}
 		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
 		NativeQuery<?> query = session.createSQLQuery(
-				"select count(1) from mmi_patient_reception_log where visit_id = :visitId and status = :status"
+				"select count(1) from mmi_patient_reception_log where visit_id = :visitId and status = :status " +
+						"and reception_number is not null and reception_number <> ''"
 		);
 		query.setParameter("visitId", visitId);
 		query.setParameter("status", "SUCCESS");
 		Number count = (Number) query.uniqueResult();
 		return count != null && count.intValue() > 0;
+	}
+
+	@Transactional(readOnly = true)
+	public boolean hasSuccessfulReceptionForInsuranceCardOnDate(String insuranceCardNo, Date date) {
+		return getSuccessfulReceptionNumberForInsuranceCardOnDate(insuranceCardNo, date) != null;
+	}
+
+	@Transactional(readOnly = true)
+	public String getLatestSuccessfulReceptionNumberForInsuranceCard(String insuranceCardNo) {
+		if (insuranceCardNo == null || insuranceCardNo.trim().isEmpty()) {
+			return null;
+		}
+		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
+		NativeQuery<?> query = session.createSQLQuery(
+				"select reception_number from mmi_patient_reception_log " +
+						"where status = :status " +
+						"and reception_number is not null and reception_number <> '' " +
+						"and (insurance_card_no = :insuranceCardNo or patient_identifier = :insuranceCardNo) " +
+						"order by date_created desc"
+		);
+		query.setParameter("status", "SUCCESS");
+		query.setParameter("insuranceCardNo", insuranceCardNo.trim());
+		query.setMaxResults(1);
+		Object value = query.uniqueResult();
+		return value == null ? null : value.toString();
+	}
+
+	@Transactional(readOnly = true)
+	public String getSuccessfulReceptionNumberForInsuranceCardOnDate(String insuranceCardNo, Date date) {
+		if (insuranceCardNo == null || insuranceCardNo.trim().isEmpty() || date == null) {
+			return null;
+		}
+		Date startOfDay = startOfDay(date);
+		Date startOfNextDay = addDays(startOfDay, 1);
+		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
+		NativeQuery<?> query = session.createSQLQuery(
+				"select reception_number from mmi_patient_reception_log " +
+						"where status = :status " +
+						"and reception_number is not null and reception_number <> '' " +
+						"and date_created >= :startOfDay and date_created < :startOfNextDay " +
+						"and (insurance_card_no = :insuranceCardNo or patient_identifier = :insuranceCardNo) " +
+						"order by date_created desc"
+		);
+		query.setParameter("status", "SUCCESS");
+		query.setParameter("insuranceCardNo", insuranceCardNo.trim());
+		query.setParameter("startOfDay", startOfDay);
+		query.setParameter("startOfNextDay", startOfNextDay);
+		query.setMaxResults(1);
+		Object value = query.uniqueResult();
+		return value == null ? null : value.toString();
 	}
 
 	@Transactional
@@ -75,5 +129,22 @@ public class MmiPatientReceptionLogRepository {
 		query.setParameter("creator", entry.getCreator());
 		query.setParameter("dateCreated", entry.getDateCreated());
 		query.executeUpdate();
+	}
+
+	private Date startOfDay(Date date) {
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTime(date);
+		calendar.set(Calendar.HOUR_OF_DAY, 0);
+		calendar.set(Calendar.MINUTE, 0);
+		calendar.set(Calendar.SECOND, 0);
+		calendar.set(Calendar.MILLISECOND, 0);
+		return calendar.getTime();
+	}
+
+	private Date addDays(Date date, int days) {
+		Calendar calendar = Calendar.getInstance();
+		calendar.setTime(date);
+		calendar.add(Calendar.DATE, days);
+		return calendar.getTime();
 	}
 }
