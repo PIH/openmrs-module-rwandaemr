@@ -87,16 +87,23 @@ public class QueueDashboardPageController extends QueuePageSupport {
         QueueAssignmentFilter selectedAssignment = normalizeAssignmentFilter(assignment);
         Set<Integer> currentProviderIds = getCurrentProviderIds(providerService);
         int selectedPageSize = normalizePageSize(pageSize);
-        int totalEntries = countEntriesForLocation(
-                queueService, location, selectedStatus, selectedArrivalDate, selectedArrivalDate,
-                selectedPatientName, selectedAssignment, currentProviderIds);
+        int totalEntries = selectedStatus == null
+                ? countActiveEntriesForLocation(queueService, location, selectedArrivalDate, selectedArrivalDate,
+                        selectedPatientName, selectedAssignment, currentProviderIds)
+                : countEntriesForLocation(queueService, location, selectedStatus,
+                        selectedArrivalDate, selectedArrivalDate, selectedPatientName,
+                        selectedAssignment, currentProviderIds);
         int totalPages = calculateTotalPages(totalEntries, selectedPageSize);
         int currentPage = normalizePage(page, totalPages);
         int firstEntryIndex = (currentPage - 1) * selectedPageSize;
         int lastEntryIndex = Math.min(firstEntryIndex + selectedPageSize, totalEntries);
-        List<QueueEntry> entries = getEntryPageForLocation(
-                queueService, location, selectedStatus, selectedArrivalDate, selectedArrivalDate,
-                selectedPatientName, selectedAssignment, currentProviderIds, firstEntryIndex, selectedPageSize);
+        List<QueueEntry> entries = selectedStatus == null
+                ? getActiveEntryPageForLocation(queueService, location, selectedArrivalDate, selectedArrivalDate,
+                        selectedPatientName, selectedAssignment, currentProviderIds,
+                        firstEntryIndex, selectedPageSize)
+                : getEntryPageForLocation(queueService, location, selectedStatus,
+                        selectedArrivalDate, selectedArrivalDate, selectedPatientName,
+                        selectedAssignment, currentProviderIds, firstEntryIndex, selectedPageSize);
         model.addAttribute("authorized", true);
         model.addAttribute("canViewAllLocations", viewAllLocations);
         model.addAttribute("canManageQueue", canManageQueue());

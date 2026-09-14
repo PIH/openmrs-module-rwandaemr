@@ -221,6 +221,21 @@ public abstract class QueuePageSupport {
                 assignmentFilter, currentProviderIds);
     }
 
+    protected int countActiveEntriesForLocation(QueueService queueService, Location location,
+                                                Date startDate, Date endDate, String patientName,
+                                                QueueAssignmentFilter assignmentFilter,
+                                                Collection<Integer> currentProviderIds) {
+        if (canViewAllLocations() && location == null) {
+            return queueService.countActiveQueueEntriesByLocation(null, startDate, endDate, patientName,
+                    assignmentFilter, currentProviderIds);
+        }
+        if (location == null) {
+            return 0;
+        }
+        return queueService.countActiveQueueEntriesByLocation(location, startDate, endDate, patientName,
+                assignmentFilter, currentProviderIds);
+    }
+
     protected List<QueueEntry> getEntryPageForLocation(QueueService queueService, Location location,
                                                         QueueStatus status, Date date,
                                                         int firstResult, int maxResults) {
@@ -260,6 +275,22 @@ public abstract class QueuePageSupport {
             return new ArrayList<QueueEntry>();
         }
         return queueService.getQueueEntriesByLocation(location, status, startDate, endDate, patientName,
+                assignmentFilter, currentProviderIds, firstResult, maxResults);
+    }
+
+    protected List<QueueEntry> getActiveEntryPageForLocation(QueueService queueService, Location location,
+                                                              Date startDate, Date endDate, String patientName,
+                                                              QueueAssignmentFilter assignmentFilter,
+                                                              Collection<Integer> currentProviderIds,
+                                                              int firstResult, int maxResults) {
+        if (canViewAllLocations() && location == null) {
+            return queueService.getActiveQueueEntriesByLocation(null, startDate, endDate, patientName,
+                    assignmentFilter, currentProviderIds, firstResult, maxResults);
+        }
+        if (location == null) {
+            return new ArrayList<QueueEntry>();
+        }
+        return queueService.getActiveQueueEntriesByLocation(location, startDate, endDate, patientName,
                 assignmentFilter, currentProviderIds, firstResult, maxResults);
     }
 

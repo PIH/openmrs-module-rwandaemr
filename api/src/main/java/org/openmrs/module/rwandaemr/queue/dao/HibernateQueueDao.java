@@ -252,8 +252,8 @@ public class HibernateQueueDao implements QueueDao {
         }
         if (status != null) {
             hql += " and q.statusName = :status";
-        } else if (currentDayStart != null && activeStatuses != null && !activeStatuses.isEmpty()) {
-            hql += " and (q.statusName in (:activeStatuses) or q.arrivalTime >= :currentDayStart)";
+        } else if (activeStatuses != null && !activeStatuses.isEmpty()) {
+            hql += " and q.statusName in (:activeStatuses)";
         }
         for (int i = 0; i < patientNameTokens.size(); i++) {
             hql += " and exists (select patientName.personNameId from PersonName patientName " +
@@ -279,9 +279,8 @@ public class HibernateQueueDao implements QueueDao {
         }
         if (status != null) {
             query.setParameter("status", status.name());
-        } else if (currentDayStart != null && activeStatuses != null && !activeStatuses.isEmpty()) {
+        } else if (activeStatuses != null && !activeStatuses.isEmpty()) {
             query.setParameterList("activeStatuses", toStatusNames(activeStatuses));
-            query.setParameter("currentDayStart", currentDayStart);
         }
         for (int i = 0; i < patientNameTokens.size(); i++) {
             query.setParameter("patientName" + i, "%" + patientNameTokens.get(i) + "%");

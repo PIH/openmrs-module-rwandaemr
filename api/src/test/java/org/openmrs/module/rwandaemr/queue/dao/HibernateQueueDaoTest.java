@@ -15,8 +15,32 @@ import org.mockito.ArgumentCaptor;
 import org.openmrs.api.db.hibernate.DbSession;
 import org.openmrs.api.db.hibernate.DbSessionFactory;
 import org.openmrs.module.rwandaemr.queue.QueueAssignmentFilter;
+import org.openmrs.module.rwandaemr.queue.QueueStatus;
 
 public class HibernateQueueDaoTest {
+
+    @Test
+    public void shouldRestrictLiveQueueQueryToActiveStatuses() {
+        DbSessionFactory sessionFactory = mock(DbSessionFactory.class);
+        DbSession session = mock(DbSession.class);
+        Query query = mock(Query.class);
+        when(sessionFactory.getCurrentSession()).thenReturn(session);
+        when(session.createQuery(anyString())).thenReturn(query);
+        when(query.uniqueResult()).thenReturn(0L);
+        HibernateQueueDao dao = new HibernateQueueDao();
+        dao.setSessionFactory(sessionFactory);
+        java.util.List<QueueStatus> activeStatuses = Arrays.asList(
+                QueueStatus.WAITING, QueueStatus.CALLED, QueueStatus.IN_PROGRESS, QueueStatus.ON_HOLD);
+
+        dao.countQueueEntries(null, null, new Date(0), new Date(1_000),
+                null, activeStatuses, null, QueueAssignmentFilter.ALL, null);
+
+        ArgumentCaptor<String> hql = ArgumentCaptor.forClass(String.class);
+        verify(session).createQuery(hql.capture());
+        assertTrue(hql.getValue().contains("q.statusName in (:activeStatuses)"));
+        verify(query).setParameterList("activeStatuses",
+                Arrays.asList("WAITING", "CALLED", "IN_PROGRESS", "ON_HOLD"));
+    }
 
     @Test
     public void shouldAddEachPatientNameTokenToQueueQuery() {
