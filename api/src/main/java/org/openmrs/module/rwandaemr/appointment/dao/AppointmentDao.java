@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.openmrs.Location;
 import org.openmrs.Patient;
+import org.openmrs.Provider;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentBooking;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentSchedule;
 
@@ -17,7 +18,8 @@ public interface AppointmentDao {
 
     AppointmentSchedule getScheduleForUpdate(Integer id);
 
-    AppointmentSchedule getScheduleByServicePointAndDate(Location servicePoint, Date scheduleDate);
+    AppointmentSchedule getScheduleByServicePointDateAndProvider(Location servicePoint, Date scheduleDate,
+                                                                 Provider provider);
 
     List<AppointmentSchedule> getSchedules(Location servicePoint, Date startDate, Date endDate,
                                            boolean includeInactive);

@@ -111,6 +111,8 @@ public class SearchClientRegistryFragmentController {
                         String photo = findPopulationRegistryPhoto(identifiersToSearch, patient, fosaId, integrationConfig, citizenProvider);
                         return patientResponse("rwandaemr.clientRegistry.matchFound", patient, photo, rwandaEmrConfig, ui);
                     } catch (Exception e) {
+                        log.error("Failed to convert client registry patient for identifier "
+                                + identifierSystem + "=" + identifier, e);
                         return noPatientResponse("rwandaemr.clientRegistry.patientConversionError", e, ui);
                     }
                 }
@@ -168,7 +170,11 @@ public class SearchClientRegistryFragmentController {
         data.put("messageCode", message);
         data.put("message", ui.message(message));
         if (e != null) {
-            data.put("exception", e.getMessage());
+            String exceptionMessage = e.getMessage();
+            if (StringUtils.isBlank(exceptionMessage)) {
+                exceptionMessage = e.getClass().getName();
+            }
+            data.put("exception", exceptionMessage);
         }
         return new ObjectResult(data);
     }

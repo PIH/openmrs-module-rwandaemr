@@ -32,7 +32,8 @@ public class QueueReportExcelTest {
         Location servicePoint = new Location(7);
         servicePoint.setName("Emergency");
         entry.setServicePoint(servicePoint);
-        entry.setPriority(QueuePriority.EMERGENCY);
+        entry.setTransferReason("Needs urgent consultation");
+        entry.setPriority(QueuePriority.NORMAL);
         entry.setStatus(QueueStatus.CALLED);
         entry.setArrivalTime(new Date(1_000_000L));
         entry.setCompletedTime(new Date(2_000_000L));
@@ -49,10 +50,11 @@ public class QueueReportExcelTest {
         assertEquals("EMERG-001", row.getCell(0).getStringCellValue());
         assertEquals("Aline Uwase", row.getCell(1).getStringCellValue());
         assertEquals("Emergency", row.getCell(2).getStringCellValue());
-        assertEquals("Emergency", row.getCell(3).getStringCellValue());
-        assertEquals("Called", row.getCell(4).getStringCellValue());
-        assertEquals("12 min", row.getCell(5).getStringCellValue());
-        assertEquals(entry.getArrivalTime(), row.getCell(6).getDateCellValue());
-        assertEquals(entry.getCompletedTime(), row.getCell(7).getDateCellValue());
+        assertEquals("Needs urgent consultation", row.getCell(3).getStringCellValue());
+        assertEquals("Not Emergency", row.getCell(4).getStringCellValue());
+        assertEquals("Called", row.getCell(5).getStringCellValue());
+        assertEquals("12 min", row.getCell(6).getStringCellValue());
+        assertEquals(entry.getArrivalTime(), row.getCell(7).getDateCellValue());
+        assertEquals(entry.getCompletedTime(), row.getCell(8).getDateCellValue());
     }
 }

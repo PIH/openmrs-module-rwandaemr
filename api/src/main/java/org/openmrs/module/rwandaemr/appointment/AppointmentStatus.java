@@ -3,6 +3,7 @@ package org.openmrs.module.rwandaemr.appointment;
 public enum AppointmentStatus {
     REQUESTED(true),
     CONFIRMED(true),
+    PRESENT(true),
     COMPLETED(true),
     CANCELLED(false),
     NO_SHOW(false);

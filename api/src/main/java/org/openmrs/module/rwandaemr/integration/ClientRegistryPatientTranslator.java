@@ -189,10 +189,11 @@ public class ClientRegistryPatientTranslator {
 					HumanName contactName = contactComponent.getName();
 					if (contactName.hasGiven()) {
 						PersonAttributeType contactNameType = null;
-						if (contactName.getFamily().equals("MOTHER NAME")) {
+						String family = contactName.getFamily();
+						if ("MOTHER NAME".equalsIgnoreCase(family)) {
 							contactNameType = rwandaEmrConfig.getMothersName();
 						}
-						else if (contactName.getFamily().equals("FATHER NAME")) {
+						else if ("FATHER NAME".equalsIgnoreCase(family)) {
 							contactNameType = rwandaEmrConfig.getFathersName();
 						}
 						if (contactNameType != null) {

@@ -66,7 +66,7 @@ public class ClientRegistryPatient {
     public Patient.ContactComponent getMothersName() {
         if (patient.hasContact()) {
             for (Patient.ContactComponent contactComponent : patient.getContact()) {
-                if (contactComponent.getName() != null && contactComponent.getName().getFamily().equalsIgnoreCase("MOTHER NAME")) {
+                if (contactComponent.getName() != null && "MOTHER NAME".equalsIgnoreCase(contactComponent.getName().getFamily())) {
                     return contactComponent;
                 }
             }
@@ -77,7 +77,7 @@ public class ClientRegistryPatient {
     public Patient.ContactComponent getFathersName() {
         if (patient.hasContact()) {
             for (Patient.ContactComponent contactComponent : patient.getContact()) {
-                if (contactComponent.getName() != null && contactComponent.getName().getFamily().equalsIgnoreCase("FATHER NAME")) {
+                if (contactComponent.getName() != null && "FATHER NAME".equalsIgnoreCase(contactComponent.getName().getFamily())) {
                     return contactComponent;
                 }
             }

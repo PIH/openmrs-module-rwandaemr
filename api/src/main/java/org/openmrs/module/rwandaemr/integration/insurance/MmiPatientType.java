@@ -12,4 +12,6 @@ public class MmiPatientType {
 	private String description;
 	@JsonProperty("isActive")
 	private boolean active;
+	private Integer patientPercent;
+	private Integer mmiPercent;
 }

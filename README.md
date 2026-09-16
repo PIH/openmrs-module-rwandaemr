@@ -109,8 +109,8 @@ Queue ordering is:
 ### Duplicate prevention
 
 Before creating a queue entry from registration, RwandaEMR checks whether the
-patient already has an active queue entry today for the same service point
-location. Active statuses are:
+patient already has an active queue entry from the preceding 24 hours for the
+same service point location. Active statuses are:
 
 - `WAITING`
 - `CALLED`
@@ -119,6 +119,20 @@ location. Active statuses are:
 
 If one exists, RwandaEMR logs the duplicate and returns the existing queue entry
 instead of creating another one.
+
+Live queue pages retain active entries for 24 hours from arrival, including
+across midnight. Completed, transferred, and cancelled entries do not carry
+over from the previous calendar day. Queue reports continue to use the selected
+calendar date range.
+
+The Queue Dashboard arrival-date filter shows either Today or Yesterday using
+the entry arrival time. Unlike the live queue window, each option is restricted
+to that calendar day. The patient-name filter matches partial given, middle,
+and family names and can be combined with the date, status, and location filters.
+
+For example, a patient added at 23:30 remains on the live queue the following
+morning and can move to another internal service point. An internal service-point
+change keeps the patient active; it is not treated as a transfer out.
 
 ### Location-based visibility
 

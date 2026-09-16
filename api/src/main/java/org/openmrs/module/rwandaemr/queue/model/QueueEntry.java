@@ -22,6 +22,7 @@ public class QueueEntry extends BaseOpenmrsData {
     private Location sessionLocation;
     private Location servicePoint;
     private Location previousServicePoint;
+    private String transferReason;
     private Concept serviceRequestedConcept;
     private Provider assignedProvider;
     private String priorityName = QueuePriority.NORMAL.name();
@@ -98,6 +99,14 @@ public class QueueEntry extends BaseOpenmrsData {
 
     public void setPreviousServicePoint(Location previousServicePoint) {
         this.previousServicePoint = previousServicePoint;
+    }
+
+    public String getTransferReason() {
+        return transferReason;
+    }
+
+    public void setTransferReason(String transferReason) {
+        this.transferReason = transferReason;
     }
 
     public Concept getServiceRequestedConcept() {

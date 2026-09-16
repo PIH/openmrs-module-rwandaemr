@@ -56,7 +56,7 @@
     }
     .rhip-filter-grid {
         display: grid;
-        grid-template-columns: 150px 150px 180px 180px minmax(260px, 1fr) 150px 140px;
+        grid-template-columns: 150px 150px 170px 170px 170px minmax(220px, 1fr) 150px 140px;
         gap: 10px;
         align-items: end;
     }
@@ -146,20 +146,40 @@
         color: #1b5e20;
         background: #dff0d8;
     }
+    .rhip-chip-CONFIRMED {
+        color: #ffffff;
+        background: #2e7d32;
+    }
     .rhip-chip-FAILED {
         color: #9f1d1d;
         background: #f8d7da;
     }
+    .rhip-chip-QUEUED {
+        color: #0b5394;
+        background: #d9edf7;
+    }
     .rhip-actions {
         white-space: nowrap;
     }
-    .rhip-actions form {
-        display: inline-block;
-        margin: 0 6px 6px 0;
+    .rhip-action-group {
+        display: flex;
+        align-items: stretch;
+        gap: 6px;
     }
-    .rhip-actions input[type=submit] {
-        min-height: 30px;
+    .rhip-actions form {
+        display: flex;
+        align-items: stretch;
+        margin: 0;
+    }
+    .rhip-actions input[type=submit],
+    .rhip-open-link {
+        box-sizing: border-box;
+        height: 34px;
+        margin: 0;
+        padding: 7px 12px;
         border-radius: 3px;
+        font-size: 14px;
+        line-height: 18px;
     }
     .rhip-actions .primary {
         background: #007fff;
@@ -171,12 +191,22 @@
         color: #ffffff;
         border: 1px solid #e08600;
     }
-    .rhip-open-link {
-        display: inline-block;
-        padding: 6px 8px;
-        border: 1px solid #b0bec5;
-        border-radius: 3px;
-        background: #ffffff;
+    .rhip-actions .confirm {
+        background: #2e7d32;
+        color: #ffffff;
+        border: 1px solid #1b5e20;
+    }
+    .rhip-open-link,
+    .rhip-open-link:link,
+    .rhip-open-link:visited,
+    .rhip-open-link:hover,
+    .rhip-open-link:focus,
+    .rhip-open-link:active {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #4a235a;
+        background: #5b2c6f;
+        color: #ffffff !important;
         text-decoration: none;
     }
     .rhip-detail-row {
@@ -249,7 +279,13 @@
     }
 
     function submitRhipVoucher(form) {
-        if (!confirm("Are you sure you want to send the RHIP voucher for this global bill?")) {
+        var action = jq(form).find("input[name=action]").val();
+        var prompt = action === "clearance"
+            ? "Are you sure you want to send payment clearance SMS to this patient?"
+            : action === "confirm"
+            ? "Are you sure you want to confirm and close this RHIP voucher?"
+            : "Are you sure you want to send the RHIP voucher for this global bill?";
+        if (!confirm(prompt)) {
             return false;
         }
         jq(form).find("input[type=submit]").prop("disabled", true).val("Processing...");
@@ -285,7 +321,17 @@
                     <option value="NOT_SENT" ${ status == "NOT_SENT" ? "selected" : "" }>Not Sent</option>
                     <option value="FAILED" ${ status == "FAILED" ? "selected" : "" }>Failed</option>
                     <option value="SENT" ${ status == "SENT" ? "selected" : "" }>Sent</option>
+                    <option value="CONFIRMED" ${ status == "CONFIRMED" ? "selected" : "" }>Confirmed</option>
                     <option value="ALL" ${ status == "ALL" ? "selected" : "" }>All</option>
+                </select>
+            </div>
+            <div class="rhip-field">
+                <label for="insuranceId">Insurance</label>
+                <select id="insuranceId" name="insuranceId">
+                    <option value="" ${ !insuranceId ? "selected" : "" }>All</option>
+                    <% insuranceOptions.each { insurance -> %>
+                        <option value="${ insurance.insuranceId }" ${ insuranceId == insurance.insuranceId?.toString() ? "selected" : "" }>${ ui.format(insurance.name) }</option>
+                    <% } %>
                 </select>
             </div>
             <div class="rhip-field">
@@ -352,8 +398,9 @@
                     <th>Discharge</th>
                     <th>Total</th>
                     <th>Status</th>
+                    <th>Payment</th>
+                    <th>Clearance SMS</th>
                     <th>Last Attempt</th>
-                    <th>Message</th>
                     <th>Actions</th>
                 </tr>
                 </thead>
@@ -382,19 +429,45 @@
                         <td class="rhip-number">${ ui.format(globalBill.globalAmount) }</td>
                         <td>
                             <span class="rhip-chip rhip-chip-${ row.effectiveStatus }">${ row.displayStatus }</span>
-                            <% if (row.voucherReference) { %>
-                                <div class="rhip-muted">Ref: ${ ui.format(row.voucherReference) }</div>
+                        </td>
+                        <td>
+                            <span class="rhip-chip rhip-chip-${ row.paymentStatusClass }">${ row.paymentStatusLabel }</span>
+                            <div class="rhip-muted">${ row.patientBillCount } bill(s)</div>
+                        </td>
+                        <td>
+                            <% if (row.clearanceStatus) { %>
+                                <span class="rhip-chip rhip-chip-${ row.clearanceStatus }">${ ui.format(row.clearanceStatus) }</span>
+                                <div class="rhip-muted">${ row.clearanceDate ? ui.formatDatePretty(row.clearanceDate) : "" }</div>
+                            <% } else { %>
+                                <span class="rhip-muted">Not sent</span>
                             <% } %>
                         </td>
                         <td>${ row.lastSubmissionDate ? ui.formatDatePretty(row.lastSubmissionDate) : "" }</td>
-                        <td style="max-width: 260px;">${ ui.format(row.submissionMessage) }</td>
                         <td class="rhip-actions" onclick="event.stopPropagation();">
+                            <div class="rhip-action-group">
+                            <% if (canSendClearance) { %>
+                                <form method="post" action="${ ui.pageLink("rwandaemr", "admin/rhipVoucherSubmissions") }" onsubmit="return submitRhipVoucher(this);">
+                                    <input type="hidden" name="action" value="clearance"/>
+                                    <input type="hidden" name="globalBillId" value="${ globalBillId }"/>
+                                    <input type="hidden" name="dischargeStartDate" value="${ dischargeStartDate }"/>
+                                    <input type="hidden" name="dischargeEndDate" value="${ dischargeEndDate }"/>
+                                    <input type="hidden" name="insuranceId" value="${ insuranceId }"/>
+                                    <input type="hidden" name="status" value="${ status }"/>
+                                    <input type="hidden" name="query" value="${ ui.encodeHtmlAttribute(query) }"/>
+                                    <input type="hidden" name="sortBy" value="${ sortBy }"/>
+                                    <input type="hidden" name="sortDirection" value="${ sortDirection }"/>
+                                    <input type="hidden" name="page" value="${ page }"/>
+                                    <input type="hidden" name="pageSize" value="${ pageSize }"/>
+                                    <input class="confirm" type="submit" value="Clearance SMS" ${ row.allPatientBillsPaid ? "" : "disabled=\"disabled\"" } title="${ row.allPatientBillsPaid ? "Send payment clearance SMS" : "Available only when all patient bills are paid" }"/>
+                                </form>
+                            <% } %>
                             <% if (row.effectiveStatus == "NOT_SENT" && canSend) { %>
                                 <form method="post" action="${ ui.pageLink("rwandaemr", "admin/rhipVoucherSubmissions") }" onsubmit="return submitRhipVoucher(this);">
                                     <input type="hidden" name="action" value="send"/>
                                     <input type="hidden" name="globalBillId" value="${ globalBillId }"/>
                                     <input type="hidden" name="dischargeStartDate" value="${ dischargeStartDate }"/>
                                     <input type="hidden" name="dischargeEndDate" value="${ dischargeEndDate }"/>
+                                    <input type="hidden" name="insuranceId" value="${ insuranceId }"/>
                                     <input type="hidden" name="status" value="${ status }"/>
                                     <input type="hidden" name="query" value="${ ui.encodeHtmlAttribute(query) }"/>
                                     <input type="hidden" name="sortBy" value="${ sortBy }"/>
@@ -404,12 +477,29 @@
                                     <input class="primary" type="submit" value="Send RHIP Voucher"/>
                                 </form>
                             <% } %>
+                            <% if (row.effectiveStatus == "SENT" && row.mmiInsurance && canConfirm) { %>
+                                <form method="post" action="${ ui.pageLink("rwandaemr", "admin/rhipVoucherSubmissions") }" onsubmit="return submitRhipVoucher(this);">
+                                    <input type="hidden" name="action" value="confirm"/>
+                                    <input type="hidden" name="globalBillId" value="${ globalBillId }"/>
+                                    <input type="hidden" name="dischargeStartDate" value="${ dischargeStartDate }"/>
+                                    <input type="hidden" name="dischargeEndDate" value="${ dischargeEndDate }"/>
+                                    <input type="hidden" name="insuranceId" value="${ insuranceId }"/>
+                                    <input type="hidden" name="status" value="${ status }"/>
+                                    <input type="hidden" name="query" value="${ ui.encodeHtmlAttribute(query) }"/>
+                                    <input type="hidden" name="sortBy" value="${ sortBy }"/>
+                                    <input type="hidden" name="sortDirection" value="${ sortDirection }"/>
+                                    <input type="hidden" name="page" value="${ page }"/>
+                                    <input type="hidden" name="pageSize" value="${ pageSize }"/>
+                                    <input class="confirm" type="submit" value="Confirm RHIP Voucher"/>
+                                </form>
+                            <% } %>
                             <% if (row.effectiveStatus == "FAILED" && canRetry) { %>
                                 <form method="post" action="${ ui.pageLink("rwandaemr", "admin/rhipVoucherSubmissions") }" onsubmit="return submitRhipVoucher(this);">
                                     <input type="hidden" name="action" value="retry"/>
                                     <input type="hidden" name="globalBillId" value="${ globalBillId }"/>
                                     <input type="hidden" name="dischargeStartDate" value="${ dischargeStartDate }"/>
                                     <input type="hidden" name="dischargeEndDate" value="${ dischargeEndDate }"/>
+                                    <input type="hidden" name="insuranceId" value="${ insuranceId }"/>
                                     <input type="hidden" name="status" value="${ status }"/>
                                     <input type="hidden" name="query" value="${ ui.encodeHtmlAttribute(query) }"/>
                                     <input type="hidden" name="sortBy" value="${ sortBy }"/>
@@ -420,10 +510,11 @@
                                 </form>
                             <% } %>
                             <a class="rhip-open-link" href="${ openmrsContextPath }/module/mohbilling/viewGlobalBill.form?globalBillId=${ globalBillId }">Open Global Bill</a>
+                            </div>
                         </td>
                     </tr>
                     <tr id="rhip-detail-${ globalBillId }" class="rhip-detail-row">
-                        <td colspan="10">
+                        <td colspan="11">
                             <div class="rhip-detail-grid">
                                 <div class="rhip-detail-card">
                                     <h4>Global Bill Summary</h4>
@@ -432,6 +523,9 @@
                                         <label>Admission</label><span>${ ui.formatDatePretty(globalBill.admission?.admissionDate) }</span>
                                         <label>Discharge</label><span>${ ui.formatDatePretty(globalBill.closingDate) }</span>
                                         <label>Insurance</label><span>${ ui.format(row.insuranceName) } / ${ ui.format(row.insuranceCardNumber) }</span>
+                                        <% if (row.voucherReference) { %>
+                                            <label>Voucher reference</label><span>${ ui.format(row.voucherReference) }</span>
+                                        <% } %>
                                         <label>Total amount</label><span>${ ui.format(globalBill.globalAmount) }</span>
                                         <label>Patient contribution</label><span>${ ui.format(row.patientContribution) }</span>
                                         <label>Insurance contribution</label><span>${ ui.format(row.insuranceContribution) }</span>
@@ -479,6 +573,8 @@
                                     <tr>
                                         <th>Item</th>
                                         <th>Date</th>
+                                        <th>Patient Bill</th>
+                                        <th>Payment</th>
                                         <th class="rhip-number">Quantity</th>
                                         <th class="rhip-number">Unit Price</th>
                                         <th class="rhip-number">Amount</th>
@@ -489,10 +585,17 @@
                                         consommation.billItems?.each { item ->
                                             if (!item.voided) {
                                                 def itemName = item.service?.facilityServicePrice?.name ?: item.serviceOther ?: item.serviceOtherDescription ?: item.hopService?.name
+                                                def patientBill = consommation.patientBill
                                     %>
                                         <tr>
                                             <td>${ ui.format(itemName) }</td>
                                             <td>${ ui.formatDatePretty(item.serviceDate) }</td>
+                                            <td>${ patientBill?.patientBillId ?: "" }</td>
+                                            <td>
+                                                <% if (patientBill) { %>
+                                                    <span class="rhip-chip rhip-chip-${ patientBill.isPaid() ? "CONFIRMED" : "FAILED" }">${ patientBill.isPaid() ? "Paid" : "Unpaid" }</span>
+                                                <% } %>
+                                            </td>
                                             <td class="rhip-number">${ ui.format(item.quantity) }</td>
                                             <td class="rhip-number">${ ui.format(item.unitPrice) }</td>
                                             <td class="rhip-number">${ ui.format(item.amount) }</td>

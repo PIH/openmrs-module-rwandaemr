@@ -114,9 +114,21 @@ public class InsuranceEligibilityRestController {
                 response.put("message", "Patient type is required");
                 return response;
             }
+            if (!StringUtils.isNumeric(patientType.trim())) {
+                log.warn("MMI reception failed: patient type must be numeric");
+                response.put("success", false);
+                response.put("message", "Patient type must be numeric");
+                return response;
+            }
+            if (StringUtils.isBlank(otpCode)) {
+                log.warn("MMI reception failed: OTP code is required");
+                response.put("success", false);
+                response.put("message", "OTP code is required");
+                return response;
+            }
 
             IntegrationResponse receptionResponse = insuranceEligibilityProvider.createReception("MMI", identifier,
-                    fosaid, patientType, otpCode, true);
+                    fosaid, patientType.trim(), otpCode, true);
             response.put("reception", receptionResponse.getResponseEntity());
             String receptionNumber = getReceptionNumber(receptionResponse);
             if (StringUtils.isNotBlank(receptionNumber) && patientId != null) {

@@ -110,8 +110,11 @@ public class OpenmrsObjectEventInterceptor extends EmptyInterceptor {
 			for (int i=0; i<propertyNames.length; i++) {
 				String propertyName = propertyNames[i];
 				if (propertyName.equals("voided")) {
-					wasVoided = BooleanUtils.isTrue((Boolean) previousState[i]);
-					isVoided = BooleanUtils.isTrue((Boolean) currentState[i]);
+					// previousState/currentState can be null on some Hibernate flush-dirty callbacks
+					// (e.g. collection-only changes), so guard against NPE instead of assuming both
+					// arrays are always populated in parallel with propertyNames.
+					wasVoided = previousState != null && BooleanUtils.isTrue((Boolean) previousState[i]);
+					isVoided = currentState != null && BooleanUtils.isTrue((Boolean) currentState[i]);
 				}
 			}
 		}

@@ -7,6 +7,7 @@ import java.util.List;
 import org.openmrs.Location;
 import org.openmrs.Patient;
 import org.openmrs.Program;
+import org.openmrs.Provider;
 import org.openmrs.api.OpenmrsService;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentBooking;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentSchedule;
@@ -14,6 +15,9 @@ import org.openmrs.module.rwandaemr.appointment.model.AppointmentSchedule;
 public interface FacilityAppointmentService extends OpenmrsService {
 
     AppointmentSchedule saveSchedule(Location servicePoint, Date scheduleDate, int maximumPatients, String notes);
+
+    AppointmentSchedule saveSchedule(Location servicePoint, Date scheduleDate, int maximumPatients,
+                                     Provider provider, String notes);
 
     AppointmentSchedule updateScheduleCapacity(Integer scheduleId, int maximumPatients);
 
@@ -35,6 +39,8 @@ public interface FacilityAppointmentService extends OpenmrsService {
 
     AppointmentBooking cancelBooking(Integer bookingId);
 
+    AppointmentBooking markBookingPresent(Integer bookingId);
+
     AppointmentBooking updateBookingStatus(Integer bookingId, AppointmentStatus status);
 
     AppointmentBooking getBooking(Integer bookingId);
@@ -44,4 +50,6 @@ public interface FacilityAppointmentService extends OpenmrsService {
     List<AppointmentBooking> getPatientBookings(Patient patient, Date startDate, Date endDate);
 
     List<Location> getServicePointLocations();
+
+    List<Provider> getLicensedProviders();
 }

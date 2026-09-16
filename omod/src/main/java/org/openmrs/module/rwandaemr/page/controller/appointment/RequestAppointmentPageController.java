@@ -72,7 +72,7 @@ public class RequestAppointmentPageController extends AppointmentPageSupport {
                 List<AppointmentScheduleSummary> availablePostponeSchedules =
                         appointmentService.getAvailableSchedules(
                         booking.getSchedule().getServicePoint(),
-                        toDate(currentDate.plusDays(1)),
+                        toDate(today),
                         toDate(currentDate.plusDays(90)));
                 List<AppointmentScheduleSummary> postponeSchedules =
                         new ArrayList<AppointmentScheduleSummary>();
@@ -112,12 +112,12 @@ public class RequestAppointmentPageController extends AppointmentPageSupport {
             if ("cancel".equals(action)) {
                 appointmentService.cancelBooking(bookingId);
                 setToast(sessionContext, "Appointment cancelled");
-            } else if ("postpone".equals(action)) {
+            } else if ("reschedule".equals(action) || "postpone".equals(action)) {
                 AppointmentBooking booking = appointmentService.postponeBooking(bookingId, newScheduleId);
                 AppointmentSchedule schedule = booking.getSchedule();
                 servicePointId = schedule == null || schedule.getServicePoint() == null
                         ? servicePointId : schedule.getServicePoint().getId();
-                setToast(sessionContext, "Appointment postponed");
+                setToast(sessionContext, "Appointment rescheduled");
             } else if ("request".equals(action)) {
                 Patient patient = findPatient(patientId);
                 if (patient == null) {

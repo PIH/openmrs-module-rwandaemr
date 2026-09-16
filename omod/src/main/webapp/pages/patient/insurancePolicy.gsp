@@ -372,6 +372,89 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             : "MMI client is not active. OTP was not sent.";
     }
 
+    function getPatientTypeLabel(patientType) {
+        if (!patientType) {
+            return "";
+        }
+        let label = patientType.typeName || patientType.description || ("Type " + patientType.typeId);
+        const patientPercent = patientType.patientPercent;
+        const mmiPercent = patientType.mmiPercent;
+        if (patientPercent !== null && patientPercent !== undefined && mmiPercent !== null && mmiPercent !== undefined) {
+            label += " (" + patientPercent + "% patient / " + mmiPercent + "% MMI)";
+        }
+        return label;
+    }
+
+    function populateMmiPatientTypes(patientTypes) {
+        const patientTypeField = jq("#mmi-patient-type");
+        patientTypeField.empty();
+        if (patientTypes && patientTypes.length > 0) {
+            patientTypes.forEach((patientType) => {
+                if (patientType && patientType.typeId && patientType.active !== false) {
+                    patientTypeField.append(jq("<option>", {
+                        value: patientType.typeId,
+                        text: getPatientTypeLabel(patientType)
+                    }));
+                }
+            });
+        }
+        if (patientTypeField.find("option").length === 0) {
+            patientTypeField.append(jq("<option>", {
+                value: "1",
+                text: "Standard (1)"
+            }));
+        }
+    }
+
+    function loadMmiPatientTypesAndOpenOtpDialog(insuranceType, ownerCode, message) {
+        jq("#mmi-otp-message").text("Loading MMI patient types...");
+        jq("#mmi-otp-code").val("");
+        jq("#mmi-patient-type").empty().append(jq("<option>", {
+            value: "",
+            text: "Loading..."
+        }));
+        jq("#mmi-otp-verify-button")
+            .data("insuranceType", insuranceType)
+            .data("ownerCode", ownerCode)
+            .removeAttr("disabled");
+        jq.modal(jq("#mmi-otp-dialog"), {
+            overlayClose: true,
+            overlayId: "modal-overlay",
+            opacity: 80,
+            persist: true,
+            closeClass: "cancel",
+            position: [20, 50],
+        });
+        jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility/mmi/patient-types", function(data) {
+            const patientTypes = data && data.responseEntity ? data.responseEntity.patientTypes : null;
+            populateMmiPatientTypes(patientTypes);
+            jq("#mmi-otp-message").text(message);
+        }).fail(function() {
+            populateMmiPatientTypes(null);
+            jq("#mmi-otp-message").text(message + " MMI patient types could not be loaded, so Standard (1) was selected.");
+        });
+    }
+
+    function continueMmiEligibilitySelection(insuranceType, ownerCode) {
+        const eligibilityUrl = openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility";
+        const eligibilityParams = jq.param({
+            type: insuranceType,
+            identifier: ownerCode,
+            sendOTP: false
+        });
+        verifyMemberDialog = jq.modal(jq("#verify-member-dialog"), {
+            overlayClose: true,
+            overlayId: "modal-overlay",
+            opacity: 80,
+            persist: true,
+            closeClass: "cancel",
+            position: [20, 50],
+        });
+        jq.get(eligibilityUrl + "?" + eligibilityParams, function (eligibilityData) {
+            handleEligibilityResponse(eligibilityData, insuranceType, verifyMemberDialog, true);
+        });
+    }
+
     jq(document).ready(function () {
         if (jq("#verify-button").length > 0) {
             jq("#insurance-type-field, #insurance-type, select[name='insuranceId'], input[name='insuranceId']").change(function () {
@@ -469,18 +552,8 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                         } else if (data.responseCode === 200 && data.responseEntity && data.responseEntity.success !== false) {
                             const maskedPhone = getMaskedPhoneNumber();
                             const message = maskedPhone ? ("OTP sent to " + maskedPhone + ". Enter the code to continue.") : "OTP sent. Enter the code to continue.";
-                            jq("#mmi-otp-message").text(message);
-                            jq("#mmi-otp-code").val("");
-                            jq("#mmi-otp-verify-button").data("insuranceType", insuranceType).data("ownerCode", ownerCode);
-                            jq.modal(jq("#mmi-otp-dialog"), {
-                                overlayClose: true,
-                                overlayId: "modal-overlay",
-                                opacity: 80,
-                                persist: true,
-                                closeClass: "cancel",
-                                position: [20, 50],
-                            });
-                            setVerifyResultsMessage("Waiting for OTP verification...");
+                            loadMmiPatientTypesAndOpenOtpDialog(insuranceType, ownerCode, message);
+                            setVerifyResultsMessage("Waiting for MMI reception creation...");
                         } else {
                             const errorMessage = data && data.responseEntity && data.responseEntity.message
                                 ? data.responseEntity.message
@@ -503,57 +576,50 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 
         jq("#mmi-otp-verify-button").click(function () {
             const otpCode = jq("#mmi-otp-code").val().trim();
+            const patientType = jq("#mmi-patient-type").val();
             const insuranceType = jq(this).data("insuranceType");
             const ownerCode = jq(this).data("ownerCode");
             if (!otpCode) {
                 jq("#mmi-otp-message").text("OTP code is required.");
                 return;
             }
+            if (!patientType) {
+                jq("#mmi-otp-message").text("MMI patient type is required.");
+                return;
+            }
             jq(this).attr("disabled", "disabled");
             jq.ajax({
-                url: openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility/verify-otp",
+                url: openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility/mmi/reception",
                 type: "POST",
                 contentType: "application/json",
                 data: JSON.stringify({
-                    insuranceType: insuranceType,
                     identifier: ownerCode,
                     otpCode: otpCode,
-                    patientId: patientId
+                    patientId: patientId,
+                    patientType: patientType
                 }),
                 success: function (data) {
                     jq("#mmi-otp-verify-button").removeAttr("disabled");
-                    jq.modal.close();
-                    if (data && data.responseEntity && data.responseEntity.success) {
+                    if (data && (data.success || data.receptionNumber)) {
                         mmiOtpCode = otpCode;
-                        mmiReceptionNumber = null;
-                        mmiPatientType = null;
+                        mmiReceptionNumber = data.receptionNumber || null;
+                        mmiPatientType = patientType;
                         isMmiEligibilityFlow = true;
                         mmiMemberSelected = false;
                         updateMmiReceptionControls();
-                        const eligibilityUrl = openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility";
-                        const eligibilityParams = jq.param({
-                            type: insuranceType,
-                            identifier: ownerCode,
-                            sendOTP: false
-                        });
-                        verifyMemberDialog = jq.modal(jq("#verify-member-dialog"), {
-                            overlayClose: true,
-                            overlayId: "modal-overlay",
-                            opacity: 80,
-                            persist: true,
-                            closeClass: "cancel",
-                            position: [20, 50],
-                        });
-                        jq.get(eligibilityUrl + "?" + eligibilityParams, function (eligibilityData) {
-                            handleEligibilityResponse(eligibilityData, insuranceType, verifyMemberDialog, true);
-                        });
+                        setVerifyResultsMessage(data.receptionNumber
+                            ? (data.success ? "MMI reception created successfully." : data.message)
+                            : "MMI reception created successfully, but no reception number was returned.");
+                        jq.modal.close();
+                        continueMmiEligibilitySelection(insuranceType, ownerCode);
                     } else {
-                        const errorMessage = data && data.responseEntity && data.responseEntity.message ? data.responseEntity.message : "Unable to verify OTP.";
+                        const errorMessage = data && data.message ? data.message : "Unable to create MMI reception.";
                         setVerifyResultsMessage(errorMessage);
+                        jq("#mmi-otp-message").text(errorMessage);
                     }
                 },
                 error: function () {
-                    jq("#mmi-otp-message").text("Unable to verify OTP. Please try again.");
+                    jq("#mmi-otp-message").text("Unable to create MMI reception. Please try again.");
                     jq("#mmi-otp-verify-button").removeAttr("disabled");
                 }
             });
@@ -956,20 +1022,24 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         <button class="cancel">${ ui.message("coreapps.cancel") }</button>
     </div>
 </div>
-<div id="mmi-otp-dialog" class="dialog" style="display: none; width: 400px;">
-    <div class="dialog-header">
-        <i class="icon-lock"></i>
-        <h3>
-            Verify MMI OTP
-        </h3>
-    </div>
-    <div class="dialog-content">
-        <p class="dialog-instructions" id="mmi-otp-message"></p>
-        <p>
-            <label for="mmi-otp-code">OTP Code</label>
-            <input type="text" id="mmi-otp-code" autocomplete="one-time-code" />
-        </p>
-        <button type="button" id="mmi-otp-verify-button">Verify</button>
-        <button type="button" class="cancel">${ ui.message("coreapps.cancel") }</button>
-    </div>
-</div>
+	<div id="mmi-otp-dialog" class="dialog" style="display: none; width: 400px;">
+	    <div class="dialog-header">
+	        <i class="icon-lock"></i>
+	        <h3>
+	            Create MMI Reception
+	        </h3>
+	    </div>
+	    <div class="dialog-content">
+	        <p class="dialog-instructions" id="mmi-otp-message"></p>
+	        <p>
+	            <label for="mmi-patient-type">MMI Patient Type</label>
+	            <select id="mmi-patient-type"></select>
+	        </p>
+	        <p>
+	            <label for="mmi-otp-code">OTP Code</label>
+	            <input type="text" id="mmi-otp-code" autocomplete="one-time-code" />
+	        </p>
+	        <button type="button" id="mmi-otp-verify-button">Create Reception</button>
+	        <button type="button" class="cancel">${ ui.message("coreapps.cancel") }</button>
+	    </div>
+	</div>

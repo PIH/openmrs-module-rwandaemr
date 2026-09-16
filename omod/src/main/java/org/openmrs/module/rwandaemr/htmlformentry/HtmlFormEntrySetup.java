@@ -39,6 +39,8 @@ public class HtmlFormEntrySetup implements Setup {
 
     public static final String ANESTHESIA_CASE_ID_OBS_TAG = "anesthesiaCaseIdObs";
 
+    public static final String LABOUR_EPISODE_ID_OBS_TAG = "labourEpisodeIdObs";
+
     public static final String FORM_ENGINE_RESOURCE_NAME = "formEngine";
 
     public static final String FORM_ENGINE_RESOURCE_VALUE = "htmlformentry";
@@ -63,6 +65,9 @@ public class HtmlFormEntrySetup implements Setup {
 
         htmlFormEntryService.addHandler(ANESTHESIA_CASE_ID_OBS_TAG, new AnesthesiaCaseIdObsTagHandler());
         log.warn("Registered " + ANESTHESIA_CASE_ID_OBS_TAG + " tag with htmlformentry");
+
+        htmlFormEntryService.addHandler(LABOUR_EPISODE_ID_OBS_TAG, new LabourEpisodeIdObsTagHandler());
+        log.warn("Registered " + LABOUR_EPISODE_ID_OBS_TAG + " tag with htmlformentry");
 
         // Add form engine resources
         int numResourcesSaved = 0;

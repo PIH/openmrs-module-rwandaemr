@@ -5,20 +5,28 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openmrs.Location;
 import org.openmrs.Patient;
+import org.openmrs.Person;
 import org.openmrs.Program;
+import org.openmrs.Provider;
+import org.openmrs.ProviderAttribute;
+import org.openmrs.ProviderAttributeType;
 import org.openmrs.User;
+import org.openmrs.api.ProviderService;
 import org.openmrs.module.rwandaemr.LocationTagUtil;
 import org.openmrs.module.rwandaemr.appointment.dao.AppointmentDao;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentBooking;
@@ -28,6 +36,7 @@ public class FacilityAppointmentServiceImplTest {
 
     private AppointmentDao dao;
     private LocationTagUtil locationTagUtil;
+    private ProviderService providerService;
     private TestFacilityAppointmentService service;
     private Location servicePoint;
     private Patient patient;
@@ -37,9 +46,11 @@ public class FacilityAppointmentServiceImplTest {
     public void setUp() {
         dao = mock(AppointmentDao.class);
         locationTagUtil = mock(LocationTagUtil.class);
+        providerService = mock(ProviderService.class);
         service = new TestFacilityAppointmentService();
         service.setDao(dao);
         service.setLocationTagUtil(locationTagUtil);
+        service.setProviderService(providerService);
         service.user = new User(1);
 
         servicePoint = new Location(11);
@@ -134,7 +145,8 @@ public class FacilityAppointmentServiceImplTest {
 
     @Test
     public void shouldNotReduceCapacityBelowExistingAppointments() {
-        when(dao.getScheduleByServicePointAndDate(any(Location.class), any(Date.class))).thenReturn(schedule);
+        when(dao.getScheduleByServicePointDateAndProvider(
+                any(Location.class), any(Date.class), isNull())).thenReturn(schedule);
         when(dao.countBookings(schedule, capacityStatuses())).thenReturn(3);
 
         IllegalArgumentException exception = assertThrows(
@@ -186,7 +198,8 @@ public class FacilityAppointmentServiceImplTest {
     @Test
     public void shouldRejectTodayCapacityChangeThroughScheduleSave() {
         schedule.setScheduleDate(new Date());
-        when(dao.getScheduleByServicePointAndDate(any(Location.class), any(Date.class))).thenReturn(schedule);
+        when(dao.getScheduleByServicePointDateAndProvider(
+                any(Location.class), any(Date.class), isNull())).thenReturn(schedule);
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
@@ -194,6 +207,53 @@ public class FacilityAppointmentServiceImplTest {
 
         assertEquals("Capacity can only be changed for a future appointment schedule", exception.getMessage());
         assertEquals(3, schedule.getMaximumPatients());
+        verify(dao, never()).saveSchedule(any(AppointmentSchedule.class));
+    }
+
+    @Test
+    public void shouldListOnlyProvidersWithProviderLicense() {
+        Provider licensedProvider = licensedProvider(71, "MED-123");
+        Provider unlicensedProvider = new Provider(72);
+        Person person = new Person(172);
+        person.setVoided(false);
+        unlicensedProvider.setPerson(person);
+        unlicensedProvider.setRetired(false);
+        when(providerService.getAllProviders(false))
+                .thenReturn(java.util.Arrays.asList(unlicensedProvider, licensedProvider));
+
+        java.util.List<Provider> providers = service.getLicensedProviders();
+
+        assertEquals(Collections.singletonList(licensedProvider), providers);
+        assertEquals("MED-123", ProviderLicenseUtil.getLicense(licensedProvider));
+    }
+
+    @Test
+    public void shouldSaveOptionalLicensedProviderOnSchedule() {
+        Provider provider = licensedProvider(71, "MED-123");
+        when(providerService.getProvider(71)).thenReturn(provider);
+
+        AppointmentSchedule result = service.saveSchedule(
+                servicePoint, futureDate(3), 5, provider, "Licensed provider schedule");
+
+        assertSame(provider, result.getProvider());
+        verify(dao).getScheduleByServicePointDateAndProvider(
+                eq(servicePoint), any(Date.class), eq(provider));
+        verify(dao).saveSchedule(result);
+    }
+
+    @Test
+    public void shouldRejectProviderWithoutProviderLicense() {
+        Person person = new Person(61);
+        person.setVoided(false);
+        Provider provider = new Provider(71);
+        provider.setPerson(person);
+        provider.setRetired(false);
+        when(providerService.getProvider(71)).thenReturn(provider);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> service.saveSchedule(servicePoint, futureDate(3), 5, provider, null));
+
+        assertEquals("Provider must be active and have a Provider License", exception.getMessage());
         verify(dao, never()).saveSchedule(any(AppointmentSchedule.class));
     }
 
@@ -206,6 +266,55 @@ public class FacilityAppointmentServiceImplTest {
 
         assertEquals(AppointmentStatus.COMPLETED, result.getStatus());
         verify(dao).saveBooking(confirmed);
+    }
+
+    @Test
+    public void shouldMarkTodaysConfirmedAppointmentPresent() {
+        AppointmentBooking confirmed = booking(AppointmentStatus.CONFIRMED);
+        confirmed.getSchedule().setScheduleDate(new Date());
+        when(dao.getBookingForUpdate(41)).thenReturn(confirmed);
+
+        AppointmentBooking result = service.markBookingPresent(41);
+
+        assertEquals(AppointmentStatus.PRESENT, result.getStatus());
+        assertSame(service.user, result.getChangedBy());
+        verify(dao).saveBooking(confirmed);
+    }
+
+    @Test
+    public void shouldCompletePresentAppointment() {
+        AppointmentBooking present = booking(AppointmentStatus.PRESENT);
+        when(dao.getBookingForUpdate(41)).thenReturn(present);
+
+        AppointmentBooking result = service.updateBookingStatus(41, AppointmentStatus.COMPLETED);
+
+        assertEquals(AppointmentStatus.COMPLETED, result.getStatus());
+        verify(dao).saveBooking(present);
+    }
+
+    @Test
+    public void shouldKeepPresentAppointmentWhenRegistrationIsOpenedAgain() {
+        AppointmentBooking present = booking(AppointmentStatus.PRESENT);
+        present.getSchedule().setScheduleDate(new Date());
+        when(dao.getBookingForUpdate(41)).thenReturn(present);
+
+        AppointmentBooking result = service.markBookingPresent(41);
+
+        assertSame(present, result);
+        assertEquals(AppointmentStatus.PRESENT, result.getStatus());
+        verify(dao, never()).saveBooking(present);
+    }
+
+    @Test
+    public void shouldRejectMarkPresentForFutureAppointment() {
+        AppointmentBooking confirmed = booking(AppointmentStatus.CONFIRMED);
+        when(dao.getBookingForUpdate(41)).thenReturn(confirmed);
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class, () -> service.markBookingPresent(41));
+
+        assertEquals("Only today's appointments can be marked present", exception.getMessage());
+        verify(dao, never()).saveBooking(confirmed);
     }
 
     @Test
@@ -253,16 +362,32 @@ public class FacilityAppointmentServiceImplTest {
     }
 
     @Test
-    public void shouldRejectPostponeToEarlierDate() {
+    public void shouldBringForwardConfirmedAppointmentToEarlierAvailableSchedule() {
         AppointmentBooking confirmed = booking(AppointmentStatus.CONFIRMED);
         AppointmentSchedule earlierSchedule = schedule(32, servicePoint, 1, 4);
         when(dao.getBookingForUpdate(41)).thenReturn(confirmed);
         when(dao.getScheduleForUpdate(32)).thenReturn(earlierSchedule);
+        when(dao.countBookings(earlierSchedule, capacityStatuses())).thenReturn(3);
+
+        AppointmentBooking result = service.postponeBooking(41, 32);
+
+        assertSame(earlierSchedule, result.getSchedule());
+        assertEquals(AppointmentStatus.CONFIRMED, result.getStatus());
+        assertSame(service.user, result.getChangedBy());
+        verify(dao).saveBooking(confirmed);
+    }
+
+    @Test
+    public void shouldRejectRescheduleToPastDate() {
+        AppointmentBooking confirmed = booking(AppointmentStatus.CONFIRMED);
+        AppointmentSchedule pastSchedule = schedule(32, servicePoint, -1, 4);
+        when(dao.getBookingForUpdate(41)).thenReturn(confirmed);
+        when(dao.getScheduleForUpdate(32)).thenReturn(pastSchedule);
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class, () -> service.postponeBooking(41, 32));
 
-        assertEquals("The postponed appointment date must be later than the current date", exception.getMessage());
+        assertEquals("The new appointment date cannot be in the past", exception.getMessage());
         assertSame(schedule, confirmed.getSchedule());
         verify(dao, never()).saveBooking(confirmed);
     }
@@ -310,8 +435,24 @@ public class FacilityAppointmentServiceImplTest {
         return appointmentSchedule;
     }
 
+    private Provider licensedProvider(int id, String license) {
+        Person person = new Person(id + 100);
+        person.setVoided(false);
+        Provider provider = new Provider(id);
+        provider.setPerson(person);
+        provider.setRetired(false);
+        ProviderAttributeType licenseType = new ProviderAttributeType();
+        licenseType.setName(ProviderLicenseUtil.ATTRIBUTE_TYPE_NAME);
+        licenseType.setRetired(false);
+        ProviderAttribute licenseAttribute = new ProviderAttribute();
+        licenseAttribute.setAttributeType(licenseType);
+        licenseAttribute.setValueReferenceInternal(license);
+        provider.addAttribute(licenseAttribute);
+        return provider;
+    }
+
     private java.util.List<String> capacityStatuses() {
-        return java.util.Arrays.asList("REQUESTED", "CONFIRMED", "COMPLETED");
+        return java.util.Arrays.asList("REQUESTED", "CONFIRMED", "PRESENT", "COMPLETED");
     }
 
     private static class TestFacilityAppointmentService extends FacilityAppointmentServiceImpl {

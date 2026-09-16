@@ -43,6 +43,10 @@ public class InsuranceIntegrationConfig {
 	public static final String PATIENT_RECEPTION_API_KEY = ELIGIBILITY_CHECK_PREFIX + "patientReceptionApiKey";
 	public static final String PATIENT_RECEPTION_API_ORIGIN = ELIGIBILITY_CHECK_PREFIX + "patientReceptionApiOrigin";
 	public static final String PATIENT_RECEPTION_FACILITY_FOSA_ID_OVERRIDE = ELIGIBILITY_CHECK_PREFIX + "patientReceptionFacilityFosaIdOverride";
+	public static final String FACILITY_FOSA_ID = "rwandaemr.insuranceIntegration.facilityFosaId";
+	public static final String RHIP_APPROVAL_REQUEST_URL = ELIGIBILITY_CHECK_PREFIX + "approvalRequestUrl";
+	public static final String RHIP_APPROVAL_STATUS_URL = ELIGIBILITY_CHECK_PREFIX + "approvalStatusUrl";
+	public static final String RHIP_APPROVAL_REQUIRED_PRODUCTS_URL = ELIGIBILITY_CHECK_PREFIX + "approvalRequiredProductsUrl";
 
 	public InsuranceIntegrationConfig() {
 	}
@@ -97,6 +101,26 @@ public class InsuranceIntegrationConfig {
 
 	public boolean isPatientReceptionEnabled() {
 		return StringUtils.isNotBlank(getPatientReceptionUrl());
+	}
+
+	public String getRhipApprovalRequestUrl() {
+		return configuredUrlOrSharedPath(RHIP_APPROVAL_REQUEST_URL, "/approval-request");
+	}
+
+	public String getRhipApprovalStatusUrl() {
+		return configuredUrlOrSharedPath(RHIP_APPROVAL_STATUS_URL, "/approval/status");
+	}
+
+	public String getRhipApprovalRequiredProductsUrl() {
+		return configuredUrlOrSharedPath(RHIP_APPROVAL_REQUIRED_PRODUCTS_URL, "/approval-required-products");
+	}
+
+	public String getFacilityFosaId() {
+		String fosaId = StringUtils.trimToNull(ConfigUtil.getProperty(FACILITY_FOSA_ID));
+		if (StringUtils.isNotBlank(fosaId)) {
+			return fosaId;
+		}
+		return getPatientReceptionFacilityFosaIdOverride();
 	}
 
 	public String getPatientReceptionFacilityFosaIdOverride() {

@@ -1,0 +1,788 @@
+<htmlform
+        htmlformUuid="e14a24f0-9385-4a34-9997-67ccd8a45173"
+        formUuid="41e9ff3a-cb42-4182-a3db-5df44d7671cb"
+        formName="New Born From"
+        formDescription="parto_newborn"
+        formVersion="1.0"
+        formEncounterType="d0d3777d-a40e-4e5d-a116-0163aab5fd6c"
+        formPublished="true"
+        formRetired="false"
+>
+    <div style="display:none"><labourEpisodeIdObs/></div>
+
+                          
+    
+    
+    
+    
+    
+    <!-- WHO LABOUR CARE GUIDE - RWANDA ADAPTATION : NEWBORN -->
+                          
+    
+    
+    
+    
+    
+    <macros>
+    headerColor = #0F6E56
+    fontOnHeaderColor = white
+  </macros>
+                          
+    
+    
+    
+    
+    
+    <style>
+    .formTitle {
+      text-align: center;
+      font-size: 1.4em;
+      font-weight: bold;
+      color: $headerColor;
+      margin-bottom: 0.8em;
+      letter-spacing: 0.02em;
+    }
+    .section {
+      border: 1px solid $headerColor;
+      border-radius: 6px;
+      padding: 0;
+      text-align: left;
+      margin-bottom: 1em;
+      overflow: hidden;
+    }
+    .sectionHeader {
+      background-color: $headerColor;
+      color: $fontOnHeaderColor;
+      display: block;
+      padding: 6px 10px;
+      font-weight: bold;
+      letter-spacing: 0.02em;
+    }
+    .section table { width: 100%; border-collapse: collapse; }
+    .section table.baseline-aligned td { vertical-align: middle; padding: 6px 10px; }
+    .section table.baseline-aligned tr { border-top: 1px solid #e2e3f2; }
+    .section table.baseline-aligned tr:first-child { border-top: none; }
+    th.subheader { background-color: $headerColor; color: white; }
+    .lblcolor{ background: #eef7f4; width: 320px; font-size: 0.92em; }
+    .legend { font-size: 0.85em; border-top: 1px solid #999; margin-top: 1em; padding-top: 4px; color: #444; }
+    .unit { font-size: 0.85em; color: #666; margin-left: 4px; }
+
+    .section input[type="radio"] {
+      margin: 0 4px 0 14px;
+      vertical-align: middle;
+      transform: scale(1.15);
+    }
+    .section input[type="radio"]:first-of-type { margin-left: 0; }
+    .section label { cursor: pointer; padding: 2px 2px; }
+
+    .submitWrapper {
+      display: flex;
+      justify-content: center;
+      margin-top: 1.2em;
+    }
+  </style>
+                          
+    
+    
+    
+    
+    
+    <div class="formTitle">NEWBORN FORM</div>
+                          
+    
+    
+    
+    
+    
+    <section headerCode=" ">
+                                                    
+        
+        
+        
+        
+        
+        <table border="1" cellpadding="6" cellspacing="0" style="border-color:#ccc;" width="100%">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                  Date:
+          
+                    
+                    
+                    
+                    
+                    
+                    <encounterDate default="now" id="encdateId" showTime="true"/>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        Health Facility: 
+                    
+                    
+                    
+                    
+                    
+                    <encounterLocation default="UserProperty:defaultLocation"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        Provider: 
+                    
+                    
+                    
+                    
+                    
+                    <encounterProvider/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="Information">
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">LMP / GA</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                  LMP: 
+                    
+                    
+                    
+                    
+                    
+                    <obs conceptId="3cd653c6-26fe-102b-80cb-0017a47871b2"/>
+                                                                                                                                    GA: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="8" conceptId="3cd9446e-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Birth status</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Born alive,Stillbirth,Died before 24 hrs" answerConceptIds="b056404d-333c-4231-989e-a3abe01e5cd0,a972e953-3552-4a95-bd9f-1a59c2a87f69,7bdbe689-0646-4c3c-a473-a30bf8521605" conceptId="cf3137cf-8a15-429b-800b-2e35d43011d7" style="radio"/>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Time the umbilical cord was cut</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="80d26408-00ce-4476-9683-bd44ebdc0f4f" rows="1"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">APGAR (1 / 5 / 10 min)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                  1min: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="3" conceptId="4ac39577-f644-4b8d-9a96-5d46a9bcf785" rows="1"/>
+                                                                                                                                    5min: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="3" conceptId="930ba9c4-73a0-4910-b4eb-c26937ab7a67" rows="1"/>
+                                                                                                                                    10min: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="3" conceptId="f96a327a-4d14-465e-bd4c-f0e71780843b" rows="1"/>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Resuscitation</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="None,Stimulation,Bag &amp; mask" conceptId="cfa799db-d343-4213-9eed-8dec825ccc0e" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Gender / Weight / HC / Height</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Male,Female" conceptId="e552ef1b-a9b2-45ef-8078-b1d3989c2454" style="radio"/>
+                                                                                                                                    Weight: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="3cf15b3a-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">g</span>
+                                                                                                                                    HC: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="4" conceptId="3ceb96b4-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">cm</span>
+                                                                                                                                    Height: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="4" conceptId="3ce93cf2-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">cm</span>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Skin to skin initiated immediately for at least 1 hr</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Yes,No" conceptId="d0b955fb-3f3c-4b99-8ed4-75d5b1e49d62" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Breastfeeding initiated within the first hour</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Yes,No" conceptId="f3be2244-7e9c-492e-a130-17556110a9fc" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Congenital malformation(s)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="30" conceptId="dc758597-fddf-47aa-baa7-40de8038371c" rows="2"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">BCG / Polio / Hep B / Eye care / Vitamin K</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                  BCG: 
+                    
+                    
+                    
+                    
+                    
+                    <obs conceptId="3cd4e004-26fe-102b-80cb-0017a47871b2"/>
+                                                                                                                                    Polio: 
+                    
+                    
+                    
+                    
+                    
+                    <obs conceptId="3ceb32b4-26fe-102b-80cb-0017a47871b2"/>
+                                                                                                                                    Hep B: 
+                    
+                    
+                    
+                    
+                    
+                    <obs conceptId="3ccc7a0e-26fe-102b-80cb-0017a47871b2"/>
+                                                                                                                                    Eye care: 
+                    
+                    
+                    
+                    
+                    
+                    <obs conceptId="2b202155-cdd7-4f6b-8e4f-85bf8d28e0a7"/>
+                                                                                                                                    Vit K: 
+                    
+                    
+                    
+                    
+                    
+                    <obs conceptId="9eb2c604-beab-41e7-a1ef-d53b6aa5dda6"/>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Treatments</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="30" conceptId="4044b850-32da-4689-bb59-107fdacfb470" rows="2"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <div class="submitWrapper">
+                                                    
+        
+        
+        
+        
+        
+        <submit/>
+                                                  
+    
+    
+    
+    
+    
+    </div>
+                        
+
+
+
+
+
+</htmlform>

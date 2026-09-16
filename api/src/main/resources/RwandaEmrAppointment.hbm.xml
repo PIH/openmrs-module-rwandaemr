@@ -11,6 +11,7 @@
 		</id>
 		<property name="uuid" type="java.lang.String" column="uuid" length="38" not-null="true" unique="true"/>
 		<many-to-one name="servicePoint" class="org.openmrs.Location" column="service_point_location_id" not-null="true"/>
+		<many-to-one name="provider" class="org.openmrs.Provider" column="provider_id"/>
 		<property name="scheduleDate" type="date" column="schedule_date" not-null="true"/>
 		<property name="maximumPatients" type="java.lang.Integer" column="maximum_patients" not-null="true"/>
 		<property name="active" type="java.lang.Boolean" column="active" not-null="true"/>

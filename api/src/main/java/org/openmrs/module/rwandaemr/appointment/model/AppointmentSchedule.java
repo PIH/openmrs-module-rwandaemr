@@ -4,11 +4,13 @@ import java.util.Date;
 
 import org.openmrs.BaseOpenmrsData;
 import org.openmrs.Location;
+import org.openmrs.Provider;
 
 public class AppointmentSchedule extends BaseOpenmrsData {
 
     private Integer id;
     private Location servicePoint;
+    private Provider provider;
     private Date scheduleDate;
     private Integer maximumPatients;
     private Boolean active = true;
@@ -30,6 +32,14 @@ public class AppointmentSchedule extends BaseOpenmrsData {
 
     public void setServicePoint(Location servicePoint) {
         this.servicePoint = servicePoint;
+    }
+
+    public Provider getProvider() {
+        return provider;
+    }
+
+    public void setProvider(Provider provider) {
+        this.provider = provider;
     }
 
     public Date getScheduleDate() {

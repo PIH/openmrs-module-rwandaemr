@@ -10,6 +10,7 @@ import org.hibernate.LockMode;
 import org.hibernate.Query;
 import org.openmrs.Location;
 import org.openmrs.Patient;
+import org.openmrs.Provider;
 import org.openmrs.api.db.hibernate.DbSession;
 import org.openmrs.api.db.hibernate.DbSessionFactory;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentBooking;
@@ -47,16 +48,21 @@ public class HibernateAppointmentDao implements AppointmentDao {
 
     @Override
     @SuppressWarnings("unchecked")
-    public AppointmentSchedule getScheduleByServicePointAndDate(Location servicePoint, Date scheduleDate) {
+    public AppointmentSchedule getScheduleByServicePointDateAndProvider(Location servicePoint, Date scheduleDate,
+                                                                        Provider provider) {
         if (servicePoint == null || scheduleDate == null) {
             return null;
         }
-        List<AppointmentSchedule> schedules = session().createQuery(
-                        "from AppointmentSchedule s where s.servicePoint = :servicePoint " +
-                                "and s.scheduleDate = :scheduleDate and s.voided = false")
+        String hql = "from AppointmentSchedule s where s.servicePoint = :servicePoint " +
+                "and s.scheduleDate = :scheduleDate and s.voided = false";
+        hql += provider == null ? " and s.provider is null" : " and s.provider = :provider";
+        Query query = session().createQuery(hql)
                 .setParameter("servicePoint", servicePoint)
-                .setParameter("scheduleDate", scheduleDate)
-                .list();
+                .setParameter("scheduleDate", scheduleDate);
+        if (provider != null) {
+            query.setParameter("provider", provider);
+        }
+        List<AppointmentSchedule> schedules = query.list();
         return schedules.isEmpty() ? null : schedules.get(0);
     }
 

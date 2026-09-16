@@ -120,6 +120,19 @@
 		<description>Confirm and update patient appointment outcomes</description>
 	</privilege>
 
+	<privilege>
+		<name>Billing RHIP Approval - View</name>
+		<description>View the RHIP approval request page</description>
+	</privilege>
+	<privilege>
+		<name>Billing RHIP Approval - Request</name>
+		<description>Submit RHIP approval requests</description>
+	</privilege>
+	<privilege>
+		<name>Billing RHIP Approval - Check Status</name>
+		<description>Check RHIP approval request status</description>
+	</privilege>
+
 	<globalProperty>
 		<property>registration.serviceRequestedConcept</property>
 		<defaultValue>6702</defaultValue>
@@ -136,6 +149,38 @@
 		</description>
 	</globalProperty>
 
+	<globalProperty>
+		<property>rwandaemr.queue.radiologyServicePoint</property>
+		<defaultValue></defaultValue>
+		<description>
+			Location UUID, ID, or name of the Radiology login-location service point. When blank, locations containing Radiology are treated as Radiology.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.queue.imagingServicePoint</property>
+		<defaultValue></defaultValue>
+		<description>
+			Location UUID, ID, or name of the Imaging login-location service point. When blank, locations containing Imaging are treated as Imaging.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.queue.webhookUrl</property>
+		<defaultValue></defaultValue>
+		<description>
+			URL that RwandaEMR will POST to whenever a queue entry is created or changes status/priority (e.g. http://localhost:3000/webhooks/queue). When blank, no webhook is sent.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.queue.webhookSecret</property>
+		<defaultValue></defaultValue>
+		<description>
+			Shared secret sent as the X-RwandaEMR-Queue-Secret header on every queue webhook POST, so the receiving system can verify the request came from this OpenMRS instance. When blank, no secret header is sent.
+		</description>
+	</globalProperty>
+
 
 
 	<globalProperty>
@@ -144,8 +189,54 @@
 		<description>
 			Base URL for RHIP shared insurance integration API. Example:
 			https://rhip-stag.moh.gov.rw/backend. When configured, RwandaEMR derives
-			/insurance_integration/api/v2 eligibility, OTP, patient-types, and patient-reception
+			/insurance_integration/api/v2 eligibility, OTP, patient-types, patient-reception,
+			approval-required-products, approval-request, and approval status
 			endpoint URLs from this value unless the older full endpoint URL properties are configured.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labs.labIdNextSequenceValue</property>
+		<defaultValue></defaultValue>
+		<description>
+			Internal tracking value used to auto-generate Lab IDs. Stores the last date a Lab ID
+			was generated and the next sequence value to use, in the format yyyy-MM-dd:N. Not
+			meant to be edited manually.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.insuranceEligibility.approvalRequiredProductsUrl</property>
+		<defaultValue></defaultValue>
+		<description>
+			Full RHIP approval-required products endpoint URL. Leave blank to derive from
+			rwandaemr.insuranceIntegration.baseUrl.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.insuranceEligibility.approvalRequestUrl</property>
+		<defaultValue></defaultValue>
+		<description>
+			Full RHIP approval request endpoint URL. Leave blank to derive from
+			rwandaemr.insuranceIntegration.baseUrl.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.insuranceEligibility.approvalStatusUrl</property>
+		<defaultValue></defaultValue>
+		<description>
+			Full RHIP approval status endpoint URL. Leave blank to derive from
+			rwandaemr.insuranceIntegration.baseUrl.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.insuranceIntegration.facilityFosaId</property>
+		<defaultValue></defaultValue>
+		<description>
+			Facility FOSA ID used for RHIP approval request and approval-required product calls.
 		</description>
 	</globalProperty>
 

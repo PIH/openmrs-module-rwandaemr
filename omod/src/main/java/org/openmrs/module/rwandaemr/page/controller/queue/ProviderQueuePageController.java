@@ -3,6 +3,7 @@ package org.openmrs.module.rwandaemr.page.controller.queue;
 import java.util.Date;
 
 import org.openmrs.Location;
+import org.openmrs.api.ProviderService;
 import org.openmrs.module.appui.UiSessionContext;
 import org.openmrs.module.rwandaemr.queue.QueuePriority;
 import org.openmrs.module.rwandaemr.queue.QueueService;
@@ -49,10 +50,12 @@ public class ProviderQueuePageController extends QueuePageSupport {
     public String post(UiUtils ui,
                        UiSessionContext sessionContext,
                        @SpringBean QueueService queueService,
+                       @SpringBean("providerService") ProviderService providerService,
                        @RequestParam(value = "action", required = false) String action,
                        @RequestParam(value = "entryId", required = false) Integer entryId,
                        @RequestParam(value = "servicePointId", required = false) Integer servicePointId,
                        @RequestParam(value = "destinationServicePointId", required = false) Integer destinationServicePointId,
+                       @RequestParam(value = "assignedProviderId", required = false) Integer assignedProviderId,
                        @RequestParam(value = "priority", required = false) String priority,
                        @RequestParam(value = "reason", required = false) String reason,
                        @RequestParam(value = "status", required = false) String status) {
@@ -62,7 +65,8 @@ public class ProviderQueuePageController extends QueuePageSupport {
             } else if ("openDashboard".equals(action)) {
                 return openPatientDashboard(ui, queueService, entryId);
             } else {
-                processEntryAction(queueService, action, entryId, destinationServicePointId, priority, reason);
+                processEntryAction(queueService, providerService, action, entryId, destinationServicePointId,
+                        assignedProviderId, priority, reason);
             }
             setToast(sessionContext, "Queue updated");
         }

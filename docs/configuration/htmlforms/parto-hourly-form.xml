@@ -1,0 +1,1620 @@
+<htmlform
+        htmlformUuid="322d941a-9500-414b-9fed-479a590d2f8d"
+        formUuid="fa87ef0b-ac54-413d-be2d-4595e4e7ea79"
+        formName="partogram_hourly_assessment"
+        formDescription="partogram_hourly_assessment"
+        formVersion="1.0"
+        formEncounterType="76162246-15d8-43b0-9666-5884ad1e2be4"
+        formPublished="true"
+        formRetired="false"
+>
+    <div style="display:none"><labourEpisodeIdObs/></div>
+
+                          
+    
+    
+    
+    
+    
+    <macros>
+    headerColor = #0F6E56
+    fontOnHeaderColor = white
+  </macros>
+                          
+    
+    
+    
+    
+    
+    <style>
+    .formTitle {
+      text-align: center;
+      font-size: 1.4em;
+      font-weight: bold;
+      color: $headerColor;
+      margin-bottom: 0.8em;
+      letter-spacing: 0.02em;
+    }
+    .section {
+      border: 1px solid $headerColor;
+      border-radius: 6px;
+      padding: 0;
+      text-align: left;
+      margin-bottom: 1em;
+      overflow: hidden;
+    }
+    .sectionHeader {
+      background-color: $headerColor;
+      color: $fontOnHeaderColor;
+      display: block;
+      padding: 6px 10px;
+      font-weight: bold;
+      letter-spacing: 0.02em;
+    }
+    .section table { width: 100%; border-collapse: collapse; }
+    .section table.baseline-aligned td { vertical-align: middle; padding: 6px 10px; }
+    .section table.baseline-aligned tr { border-top: 1px solid #e2e3f2; }
+    .section table.baseline-aligned tr:first-child { border-top: none; }
+    th.subheader { background-color: $headerColor; color: white; }
+    .lblcolor{ background: #eef7f4; width: 320px; font-size: 0.92em; }
+    .legend { font-size: 0.85em; border-top: 1px solid #999; margin-top: 1em; padding-top: 4px; color: #444; }
+    .unit { font-size: 0.85em; color: #666; margin-left: 4px; }
+
+    /* Make radio-style obs answers read as a horizontal row of options
+       rather than a stacked list, and give them larger, clearer touch targets. */
+    .section input[type="radio"] {
+      margin: 0 4px 0 14px;
+      vertical-align: middle;
+      transform: scale(1.15);
+    }
+    .section input[type="radio"]:first-of-type { margin-left: 0; }
+    .section label { cursor: pointer; padding: 2px 2px; }
+
+    /* Alert state applied by JS to the numeric obs inputs themselves
+       (the id attribute on each obs field is passed through to the rendered input). */
+    .alert-value {
+      border: 2px solid #c0392b !important;
+      background-color: #fdecea !important;
+      color: #a32d2d !important;
+      font-weight: bold;
+    }
+
+    .submitWrapper {
+      display: flex;
+      justify-content: center;
+      margin-top: 1.2em;
+    }
+  </style>
+                          
+    
+    
+    
+    
+    
+    <div class="formTitle">HOURLY ASSESSMENT FORM</div>
+                          
+    
+    
+    
+    
+    
+    <section headerCode=" ">
+                                                    
+        
+        
+        
+        
+        
+        <table border="1" cellpadding="6" cellspacing="0" style="border-color:#ccc;" width="100%">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                                Date:
+                       
+                    
+                    
+                    
+                    
+                    
+                    <encounterDate default="now" id="encdateId" showTime="true"/>
+                                                                                                                                            
+                
+                
+                
+                
+                
+                </td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        Health Facility: 
+                    
+                    
+                    
+                    
+                    
+                    <encounterLocation default="UserProperty:defaultLocation"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        Provider: 
+                    
+                    
+                    
+                    
+                    
+                    <encounterProvider/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="SUPPORTIVE CARE">
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Companion (N = none)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Yes,No,Unknown,Declined" answerConceptIds="3cd6f600-26fe-102b-80cb-0017a47871b2,3cd6f86c-26fe-102b-80cb-0017a47871b2,3cd6fac4-26fe-102b-80cb-0017a47871b2,167156AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" conceptId="9fd6786b-6b83-4fa7-b6b4-ba5846a84937" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Pain relief (N = none)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Yes,No,Unknown,Declined" answerConceptIds="3cd6f600-26fe-102b-80cb-0017a47871b2,3cd6f86c-26fe-102b-80cb-0017a47871b2,3cd6fac4-26fe-102b-80cb-0017a47871b2,167156AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" conceptId="9bd95df5-684b-4a9c-be19-1f30f104908a" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Oral fluid (N = none)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Yes,No,Unknown,Declined" answerConceptIds="3cd6f600-26fe-102b-80cb-0017a47871b2,3cd6f86c-26fe-102b-80cb-0017a47871b2,3cd6fac4-26fe-102b-80cb-0017a47871b2,167156AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" conceptId="59dfcb57-b663-4ecb-8fa6-ca0b7a23674b" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Posture (SP = supine, MO = mobile)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Supine,Mobile" answerConceptIds="2f37e840-546e-46bf-9387-819702e04dcf,09175207-f6f5-4806-92e0-0f7ace0359f0" conceptId="cb758416-d950-4e21-a4b6-4cd37843b74c" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="BABY">
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Baseline FHR (alert if &lt;110 or ≥160)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="36a6d4d5-b797-4316-adde-3ca3e7109b52" id="fhrId" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">bpm</span>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">FHR deceleration (E-early, L-late, V-variable)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Early,Late,Variable,None" answerConceptIds="78e11357-78fd-4d4d-9322-9c47709c8436,f80940ab-56ca-436b-be21-5ce470fd4168,6018fb55-16ac-4d69-8b7e-bef1f08864b7,1107AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" conceptId="30331c69-3ecf-4ae5-bd54-71ea90f033bf" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Amniotic fluid (M-meconium, B-blood, C-clear, I-intact)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Clear,Meconium,Blood,Intact" answerConceptIds="5d2c51ec-3432-45a4-b13d-c6bc20b1f6d6,fdcf6d8b-ae7a-4253-b4d7-d3a50dad127f,7fb92bd6-7b2c-4966-91cf-447c4c9b1595,a245e139-aa2c-4d62-9230-e870db5b7a92" conceptId="2576c214-d10e-4330-ab3c-3df4d6bf466d" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Fetal position (P-posterior, A-anterior, T-transverse)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Anterior,Posterior,Transverse" answerConceptIds="6b713ffd-dd57-467f-96a6-b998607c13ce,1f521426-241a-49f3-95c1-7fb0a2c43c97,d8b29a7f-b332-4e99-879b-5433433b66df" conceptId="370efbe9-f916-425c-9d3e-8dd1c747be3e" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Caput (alert if +++)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="None,+,++,+++" answerConceptIds="1107AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,a5b4c4bb-54b3-4997-b30d-6372f58b9bee,5384734e-7426-4220-a4ca-e1f784da37f8,6f6c39fc-839d-4aae-9ad7-3e095ef372ae" conceptId="eaa3f2f6-22bb-4a58-82e4-5e3950f74cc8" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Moulding (alert if +++)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="None,+,++,+++" answerConceptIds="1107AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,a5b4c4bb-54b3-4997-b30d-6372f58b9bee,5384734e-7426-4220-a4ca-e1f784da37f8,6f6c39fc-839d-4aae-9ad7-3e095ef372ae" conceptId="74a28037-2fc1-49a5-8572-8cf2710b8c12" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="WOMAN">
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Pulse (alert if &lt;60 or ≥120)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="3ce93824-26fe-102b-80cb-0017a47871b2" id="pulseId" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">bpm</span>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Respirations (alert if &lt;12 or ≥20)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="3ceb11f8-26fe-102b-80cb-0017a47871b2" id="respId" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">/min</span>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Systolic BP (alert if &lt;80 or ≥140)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="3ce934fa-26fe-102b-80cb-0017a47871b2" id="sysbpId" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">mmHg</span>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Diastolic BP (alert if ≥90)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="3ce93694-26fe-102b-80cb-0017a47871b2" id="diabpId" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">mmHg</span>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Temperature °C (alert if &lt;35.0 or ≥37.5)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="3ce939d2-26fe-102b-80cb-0017a47871b2" id="tempId" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">°C</span>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Urine (P++ protein, A++ acetone)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Normal,P++,A++,P++/A++" answerConceptIds="3cd750a0-26fe-102b-80cb-0017a47871b2,58f6fb62-69e2-4a94-8ccc-4a671f64b6f1,67219f70-b0bb-4f3a-9a6e-e367c7950165,451b6015-c2f5-4142-87bb-98ec714568ec" conceptId="8eeea59e-d31c-4294-b02d-078249818e1b" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Urine volume (alert if &lt;30 mL/hr; N/A if normal labour)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="10" conceptId="bd418b33-2082-43de-bbe4-3ed8fd813088" rows="1"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Contractions per 10 min (alert if ≤2 or >5)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="5965b71c-4214-4780-a74e-2de09b06a552" id="contrCountId" rows="1"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Duration of contractions, sec (alert if &lt;20 or >60)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="33dddcf3-791b-4c20-a971-4d5c1ed4110c" id="contrDurId" rows="1"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="LABOUR PROGRESS">
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Cervix dilatation [Plot X] (cm, 5-10)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="1d28c215-f090-48d4-8813-b214d0e4054b" rows="1"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Descent [Plot O] (station, 0-5)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="ef129b33-e1ed-43f2-9e47-b169a95f7c59" rows="1"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="MEDICATION">
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Oxytocin (U/L, drops/min)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="20" conceptId="76f30070-c91f-4211-880c-024565b69d42" rows="1"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Medicine</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="30" conceptId="89bf85f5-72f1-4037-ac86-6e3ac730ef45" rows="1"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">IV fluids</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="20" conceptId="def3f08b-e55a-464d-8d1c-b4a389a37649" rows="1"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="SHARED DECISION-MAKING">
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Assessment</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="40" conceptId="34ab9dab-f58c-409d-8649-6cc5c254470d" rows="3"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Plan</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="40" conceptId="ca5f9645-f958-47ca-b488-079d4089cc3e" rows="3"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Initials</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="d5180c5c-96a4-4640-9509-5e3926c5efe4" rows="1"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <div class="legend">
+                                                    
+        
+        
+        
+        
+        
+        <b>INSTRUCTIONS:</b>
+                                                 Fields highlighted in red meet an alert threshold as you type — alert the senior
+    midwife or doctor, and record the assessment and action taken in the Shared decision-making section. If labour extends beyond 12h, continue on a new LCG.
+        
+        
+        
+        
+        
+        <br/>
+                                                    
+        
+        
+        
+        
+        
+        <b>Abbreviations:</b>
+                                                 Y-Yes, N-No, D-Declined, U-Unknown, SP-Supine, MO-Mobile, E-Early, L-Late, V-Variable,
+    I-Intact, C-Clear, M-Meconium, B-Blood, A-Anterior, P-Posterior, T-Transverse, P+-Protein, A+-Acetone.
+        
+        
+        
+        
+        
+        <br/>
+                                                    Urine volume: record "N/A" if labour is progressing normally with no maternal/fetal complications.
+  
+    
+    
+    
+    
+    
+    </div>
+                          
+    
+    
+    
+    
+    
+    <script>
+                                                  
+        
+        
+        
+        
+        
+        <![CDATA[
+    // Live alert-highlighting for the numeric obs fields.
+    // The id given on each obs tag is passed through to the rendered
+    // input by HTML Form Entry, so we can hook directly into it here.
+    // This ONLY toggles a CSS class -- it never changes the submitted value,
+    // so obs are still saved against their original conceptId as normal.
+    (function () {
+      var rules = [
+        { id: 'fhrId',       test: function (v) { return v < 110 || v >= 160; } },
+        { id: 'pulseId',     test: function (v) { return v < 60  || v >= 120; } },
+        { id: 'respId',      test: function (v) { return v < 12  || v >= 20;  } },
+        { id: 'sysbpId',     test: function (v) { return v < 80  || v >= 140; } },
+        { id: 'diabpId',     test: function (v) { return v >= 90; } },
+        { id: 'tempId',      test: function (v) { return v < 35.0 || v >= 37.5; } },
+        { id: 'contrCountId',test: function (v) { return v &lt;= 2  || v > 5;  } },
+        { id: 'contrDurId',  test: function (v) { return v < 20  || v > 60; } }
+      ];
+
+      function wire(rule) {
+        var el = document.getElementById(rule.id);
+        if (!el) { return; }
+        var check = function () {
+          var v = parseFloat(el.value);
+          var bad = el.value !== '' &amp;&amp; !isNaN(v) &amp;&amp; rule.test(v);
+          if (bad) {
+            el.classList.add('alert-value');
+          } else {
+            el.classList.remove('alert-value');
+          }
+        };
+        el.addEventListener('input', check);
+        el.addEventListener('change', check);
+        check();
+      }
+
+      // Run after the form widgets have rendered.
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+          rules.forEach(wire);
+        });
+      } else {
+        rules.forEach(wire);
+      }
+    })();
+  ]]>
+                                                  
+    
+    
+    
+    
+    
+    </script>
+                          
+    
+    
+    
+    
+    
+    <div class="submitWrapper">
+                                                    
+        
+        
+        
+        
+        
+        <submit/>
+                                                  
+    
+    
+    
+    
+    
+    </div>
+                        
+
+
+
+
+
+</htmlform>
