@@ -212,6 +212,69 @@ public class QueueDashboardPageControllerTest {
     }
 
     @Test
+    public void shouldUseActiveOnlyQueriesForTheAllStatusDashboard() {
+        final Location reception = new Location(5);
+        QueueDashboardPageController controller = new QueueDashboardPageController() {
+            @Override
+            protected boolean canViewQueue() {
+                return true;
+            }
+
+            @Override
+            protected boolean canViewAllLocations() {
+                return false;
+            }
+
+            @Override
+            protected boolean canManageQueue() {
+                return false;
+            }
+
+            @Override
+            protected boolean canCallPatient() {
+                return false;
+            }
+
+            @Override
+            protected boolean canTransferPatient() {
+                return false;
+            }
+
+            @Override
+            protected Set<Integer> getCurrentProviderIds(ProviderService providerService) {
+                return Collections.emptySet();
+            }
+        };
+        QueueService queueService = mock(QueueService.class);
+        PageModel model = mock(PageModel.class);
+        UiSessionContext sessionContext = mock(UiSessionContext.class);
+        RwandaEmrConfig rwandaEmrConfig = mock(RwandaEmrConfig.class);
+        EncounterService encounterService = mock(EncounterService.class);
+        ProviderService providerService = mock(ProviderService.class);
+        when(sessionContext.getSessionLocation()).thenReturn(reception);
+        when(queueService.getServicePointLocations()).thenReturn(Collections.singletonList(reception));
+        when(queueService.getActiveQueueEntriesByLocation(
+                eq(reception), any(Date.class), any(Date.class), eq(""),
+                eq(QueueAssignmentFilter.ALL), eq(Collections.emptySet()), eq(0), eq(10)))
+                .thenReturn(Collections.<QueueEntry>emptyList());
+        when(queueService.getQueueEntriesByVisits(Collections.emptySet()))
+                .thenReturn(Collections.<QueueEntry>emptyList());
+
+        controller.get(model, sessionContext, queueService, rwandaEmrConfig, encounterService, providerService,
+                null, "ALL", "TODAY", "", "ALL", 1, 10);
+
+        verify(queueService).countActiveQueueEntriesByLocation(
+                eq(reception), any(Date.class), any(Date.class), eq(""),
+                eq(QueueAssignmentFilter.ALL), eq(Collections.emptySet()));
+        verify(queueService).getActiveQueueEntriesByLocation(
+                eq(reception), any(Date.class), any(Date.class), eq(""),
+                eq(QueueAssignmentFilter.ALL), eq(Collections.emptySet()), eq(0), eq(10));
+        verify(queueService, never()).countQueueEntriesByLocation(
+                eq(reception), eq((QueueStatus) null), any(Date.class), any(Date.class), eq(""),
+                eq(QueueAssignmentFilter.ALL), eq(Collections.emptySet()));
+    }
+
+    @Test
     public void shouldCallPatientAndOpenLabOrderList() {
         QueueDashboardPageController controller = new QueueDashboardPageController();
         QueueService queueService = mock(QueueService.class);

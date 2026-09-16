@@ -13,9 +13,34 @@
         padding: 10px 12px;
     }
 
-    #queue-provider-assignment-select {
+    .queue-provider-assignment-combobox {
+        position: relative;
+    }
+
+    #queue-provider-assignment-search {
         box-sizing: border-box;
+        padding-right: 34px;
         width: 100%;
+    }
+
+    .queue-provider-assignment-toggle {
+        background: transparent;
+        border: 0;
+        color: #333;
+        cursor: pointer;
+        height: 100%;
+        margin: 0;
+        padding: 0 10px;
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+
+    .queue-provider-autocomplete-results {
+        max-height: 220px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        z-index: 10000 !important;
     }
 
     .queue-provider-assignment-label {
@@ -50,8 +75,14 @@
             <strong id="queue-provider-assignment-patient">Patient</strong>
             <div id="queue-provider-assignment-current"></div>
         </div>
-        <label class="queue-provider-assignment-label" for="queue-provider-assignment-select">Provider</label>
-        <select id="queue-provider-assignment-select"></select>
+        <label class="queue-provider-assignment-label" for="queue-provider-assignment-search">Provider</label>
+        <div class="queue-provider-assignment-combobox">
+            <input id="queue-provider-assignment-search" type="text" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" placeholder="Choose provider" />
+            <button type="button" class="queue-provider-assignment-toggle"
+                    aria-label="Show providers" tabindex="-1"><i class="icon-chevron-down"></i></button>
+        </div>
+        <input id="queue-provider-assignment-select" type="hidden" />
         <div id="queue-provider-assignment-error" class="queue-provider-assignment-error"
              role="alert" style="display: none"></div>
         <div class="queue-provider-assignment-actions">
@@ -70,30 +101,71 @@
             var title = jq("#queue-provider-assignment-title");
             var patientLabel = jq("#queue-provider-assignment-patient");
             var currentProviderLabel = jq("#queue-provider-assignment-current");
+            var providerSearch = jq("#queue-provider-assignment-search");
             var providerInput = jq("#queue-provider-assignment-select");
             var providerError = jq("#queue-provider-assignment-error");
             var pendingForm = null;
             var assignmentDialog = null;
             var providerLoadState = "idle";
+            var providerOptions = [];
+            var providerSelectionMade = false;
+
+            function providerSuggestions(searchTerm) {
+                var currentProviderId = pendingForm.attr("data-provider-id") || "";
+                var normalizedSearch = jq.trim(searchTerm).toLowerCase();
+                var suggestions = [];
+                if (currentProviderId && (!normalizedSearch || "no provider assigned".indexOf(normalizedSearch) !== -1)) {
+                    suggestions.push({ id: "", label: "No provider assigned", value: "No provider assigned" });
+                }
+                jq.each(providerOptions, function(index, provider) {
+                    if (!normalizedSearch || String(provider.label).toLowerCase().indexOf(normalizedSearch) !== -1) {
+                        suggestions.push({ id: String(provider.id), label: provider.label, value: provider.label });
+                    }
+                });
+                if (!suggestions.length) {
+                    suggestions.push({ unavailable: true, label: "No providers match your search", value: searchTerm });
+                }
+                return suggestions;
+            }
 
             function configureProviderInput() {
                 if (!pendingForm || providerLoadState !== "loaded") {
                     return;
                 }
                 var currentProviderId = pendingForm.attr("data-provider-id") || "";
-                var currentProviderName = pendingForm.attr("data-provider-name") || "";
-                var emptyOption = providerInput.find("option[value='']");
-                if (currentProviderId) {
-                    emptyOption.text("No provider assigned").prop("disabled", false);
-                    if (!providerInput.find("option[value='" + currentProviderId + "']").length) {
-                        providerInput.append(jq("<option>").val(currentProviderId).text(currentProviderName));
-                    }
-                    providerInput.val(currentProviderId);
-                } else {
-                    emptyOption.text("Choose provider").prop("disabled", true);
-                    providerInput.val("");
-                }
+                providerInput.val(currentProviderId);
+                providerSearch.val(pendingForm.attr("data-provider-name") || "");
+                providerSelectionMade = Boolean(currentProviderId);
             }
+
+            providerSearch.autocomplete({
+                minLength: 0,
+                delay: 0,
+                source: function(request, response) {
+                    response(providerLoadState === "loaded" ? providerSuggestions(request.term) : []);
+                },
+                select: function(event, ui) {
+                    if (ui.item.unavailable) {
+                        return false;
+                    }
+                    providerInput.val(ui.item.id);
+                    providerSearch.val(ui.item.label);
+                    providerSelectionMade = true;
+                    providerError.hide();
+                    return false;
+                }
+            });
+            providerSearch.autocomplete("widget").addClass("queue-provider-autocomplete-results");
+            providerSearch.on("input", function() {
+                providerInput.val("");
+                providerSelectionMade = false;
+                providerError.hide();
+            }).on("click", function() {
+                providerSearch.autocomplete("search", "");
+            });
+            dialogElement.find(".queue-provider-assignment-toggle").on("click", function() {
+                providerSearch.focus().autocomplete("search", "");
+            });
 
             function loadProviders() {
                 if (providerLoadState === "loading" || providerLoadState === "loaded") {
@@ -101,27 +173,23 @@
                     return;
                 }
                 providerLoadState = "loading";
-                providerInput.prop("disabled", true).empty()
-                    .append(jq("<option>").val("").text("Loading providers..."));
+                providerSearch.prop("disabled", true).val("Loading providers...");
                 jq.ajax({
                     url: "${ ui.actionLink("rwandaemr", "queue/transferReasonDialog", "getProviders") }",
                     dataType: "json",
                     success: function(data) {
-                        providerInput.empty().append(jq("<option>").val("").text("Choose provider"));
-                        jq.each(data.providers || [], function(index, provider) {
-                            providerInput.append(jq("<option>").val(provider.id).text(provider.label));
-                        });
+                        providerOptions = data.providers || [];
                         providerLoadState = "loaded";
                         providerError.hide();
                         configureProviderInput();
                     },
                     error: function() {
                         providerLoadState = "failed";
-                        providerInput.empty().append(jq("<option>").val("").text("Providers unavailable"));
+                        providerSearch.val("Providers unavailable");
                         providerError.text("Providers could not be loaded. Please try again.").show();
                     },
                     complete: function() {
-                        providerInput.prop("disabled", providerLoadState !== "loaded");
+                        providerSearch.prop("disabled", providerLoadState !== "loaded");
                     }
                 });
             }
@@ -129,6 +197,7 @@
             function closeDialog() {
                 pendingForm = null;
                 providerError.hide();
+                providerSearch.autocomplete("close");
                 if (assignmentDialog) {
                     assignmentDialog.close();
                 } else {
@@ -140,13 +209,12 @@
                 if (!pendingForm || providerLoadState !== "loaded") {
                     return;
                 }
-                var selectedProviderId = providerInput.val() || "";
-                var currentProviderId = pendingForm.attr("data-provider-id") || "";
-                if (!currentProviderId && !selectedProviderId) {
-                    providerError.text("Select a provider.").show();
-                    providerInput.focus();
+                if (!providerSelectionMade) {
+                    providerError.text("Select a provider from the list.").show();
+                    providerSearch.focus().autocomplete("search", providerSearch.val());
                     return;
                 }
+                var selectedProviderId = providerInput.val() || "";
                 var formToSubmit = pendingForm;
                 formToSubmit.find("input[name='assignedProviderId']").val(selectedProviderId);
                 pendingForm = null;
@@ -194,8 +262,8 @@
                     dialogElement.show();
                 }
                 window.setTimeout(function() {
-                    if (!providerInput.prop("disabled")) {
-                        providerInput.focus();
+                    if (!providerSearch.prop("disabled")) {
+                        providerSearch.focus();
                     }
                 }, 0);
             });

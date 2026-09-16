@@ -49,6 +49,10 @@ public interface QueueService extends OpenmrsService {
                                     String patientName, QueueAssignmentFilter assignmentFilter,
                                     Collection<Integer> currentProviderIds);
 
+    int countActiveQueueEntriesByLocation(Location location, Date startDate, Date endDate,
+                                          String patientName, QueueAssignmentFilter assignmentFilter,
+                                          Collection<Integer> currentProviderIds);
+
     List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date startDate, Date endDate,
                                                 int firstResult, int maxResults);
 
@@ -59,6 +63,11 @@ public interface QueueService extends OpenmrsService {
                                                 String patientName, QueueAssignmentFilter assignmentFilter,
                                                 Collection<Integer> currentProviderIds,
                                                 int firstResult, int maxResults);
+
+    List<QueueEntry> getActiveQueueEntriesByLocation(Location location, Date startDate, Date endDate,
+                                                      String patientName, QueueAssignmentFilter assignmentFilter,
+                                                      Collection<Integer> currentProviderIds,
+                                                      int firstResult, int maxResults);
 
     List<QueueEntry> getQueueEntriesByServicePoint(Location servicePoint, Location visibleLocation,
                                                    QueueStatus status, Date date);
