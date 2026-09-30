@@ -311,7 +311,7 @@ public class QueueServiceImplTest {
     }
 
     @Test
-    public void shouldKeepActiveEntriesButNotTerminalEntriesFromThePreviousDayInLiveQueue() {
+    public void shouldExcludeTerminalEntriesFromLiveQueueRegardlessOfArrivalDay() {
         Date referenceDate = todayAt(1, 0);
         QueueEntry activeEntry = queueEntry("active", triageLocation, QueuePriority.NORMAL, dayAt(-1, 2, 0));
         QueueEntry completedEntry = queueEntry("completed", triageLocation, QueuePriority.NORMAL, dayAt(-1, 2, 15));
@@ -330,12 +330,12 @@ public class QueueServiceImplTest {
         List<QueueEntry> servicePointEntries = service.getQueueEntriesByServicePoint(
                 triageLocation, triageLocation, null, referenceDate);
 
-        assertEquals(2, locationEntries.size());
+        assertEquals(1, locationEntries.size());
         assertTrue(locationEntries.contains(activeEntry));
-        assertTrue(locationEntries.contains(todayCompletedEntry));
-        assertEquals(2, servicePointEntries.size());
+        assertFalse(locationEntries.contains(todayCompletedEntry));
+        assertEquals(1, servicePointEntries.size());
         assertTrue(servicePointEntries.contains(activeEntry));
-        assertTrue(servicePointEntries.contains(todayCompletedEntry));
+        assertFalse(servicePointEntries.contains(todayCompletedEntry));
         assertFalse(locationEntries.contains(completedEntry));
         assertFalse(locationEntries.contains(transferredEntry));
     }
@@ -803,6 +803,27 @@ public class QueueServiceImplTest {
         assertEquals(3, count);
         assertEquals(Arrays.asList(emergency, previousDayWaiting), firstPage);
         assertEquals(Collections.singletonList(normal), secondPage);
+    }
+
+    @Test
+    public void shouldCountAndPageOnlyActiveEntriesForDashboardDateRange() {
+        Date referenceTime = todayAt(12, 0);
+        QueueEntry waiting = queueEntry("queue-waiting", triageLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        QueueEntry completed = queueEntry("queue-completed", triageLocation, QueuePriority.EMERGENCY, todayAt(9, 0));
+        completed.setStatus(QueueStatus.COMPLETED);
+        QueueEntry transferred = queueEntry("queue-transferred", triageLocation, QueuePriority.ELDERLY, todayAt(10, 0));
+        transferred.setStatus(QueueStatus.TRANSFERRED);
+        dao.entries.add(waiting);
+        dao.entries.add(completed);
+        dao.entries.add(transferred);
+
+        int count = service.countActiveQueueEntriesByLocation(triageLocation, referenceTime, referenceTime,
+                null, QueueAssignmentFilter.ALL, null);
+        List<QueueEntry> entries = service.getActiveQueueEntriesByLocation(triageLocation,
+                referenceTime, referenceTime, null, QueueAssignmentFilter.ALL, null, 0, 10);
+
+        assertEquals(1, count);
+        assertEquals(Collections.singletonList(waiting), entries);
     }
 
     @Test
@@ -1396,11 +1417,10 @@ public class QueueServiceImplTest {
                                                        QueueAssignmentFilter assignmentFilter,
                                                        Collection<Integer> currentProviderIds) {
             List<QueueEntry> matches = getQueueEntries(location, status, startOfDay, endOfDay);
-            if (status == null && currentDayStart != null && activeStatuses != null) {
+            if (status == null && activeStatuses != null) {
                 List<QueueEntry> liveMatches = new ArrayList<QueueEntry>();
                 for (QueueEntry entry : matches) {
-                    if (activeStatuses.contains(entry.getStatus())
-                            || !entry.getArrivalTime().before(currentDayStart)) {
+                    if (activeStatuses.contains(entry.getStatus())) {
                         liveMatches.add(entry);
                     }
                 }

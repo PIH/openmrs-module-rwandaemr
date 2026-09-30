@@ -216,7 +216,7 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         Date dayStart = startOfDay(referenceDate);
         Date rangeStart = isActiveStatus(status) || status == null ? activeQueueStart(referenceDate) : dayStart;
         List<QueueEntry> entries = dao.getQueueEntries(location, status, rangeStart, endOfDay(referenceDate));
-        return sortQueueEntries(filterLiveQueueEntries(entries, status, dayStart));
+        return sortQueueEntries(filterLiveQueueEntries(entries, status));
     }
 
     @Override
@@ -287,6 +287,18 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     @Override
     @Transactional(readOnly = true)
     @Authorized(QueuePrivileges.VIEW)
+    public int countActiveQueueEntriesByLocation(Location location, Date startDate, Date endDate,
+                                                 String patientName, QueueAssignmentFilter assignmentFilter,
+                                                 Collection<Integer> currentProviderIds) {
+        validateDateRange(startDate, endDate);
+        return dao.countQueueEntries(location, null, startOfDay(startDate), endOfDay(endDate),
+                null, ACTIVE_STATUSES, normalizePatientName(patientName),
+                normalizeAssignmentFilter(assignmentFilter), currentProviderIds);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(QueuePrivileges.VIEW)
     public List<QueueEntry> getQueueEntriesByLocation(Location location, QueueStatus status, Date startDate,
                                                        Date endDate, int firstResult, int maxResults) {
         return getQueueEntriesByLocation(location, status, startDate, endDate, null, firstResult, maxResults);
@@ -320,6 +332,21 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     @Override
     @Transactional(readOnly = true)
     @Authorized(QueuePrivileges.VIEW)
+    public List<QueueEntry> getActiveQueueEntriesByLocation(Location location, Date startDate, Date endDate,
+                                                             String patientName,
+                                                             QueueAssignmentFilter assignmentFilter,
+                                                             Collection<Integer> currentProviderIds,
+                                                             int firstResult, int maxResults) {
+        validatePage(firstResult, maxResults);
+        validateDateRange(startDate, endDate);
+        return dao.getQueueEntries(location, null, startOfDay(startDate), endOfDay(endDate),
+                null, ACTIVE_STATUSES, normalizePatientName(patientName),
+                normalizeAssignmentFilter(assignmentFilter), currentProviderIds, firstResult, maxResults);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Authorized(QueuePrivileges.VIEW)
     public List<QueueEntry> getQueueEntriesByServicePoint(Location servicePoint, Location visibleLocation,
                                                           QueueStatus status, Date date) {
         Date referenceDate = defaultDate(date);
@@ -327,7 +354,7 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         Date rangeStart = isActiveStatus(status) || status == null ? activeQueueStart(referenceDate) : dayStart;
         List<QueueEntry> entries = dao.getQueueEntriesByServicePoint(servicePoint, visibleLocation, status,
                 rangeStart, endOfDay(referenceDate));
-        return sortQueueEntries(filterLiveQueueEntries(entries, status, dayStart));
+        return sortQueueEntries(filterLiveQueueEntries(entries, status));
     }
 
     @Override
@@ -839,14 +866,13 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
         return sorted;
     }
 
-    private List<QueueEntry> filterLiveQueueEntries(List<QueueEntry> entries, QueueStatus status, Date dayStart) {
+    private List<QueueEntry> filterLiveQueueEntries(List<QueueEntry> entries, QueueStatus status) {
         if (status != null) {
             return entries;
         }
         List<QueueEntry> filtered = new ArrayList<QueueEntry>();
         for (QueueEntry entry : entries) {
-            if (isActiveStatus(entry.getStatus())
-                    || entry.getArrivalTime() != null && !entry.getArrivalTime().before(dayStart)) {
+            if (isActiveStatus(entry.getStatus())) {
                 filtered.add(entry);
             }
         }
