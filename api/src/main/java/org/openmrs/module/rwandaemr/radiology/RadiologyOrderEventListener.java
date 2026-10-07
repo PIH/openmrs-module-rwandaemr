@@ -9,14 +9,17 @@ import lombok.Setter;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.openmrs.Encounter;
 import org.openmrs.Order;
 import org.openmrs.TestOrder;
 import org.openmrs.api.OrderService;
+import org.openmrs.api.context.Context;
 import org.openmrs.api.context.Daemon;
 import org.openmrs.event.Event;
 import org.openmrs.event.EventListener;
 import org.openmrs.module.DaemonToken;
 import org.openmrs.util.ConfigUtil;
+import org.openmrs.util.PrivilegeConstants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -33,6 +36,11 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Listener that can be registered with Order events and which will attempt to convert this order to hl7 and send
@@ -46,6 +54,14 @@ public class RadiologyOrderEventListener implements EventListener {
 
 	private final OrderService orderService;
 	private final OrderToORMO01Translator orderToORMTranslator;
+	private final RadiologyConfig radiologyConfig;
+
+	/**
+	 * Fulfiller comment recorded on a cancelled order once its cancellation has been sent to PACS
+	 */
+	public static final String CANCELLATION_SENT = "Cancellation sent to PACS";
+
+	private final Object studyLock = new Object();
 
 	// Runtime properties to tune sending to PACS, with defaults that suit the RIS
 	public static final String PROPERTY_CONNECT_TIMEOUT = "rwandaemr.radiology.outgoingHL7ConnectTimeoutMs";
@@ -68,9 +84,11 @@ public class RadiologyOrderEventListener implements EventListener {
 	private volatile long lastConnectionClosedAt = 0;
 
 	public RadiologyOrderEventListener(@Autowired OrderService orderService,
-										  @Autowired OrderToORMO01Translator orderToORMTranslator) {
+										  @Autowired OrderToORMO01Translator orderToORMTranslator,
+										  @Autowired RadiologyConfig radiologyConfig) {
 		this.orderService = orderService;
 		this.orderToORMTranslator = orderToORMTranslator;
+		this.radiologyConfig = radiologyConfig;
 	}
 
 	public String getHost() {
@@ -122,56 +140,241 @@ public class RadiologyOrderEventListener implements EventListener {
 	}
 
 	public void handleOrder(String orderUuid, MapMessage mapMessage) {
-		Order order = orderService.getOrderByUuid(orderUuid);
-		if (order == null) {
-			throw new IllegalArgumentException("Order with uuid " + orderUuid + " not found");
-		}
-		if (order instanceof TestOrder) {
+		// The order is loaded inside the lock so that it reflects any accession number recorded by the event of another
+		// test of the same study that was handled just before
+		synchronized (studyLock) {
+			Order order = orderService.getOrderByUuid(orderUuid);
+			if (order == null) {
+				throw new IllegalArgumentException("Order with uuid " + orderUuid + " not found");
+			}
+			if (!(order instanceof TestOrder)) {
+				log.trace("Order is not a TestOrder: " + orderUuid);
+				return;
+			}
 			TestOrder testOrder = (TestOrder) order;
-			if (orderToORMTranslator.isRadiologyOrder(testOrder)) {
-				sendRadiologyOrderMessage(testOrder);
+			if (!orderToORMTranslator.isRadiologyOrder(testOrder)) {
+				log.trace("TestOrder is not for a radiology orderable: " + orderUuid);
+				return;
+			}
+			if (testOrder.getAction() == Order.Action.DISCONTINUE) {
+				// Stopping the previous order fires its own event, which sends the cancellation for that order
+				log.debug("Not sending discontinue order " + testOrder.getOrderNumber() + " to PACS");
+				return;
+			}
+			if (orderToORMTranslator.isCancelled(testOrder)) {
+				cancelStudy(testOrder);
+			}
+			else if (StringUtils.isNotBlank(testOrder.getAccessionNumber())) {
+				// Already sent, either on its own or combined with other tests.  Updates do not send it again.
+				log.debug("Radiology order " + testOrder.getOrderNumber() + " was already sent to PACS in study "
+						+ testOrder.getAccessionNumber());
 			}
 			else {
-				log.trace("TestOrder is not for a radiology orderable: " + orderUuid);
+				sendStudy(getOrdersForNewStudy(testOrder), null);
 			}
-		}
-		else {
-			log.trace("Order is not a TestOrder: " + orderUuid);
 		}
 	}
 
+	/**
+	 * Sends the order to PACS on request, for example from the order page: a new study if it was never sent, the study
+	 * it is part of again if it was, or a cancellation if it was cancelled
+	 */
 	public void sendRadiologyOrderMessage(TestOrder testOrder) {
-		if (getHost() != null && getPort() != null) {
-			log.info("Sending radiology order message to PACS");
-			try {
-				ORM_O01 hl7Message = orderToORMTranslator.toORM_O01(testOrder);
-				if (log.isTraceEnabled()) {
-					log.trace(hl7Message.encode());
-				}
-				ACK response = (ACK) sendWithRetry(hl7Message, getHost(), getPort());
-				String ackCode = response.getMSA().getAcknowledgementCode().getValue();
-				if (AcknowledgmentCode.AA.name().equals(ackCode)) {
-					log.warn("Got response from PACS: " + response);
-					log.info("Radiology order sent successfully");
-					if (log.isTraceEnabled()) {
-						log.trace(response.encode());
-					}
-				}
-				else {
-					if (log.isTraceEnabled()) {
-						log.trace(response.encode());
-					}
-					String error = response.getERR() != null ? response.getERR().encode() : response.encode();
-					throw new RuntimeException("Radiology order sent failed: " + error);
-				}
+		synchronized (studyLock) {
+			if (orderToORMTranslator.isCancelled(testOrder)) {
+				cancelStudy(testOrder);
 			}
-			catch (Exception e) {
-				log.error("Error sending radiology order message to PACS: " + e);
-				throw new RuntimeException(e);
+			else {
+				List<TestOrder> orders = getOrdersToSendWith(testOrder);
+				sendStudy(orders, testOrder.getAccessionNumber());
 			}
 		}
-		else {
+	}
+
+	/**
+	 * @return the orders sent to PACS in one study with the given order: the active orders of the study it was sent in,
+	 * or, if it was never sent, the orders a new study would be made of
+	 */
+	public List<TestOrder> getOrdersToSendWith(TestOrder testOrder) {
+		if (StringUtils.isNotBlank(testOrder.getAccessionNumber())) {
+			List<TestOrder> study = getStudyOrders(testOrder, false);
+			return study.isEmpty() ? Collections.singletonList(testOrder) : study;
+		}
+		return getOrdersForNewStudy(testOrder);
+	}
+
+	/**
+	 * @return the accession number the given orders are, or would be, sent to PACS with
+	 */
+	public String getAccessionNumber(List<TestOrder> orders) {
+		String accessionNumber = orders.get(0).getAccessionNumber();
+		return StringUtils.isNotBlank(accessionNumber) ? accessionNumber : orders.get(0).getOrderNumber();
+	}
+
+	/**
+	 * @return the given order, plus, when combining is on, the other active radiology orders of the same modality in the
+	 * same encounter that have not been sent yet, in the order they were placed
+	 */
+	protected List<TestOrder> getOrdersForNewStudy(TestOrder testOrder) {
+		List<TestOrder> orders = new ArrayList<>();
+		orders.add(testOrder);
+		Encounter encounter = testOrder.getEncounter();
+		String modality = orderToORMTranslator.getModalityCode(testOrder);
+		if (radiologyConfig.isCombineOrdersByModality() && encounter != null && modality != null) {
+			for (Order o : encounter.getOrders()) {
+				if (o.equals(testOrder) || !(o instanceof TestOrder) || o.getAction() == Order.Action.DISCONTINUE) {
+					continue;
+				}
+				if (orderToORMTranslator.isCancelled(o) || StringUtils.isNotBlank(o.getAccessionNumber())) {
+					continue;
+				}
+				if (modality.equals(orderToORMTranslator.getModalityCode(o))) {
+					orders.add((TestOrder) o);
+				}
+			}
+			orders.sort(Comparator.comparing(TestOrder::getOrderId, Comparator.nullsLast(Comparator.naturalOrder())));
+		}
+		return orders;
+	}
+
+	/**
+	 * @return the orders sent in the same study as the given order, which share its accession number.  A study only ever
+	 * contains orders from one encounter.
+	 */
+	protected List<TestOrder> getStudyOrders(TestOrder testOrder, boolean includeCancelled) {
+		String accessionNumber = testOrder.getAccessionNumber();
+		List<TestOrder> study = new ArrayList<>();
+		Set<Order> candidates = testOrder.getEncounter() == null ? Collections.singleton(testOrder) :
+				testOrder.getEncounter().getOrders();
+		for (Order o : candidates) {
+			if (o instanceof TestOrder && accessionNumber.equals(o.getAccessionNumber())
+					&& (includeCancelled || !orderToORMTranslator.isCancelled(o))) {
+				study.add((TestOrder) o);
+			}
+		}
+		if (!study.contains(testOrder) && (includeCancelled || !orderToORMTranslator.isCancelled(testOrder))) {
+			study.add(testOrder);
+		}
+		study.sort(Comparator.comparing(TestOrder::getOrderId, Comparator.nullsLast(Comparator.naturalOrder())));
+		return study;
+	}
+
+	/**
+	 * Registers the orders with PACS as one study, then records the accession number on each order.  A new study uses the
+	 * order number of its first order as the accession number.
+	 * @throws RuntimeException if PACS could not be reached or did not accept the study
+	 */
+	protected void sendStudy(List<TestOrder> orders, String accessionNumber) {
+		String accession = StringUtils.isNotBlank(accessionNumber) ? accessionNumber : orders.get(0).getOrderNumber();
+		if (sendToPacs(orders, accession, "NW")) {
+			for (TestOrder o : orders) {
+				if (!accession.equals(o.getAccessionNumber())) {
+					updateOrder(o, accession, o.getFulfillerComment());
+				}
+			}
+		}
+	}
+
+	/**
+	 * Cancels the study the order was sent in.  The RIS takes a study as a whole, so the whole study is cancelled, and
+	 * any of its tests that are still active are then sent again as a new study.  Each cancelled order is marked once its
+	 * cancellation is sent, so that later updates to it do not send it again.
+	 */
+	protected void cancelStudy(TestOrder testOrder) {
+		if (CANCELLATION_SENT.equals(testOrder.getFulfillerComment())) {
+			log.debug("Cancellation of radiology order " + testOrder.getOrderNumber() + " was already sent to PACS");
+			return;
+		}
+		boolean wasSent = StringUtils.isNotBlank(testOrder.getAccessionNumber());
+		List<TestOrder> study = wasSent ? getStudyOrders(testOrder, true) : Collections.singletonList(testOrder);
+		String accession = wasSent ? testOrder.getAccessionNumber() : testOrder.getOrderNumber();
+		if (sendToPacs(study, accession, "CA")) {
+			List<TestOrder> remaining = new ArrayList<>();
+			for (TestOrder o : study) {
+				if (orderToORMTranslator.isCancelled(o)) {
+					updateOrder(o, o.getAccessionNumber(), CANCELLATION_SENT);
+				}
+				else {
+					remaining.add(o);
+				}
+			}
+			if (!remaining.isEmpty()) {
+				log.info("Sending the remaining tests of cancelled radiology study " + accession + " to PACS as a new study");
+				sendStudy(remaining, remaining.get(0).getOrderNumber());
+			}
+		}
+	}
+
+	/**
+	 * Sends the orders to PACS as one ORM^O01 message
+	 * @return true if PACS acknowledged it, false if sending to PACS is not configured
+	 * @throws RuntimeException if PACS could not be reached or did not accept the message
+	 */
+	protected boolean sendToPacs(List<TestOrder> orders, String accessionNumber, String orderControl) {
+		if (getHost() == null || getPort() == null) {
 			log.warn("Not sending radiology order message as host and port are required: " + getHost() + ":" + getPort());
+			return false;
+		}
+		List<String> orderNumbers = new ArrayList<>();
+		for (TestOrder o : orders) {
+			orderNumbers.add(o.getOrderNumber());
+		}
+		log.info("Sending radiology order message to PACS: " + orderControl + " study " + accessionNumber
+				+ " with order(s) " + orderNumbers);
+		try {
+			ORM_O01 hl7Message = orderToORMTranslator.toORM_O01(orders, accessionNumber, orderControl);
+			if (log.isTraceEnabled()) {
+				log.trace(hl7Message.encode());
+			}
+			ACK response = (ACK) sendWithRetry(hl7Message, getHost(), getPort());
+			String ackCode = response.getMSA().getAcknowledgementCode().getValue();
+			if (AcknowledgmentCode.AA.name().equals(ackCode)) {
+				log.warn("Got response from PACS: " + response);
+				log.info("Radiology order sent successfully");
+				if (log.isTraceEnabled()) {
+					log.trace(response.encode());
+				}
+				return true;
+			}
+			else {
+				if (log.isTraceEnabled()) {
+					log.trace(response.encode());
+				}
+				String error = response.getERR() != null ? response.getERR().encode() : response.encode();
+				throw new RuntimeException("Radiology order sent failed: " + error);
+			}
+		}
+		catch (Exception e) {
+			log.error("Error sending radiology order message to PACS: " + e);
+			throw new RuntimeException(e);
+		}
+	}
+
+	/**
+	 * Records the accession number and fulfiller comment on the order.  The fulfiller status is kept as it is, as other
+	 * code relies on it to mark orders completed when their results arrive.
+	 */
+	protected void updateOrder(TestOrder testOrder, String accessionNumber, String fulfillerComment) {
+		boolean privilegeAdded = false;
+		try {
+			Context.addProxyPrivilege(PrivilegeConstants.EDIT_ORDERS);
+			privilegeAdded = true;
+		}
+		catch (Exception e) {
+			log.debug("Unable to add proxy privilege " + PrivilegeConstants.EDIT_ORDERS, e);
+		}
+		try {
+			orderService.updateOrderFulfillerStatus(testOrder, testOrder.getFulfillerStatus(), fulfillerComment,
+					accessionNumber);
+		}
+		catch (Exception e) {
+			log.error("Unable to record accession number " + accessionNumber + " on radiology order "
+					+ testOrder.getOrderNumber(), e);
+		}
+		finally {
+			if (privilegeAdded) {
+				Context.removeProxyPrivilege(PrivilegeConstants.EDIT_ORDERS);
+			}
 		}
 	}
 

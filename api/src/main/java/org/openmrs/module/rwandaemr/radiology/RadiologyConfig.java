@@ -41,6 +41,7 @@ public class RadiologyConfig {
 
 	public static final String GP_SUPPORTED_MODALITIES = "rwandaemr.radiology.supportedModalities";
 	public static final String GP_ORDERABLES_PREFIX = "rwandaemr.radiology.orderables.";
+	public static final String GP_COMBINE_ORDERS_BY_MODALITY = "rwandaemr.radiology.combineOrdersByModality";
 
 	public static final String RADIOLOGY_REQUEST_ENCOUNTER_UUID = "02965343-bbe7-4c3c-83c5-c3d084e715b7";
 	public static final String RADIOLOGY_STUDY_ENCOUNTER_UUID = "7d2fdd23-2cfc-11f0-bad6-56aa92787bc1";
@@ -94,6 +95,15 @@ public class RadiologyConfig {
 
 	public static boolean enableMockPacsSystem() {
 		return ConfigUtil.getProperty(PROPERTY_MOCK_PACS_ENABLED, "false").equals("true");
+	}
+
+	/**
+	 * @return true if radiology tests of the same modality ordered in the same encounter should be sent to PACS as one
+	 * combined study, sharing one accession number.  On unless the global property is set to false.
+	 */
+	public boolean isCombineOrdersByModality() {
+		String value = administrationService.getGlobalProperty(GP_COMBINE_ORDERS_BY_MODALITY, "true");
+		return !"false".equalsIgnoreCase(StringUtils.trimToEmpty(value));
 	}
 
 	public Map<Modality, Concept> getModalityConceptSets() {

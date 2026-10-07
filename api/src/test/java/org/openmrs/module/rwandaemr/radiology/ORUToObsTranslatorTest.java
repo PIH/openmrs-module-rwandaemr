@@ -55,6 +55,49 @@ public class ORUToObsTranslatorTest extends BaseHL7TranslatorTest {
         assertThat(getObs(resultObs, radiologyReportType).getOrder(), equalTo(testOrder));
     }
 
+    @Test
+    public void shouldRecordCombinedStudyResultsOnEveryTestInTheStudy() throws Exception {
+        Concept handXrayConcept = createConcept("X-RAY, HAND", loinc, "37001-0");
+        crConceptSet.addSetMember(handXrayConcept);
+        org.openmrs.TestOrder handXray = new org.openmrs.TestOrder();
+        handXray.setPatient(patient);
+        encounter.addOrder(handXray);
+        handXray.setDateActivated(encounter.getEncounterDatetime());
+        handXray.setConcept(handXrayConcept);
+        org.apache.commons.lang3.reflect.FieldUtils.writeField(handXray, "orderNumber", "ORD-764592", true);
+        testOrder.setOrderId(1);
+        handXray.setOrderId(2);
+        testOrder.setAccessionNumber("ORD-764591");
+        handXray.setAccessionNumber("ORD-764591");
+
+        // The RIS returns the combined code for a combined study
+        String finalMessage = IOUtils.resourceToString("/orur01-example-1-final.txt", StandardCharsets.UTF_8)
+                .replace("OBX|1|TX|36657-5^", "OBX|1|TX|36657-5-Combine^");
+        oruToObsTranslator.fromORU_R01(finalMessage);
+
+        List<Encounter> encounters = rwandaEmrService.getEncounters();
+        assertThat(encounters.size(), equalTo(4));
+        int reportsForFoot = 0;
+        int reportsForHand = 0;
+        for (Encounter e : encounters) {
+            Obs group = e.getObsAtTopLevel(false).iterator().next();
+            Concept procedure = getObs(group, radiologyProcedurePerformed).getValueCoded();
+            if (group.getConcept().equals(radiologyConfig.getRadiologyReportConstruct())) {
+                assertThat(getObs(group, radiologyReportComments).getValueText(), containsString("TEST TEST REPORT FOR HIS TESTING"));
+                if (group.getOrder().equals(testOrder)) {
+                    assertThat(procedure, equalTo(xrayConcept));
+                    reportsForFoot++;
+                }
+                else if (group.getOrder().equals(handXray)) {
+                    assertThat(procedure, equalTo(handXrayConcept));
+                    reportsForHand++;
+                }
+            }
+        }
+        assertThat(reportsForFoot, equalTo(1));
+        assertThat(reportsForHand, equalTo(1));
+    }
+
     private void testStudyEncounter(Encounter studyEncounter, boolean hasImageUrl) throws Exception {
         assertThat(studyEncounter.getPatient(), equalTo(patient));
         assertThat(studyEncounter.getEncounterType(), equalTo(radiologyConfig.getRadiologyStudyEncounterType()));

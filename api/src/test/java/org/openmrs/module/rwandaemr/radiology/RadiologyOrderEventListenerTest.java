@@ -6,6 +6,8 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.openmrs.Concept;
+import org.openmrs.Order;
 import org.openmrs.TestOrder;
 
 import java.io.ByteArrayOutputStream;
@@ -22,7 +24,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 public class RadiologyOrderEventListenerTest extends BaseHL7TranslatorTest {
 
@@ -31,7 +36,14 @@ public class RadiologyOrderEventListenerTest extends BaseHL7TranslatorTest {
 
 	@BeforeEach
 	public void setUpListener() {
-		listener = new RadiologyOrderEventListener(orderService, orderToORMTranslator);
+		listener = new RadiologyOrderEventListener(orderService, orderToORMTranslator, radiologyConfig);
+		// Record the accession number and fulfiller comment the way the order service would
+		when(orderService.updateOrderFulfillerStatus(any(), any(), any(), any())).thenAnswer(invocation -> {
+			Order order = invocation.getArgument(0);
+			order.setFulfillerComment(invocation.getArgument(2));
+			order.setAccessionNumber(invocation.getArgument(3));
+			return order;
+		});
 		System.setProperty(RadiologyConfig.PROPERTY_OUTGOING_HL7_HOST, "localhost");
 		System.setProperty(RadiologyOrderEventListener.PROPERTY_CONNECT_TIMEOUT, "2000");
 		System.setProperty(RadiologyOrderEventListener.PROPERTY_ACK_TIMEOUT, "5000");
@@ -120,6 +132,157 @@ public class RadiologyOrderEventListenerTest extends BaseHL7TranslatorTest {
 		assertThat(ris.messagesAcknowledged.get(), equalTo(2));
 	}
 
+	@Test
+	public void shouldSendTestsOfTheSameModalityAsOneCombinedStudy() throws Exception {
+		ris = new Ris(0, false);
+		testOrder.setOrderId(1);
+		TestOrder handXray = addOrder(2, "ORD-764592", addOrderable(crConceptSet, "X-RAY, HAND", "37001-0"));
+		TestOrder headCt = addOrder(3, "ORD-764593", addOrderable(ctConceptSet, "CT, HEAD", "30799-1"));
+		stubOrderLookup(testOrder, handXray, headCt);
+
+		listener.handleOrder(testOrder.getUuid(), null);
+		listener.handleOrder(handXray.getUuid(), null);
+		listener.handleOrder(headCt.getUuid(), null);
+
+		assertThat(ris.messagesReceived.size(), equalTo(2));
+		String xrayStudy = ris.messagesReceived.get(0);
+		assertThat(countSegments(xrayStudy, "OBR"), equalTo(1));
+		assertThat(segment(xrayStudy, "OBR"), startsWith("OBR|1|ORD-764591|"));
+		assertThat(segment(xrayStudy, "OBR"), containsString("|36657-5-Combine^X-RAY, FOOT_X-RAY, HAND|"));
+		assertThat(segment(xrayStudy, "ORC"), equalTo("ORC|NW"));
+		// The CT is a different modality, so it is its own study
+		String ctStudy = ris.messagesReceived.get(1);
+		assertThat(segment(ctStudy, "OBR"), startsWith("OBR|1|ORD-764593|"));
+		assertThat(segment(ctStudy, "OBR"), containsString("|30799-1^CT, HEAD|"));
+		// Each test keeps its own order number, and the tests of the study share its accession number
+		assertThat(testOrder.getAccessionNumber(), equalTo("ORD-764591"));
+		assertThat(handXray.getAccessionNumber(), equalTo("ORD-764591"));
+		assertThat(headCt.getAccessionNumber(), equalTo("ORD-764593"));
+		assertThat(handXray.getOrderNumber(), equalTo("ORD-764592"));
+	}
+
+	@Test
+	public void shouldSendEachTestOnItsOwnWhenCombiningIsOff() throws Exception {
+		ris = new Ris(0, false);
+		when(administrationService.getGlobalProperty(RadiologyConfig.GP_COMBINE_ORDERS_BY_MODALITY, "true")).thenReturn("false");
+		testOrder.setOrderId(1);
+		TestOrder handXray = addOrder(2, "ORD-764592", addOrderable(crConceptSet, "X-RAY, HAND", "37001-0"));
+		stubOrderLookup(testOrder, handXray);
+
+		listener.handleOrder(testOrder.getUuid(), null);
+		listener.handleOrder(handXray.getUuid(), null);
+
+		assertThat(ris.messagesReceived.size(), equalTo(2));
+		assertThat(segment(ris.messagesReceived.get(0), "OBR"), startsWith("OBR|1|ORD-764591|"));
+		assertThat(segment(ris.messagesReceived.get(0), "OBR"), containsString("|36657-5^X-RAY, FOOT|"));
+		assertThat(segment(ris.messagesReceived.get(1), "OBR"), startsWith("OBR|1|ORD-764592|"));
+		assertThat(segment(ris.messagesReceived.get(1), "OBR"), containsString("|37001-0^X-RAY, HAND|"));
+		assertThat(handXray.getAccessionNumber(), equalTo("ORD-764592"));
+	}
+
+	@Test
+	public void shouldNotSendATestAgainWhenItIsUpdatedAfterBeingSent() throws Exception {
+		ris = new Ris(0, false);
+		testOrder.setOrderId(1);
+		testOrder.setAccessionNumber("ORD-764591");
+		stubOrderLookup(testOrder);
+
+		listener.handleOrder(testOrder.getUuid(), null);
+
+		assertThat(ris.messagesReceived.size(), equalTo(0));
+	}
+
+	@Test
+	public void shouldCancelTheStudyAndResendTheRemainingTestsWhenOneTestIsCancelled() throws Exception {
+		ris = new Ris(0, false);
+		testOrder.setOrderId(1);
+		TestOrder handXray = addOrder(2, "ORD-764592", addOrderable(crConceptSet, "X-RAY, HAND", "37001-0"));
+		TestOrder wristXray = addOrder(3, "ORD-764593", addOrderable(crConceptSet, "X-RAY, WRIST", "37002-8"));
+		testOrder.setAccessionNumber("ORD-764591");
+		handXray.setAccessionNumber("ORD-764591");
+		wristXray.setAccessionNumber("ORD-764591");
+		testOrder.setVoided(true);
+		stubOrderLookup(testOrder, handXray, wristXray);
+
+		listener.handleOrder(testOrder.getUuid(), null);
+
+		assertThat(ris.messagesReceived.size(), equalTo(2));
+		String cancellation = ris.messagesReceived.get(0);
+		assertThat(segment(cancellation, "ORC"), equalTo("ORC|CA"));
+		assertThat(segment(cancellation, "OBR"), startsWith("OBR|1|ORD-764591|"));
+		assertThat(segment(cancellation, "OBR"), containsString("|36657-5-Combine^"));
+		String newStudy = ris.messagesReceived.get(1);
+		assertThat(segment(newStudy, "ORC"), equalTo("ORC|NW"));
+		assertThat(segment(newStudy, "OBR"), startsWith("OBR|1|ORD-764592|"));
+		assertThat(segment(newStudy, "OBR"), containsString("|37001-0-Combine^X-RAY, HAND_X-RAY, WRIST|"));
+		assertThat(handXray.getAccessionNumber(), equalTo("ORD-764592"));
+		assertThat(wristXray.getAccessionNumber(), equalTo("ORD-764592"));
+		assertThat(testOrder.getFulfillerComment(), equalTo(RadiologyOrderEventListener.CANCELLATION_SENT));
+
+		// Further updates to the cancelled order do not send the cancellation again
+		listener.handleOrder(testOrder.getUuid(), null);
+		assertThat(ris.messagesReceived.size(), equalTo(2));
+	}
+
+	@Test
+	public void shouldResendTheWholeStudyWhenSentFromTheOrderPage() throws Exception {
+		ris = new Ris(0, false);
+		testOrder.setOrderId(1);
+		TestOrder handXray = addOrder(2, "ORD-764592", addOrderable(crConceptSet, "X-RAY, HAND", "37001-0"));
+		testOrder.setAccessionNumber("ORD-764591");
+		handXray.setAccessionNumber("ORD-764591");
+
+		listener.sendRadiologyOrderMessage(handXray);
+
+		assertThat(ris.messagesReceived.size(), equalTo(1));
+		assertThat(segment(ris.messagesReceived.get(0), "OBR"), startsWith("OBR|1|ORD-764591|"));
+		assertThat(segment(ris.messagesReceived.get(0), "OBR"), containsString("|36657-5-Combine^X-RAY, FOOT_X-RAY, HAND|"));
+	}
+
+	private TestOrder addOrder(Integer orderId, String orderNumber, Concept concept) throws Exception {
+		TestOrder order = new TestOrder();
+		order.setOrderId(orderId);
+		order.setPatient(patient);
+		encounter.addOrder(order);
+		order.setDateActivated(encounter.getEncounterDatetime());
+		order.setOrderer(orderingProvider);
+		order.setCareSetting(inpatient);
+		FieldUtils.writeField(order, "orderNumber", orderNumber, true);
+		order.setConcept(concept);
+		return order;
+	}
+
+	private Concept addOrderable(Concept conceptSet, String name, String loincCode) {
+		Concept concept = createConcept(name, loinc, loincCode);
+		conceptSet.addSetMember(concept);
+		return concept;
+	}
+
+	private void stubOrderLookup(TestOrder... orders) {
+		for (TestOrder order : orders) {
+			when(orderService.getOrderByUuid(order.getUuid())).thenReturn(order);
+		}
+	}
+
+	private String segment(String message, String name) {
+		for (String line : message.split("[\\r\\n]")) {
+			if (line.startsWith(name + "|") || line.equals(name)) {
+				return line;
+			}
+		}
+		return null;
+	}
+
+	private int countSegments(String message, String name) {
+		int count = 0;
+		for (String line : message.split("[\\r\\n]")) {
+			if (line.startsWith(name + "|")) {
+				count++;
+			}
+		}
+		return count;
+	}
+
 	/**
 	 * Minimal MLLP HL7 listener that rejects the first given number of connections, like the RIS does when a connection
 	 * arrives too soon after the previous one, and acknowledges messages on the connections after that
@@ -131,6 +294,7 @@ public class RadiologyOrderEventListenerTest extends BaseHL7TranslatorTest {
 		private final boolean rejectAfterReading;
 		private final List<Long> connectionTimes = new CopyOnWriteArrayList<Long>();
 		private final AtomicInteger messagesAcknowledged = new AtomicInteger();
+		private final List<String> messagesReceived = new CopyOnWriteArrayList<String>();
 
 		/**
 		 * @param rejectAfterReading if true, rejected connections are closed after the message is read, rather than
@@ -171,6 +335,7 @@ public class RadiologyOrderEventListenerTest extends BaseHL7TranslatorTest {
 					if (reject) {
 						continue;
 					}
+					messagesReceived.add(received.toString("UTF-8"));
 					Message ack = new DefaultHapiContext().getPipeParser().parse(received.toString("UTF-8")).generateACK();
 					OutputStream out = socket.getOutputStream();
 					out.write(0x0b);

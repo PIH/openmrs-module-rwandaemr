@@ -18,6 +18,7 @@ import ca.uhn.hl7v2.model.Message;
 import ca.uhn.hl7v2.model.v23.message.ORU_R01;
 import ca.uhn.hl7v2.model.v23.segment.OBR;
 import ca.uhn.hl7v2.model.v23.segment.OBX;
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -37,6 +38,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 
@@ -99,8 +101,12 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         if (StringUtils.isBlank(testIdentifier)) {
             throw new IllegalArgumentException("No procedure found in OBX message");
         }
-        Concept testPerformedValue = conceptService.getConceptByReference("LOINC:" + testIdentifier);
-        if (testPerformedValue == null) {
+        // Several tests sent as one study come back with the first test's code followed by the combined marker
+        List<Order> studyOrders = getStudyOrders(order, orderNumber);
+        String procedureCode = StringUtils.removeEndIgnoreCase(testIdentifier, OrderToORMO01Translator.COMBINED_PROCEDURE_MARKER);
+        boolean combined = studyOrders.size() > 1 || !procedureCode.equals(testIdentifier);
+        Concept testPerformedValue = conceptService.getConceptByReference("LOINC:" + procedureCode);
+        if (testPerformedValue == null && !combined) {
             throw new IllegalArgumentException("No procedure found with LOINC code = " + testIdentifier);
         }
 
@@ -143,12 +149,16 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             reportDate = studyDate != null ? studyDate : order.getEncounter().getEncounterDatetime();
         }
 
+        // The study and report apply to every test in the study, each recorded against its own order and procedure
         List<Encounter> encounters = new ArrayList<>();
-        if (studyDate != null) {
-            encounters.add(createOrUpdateRadiologyStudy(order, studyDate, testPerformedValue, imageViewerLink));
-        }
-        if (reportDate != null) {
-            encounters.add(createOrUpdateRadiologyReport(order, reportDate, testPerformedValue, status, radiologist, reportText));
+        for (Order studyOrder : studyOrders) {
+            Concept procedurePerformed = combined ? studyOrder.getConcept() : testPerformedValue;
+            if (studyDate != null) {
+                encounters.add(createOrUpdateRadiologyStudy(studyOrder, studyDate, procedurePerformed, imageViewerLink));
+            }
+            if (reportDate != null) {
+                encounters.add(createOrUpdateRadiologyReport(studyOrder, reportDate, procedurePerformed, status, radiologist, reportText));
+            }
         }
 
         if (encounters.isEmpty()) {
@@ -333,6 +343,27 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         }
 
         return encounter;
+    }
+
+    /**
+     * @return the active orders sent to PACS in the study with the given accession number.  These share the accession
+     * number and are all in the same encounter.  An order sent on its own is its own study.
+     */
+    protected List<Order> getStudyOrders(Order order, String accessionNumber) {
+        List<Order> ret = new ArrayList<>();
+        if (accessionNumber != null && accessionNumber.equals(order.getAccessionNumber()) && order.getEncounter() != null) {
+            for (Order o : order.getEncounter().getOrders()) {
+                boolean cancelled = BooleanUtils.isTrue(o.getVoided()) || o.getDateStopped() != null;
+                if (!cancelled && accessionNumber.equals(o.getAccessionNumber())) {
+                    ret.add(o);
+                }
+            }
+            ret.sort(Comparator.comparing(Order::getOrderId, Comparator.nullsLast(Comparator.naturalOrder())));
+        }
+        if (!ret.contains(order)) {
+            ret.add(0, order);
+        }
+        return ret;
     }
 
     private Obs getObsFromGroup(Obs obsGroup, Concept concept) {

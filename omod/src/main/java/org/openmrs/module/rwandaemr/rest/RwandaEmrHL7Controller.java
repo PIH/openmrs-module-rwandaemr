@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
 @Controller
 public class RwandaEmrHL7Controller {
@@ -62,7 +63,15 @@ public class RwandaEmrHL7Controller {
                     if ("send".equals(action)) {
                         radiologyOrderEventListener.sendRadiologyOrderMessage(testOrder);
                     }
-                    hl7Message = orderToORMTranslator.toORM_O01(testOrder).encode();
+                    // Show the study the order is, or would be, sent in, which may combine it with other tests
+                    if (orderToORMTranslator.isCancelled(testOrder)) {
+                        hl7Message = orderToORMTranslator.toORM_O01(testOrder).encode();
+                    }
+                    else {
+                        List<TestOrder> study = radiologyOrderEventListener.getOrdersToSendWith(testOrder);
+                        hl7Message = orderToORMTranslator.toORM_O01(study,
+                                radiologyOrderEventListener.getAccessionNumber(study), "NW").encode();
+                    }
                 }
                 catch (Exception e) {
                     errorMessage = e.getMessage();
