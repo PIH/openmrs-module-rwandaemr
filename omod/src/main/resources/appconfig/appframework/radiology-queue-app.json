@@ -1,0 +1,20 @@
+[
+  {
+    "id": "rwandaemr.radiologyQueue",
+    "description": "Radiology studies requested, with PACS and payment status",
+    "label": "Radiology Queue",
+    "order": 119,
+    "extensions": [
+      {
+        "id": "rwandaemr.radiologyQueue.homepageLink",
+        "extensionPointId": "org.openmrs.referenceapplication.homepageLink",
+        "type": "link",
+        "label": "Radiology Queue",
+        "url": "rwandaemr/radiology/radiologyQueue.page",
+        "icon": "icon-picture",
+        "order": 119,
+        "requiredPrivilege": "Task: rwandaemr.radiologyQueue"
+      }
+    ]
+  }
+]
