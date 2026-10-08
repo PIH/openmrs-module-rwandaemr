@@ -128,11 +128,21 @@ public class RadiologyQueueService {
 		row.setAccessionNumber(first.getAccessionNumber());
 		Set<String> studyTypes = new LinkedHashSet<String>();
 		Set<String> histories = new LinkedHashSet<String>();
+		Set<String> reasons = new LinkedHashSet<String>();
 		Date timeRequested = null;
 		for (TestOrder order : orders) {
 			row.getOrderIds().add(order.getOrderId());
 			row.getOrderNumbers().add(order.getOrderNumber());
-			studyTypes.add(getConceptName(order.getConcept()));
+			String testName = getConceptName(order.getConcept());
+			boolean stat = order.getUrgency() == Order.Urgency.STAT;
+			studyTypes.add(testName);
+			row.getTests().add(new RadiologyQueueRow.Test(order.getOrderId(), order.getOrderNumber(), testName, stat));
+			row.setStat(row.isStat() || stat);
+			String reason = order.getOrderReason() != null ? order.getOrderReason().getDisplayString() :
+					order.getOrderReasonNonCoded();
+			if (StringUtils.isNotBlank(reason)) {
+				reasons.add(reason.trim());
+			}
 			if (StringUtils.isNotBlank(order.getClinicalHistory())) {
 				histories.add(order.getClinicalHistory().trim());
 			}
@@ -144,6 +154,7 @@ public class RadiologyQueueService {
 		}
 		row.setTypeOfStudy(StringUtils.join(studyTypes, ", "));
 		row.setClinicalHistory(histories.isEmpty() ? null : StringUtils.join(histories, "; "));
+		row.setReason(reasons.isEmpty() ? null : StringUtils.join(reasons, "; "));
 		row.setTimeRequested(timeRequested);
 
 		Patient patient = first.getPatient();
@@ -162,7 +173,7 @@ public class RadiologyQueueService {
 		row.setRequestingDepartment(first.getEncounter() == null || first.getEncounter().getLocation() == null ? null :
 				first.getEncounter().getLocation().getName());
 
-		row.setPacsStatus(active.isEmpty() ? PacsStatus.CANCELLED : getPacsStatus(orders));
+		row.setPacsStatus(active.isEmpty() ? PacsStatus.CANCELLED : getPacsStatus(orders, row));
 		boolean completed = false;
 		for (TestOrder order : orders) {
 			completed = completed || order.getFulfillerStatus() == Order.FulfillerStatus.COMPLETED;
@@ -173,22 +184,67 @@ public class RadiologyQueueService {
 		return row;
 	}
 
-	private PacsStatus getPacsStatus(List<TestOrder> orders) {
+	/**
+	 * Works out the PACS status from the results recorded for the study, and records on the row when the images and the
+	 * report were received, the image viewer link and the report status
+	 */
+	private PacsStatus getPacsStatus(List<TestOrder> orders, RadiologyQueueRow row) {
 		if (StringUtils.isBlank(orders.get(0).getAccessionNumber())) {
 			return PacsStatus.NOT_SENT;
 		}
 		Concept studyConstruct = radiologyConfig.getRadiologyStudyConstruct();
 		Concept reportConstruct = radiologyConfig.getRadiologyReportConstruct();
+		Concept imagesAvailable = radiologyConfig.getRadiologyImagesAvailable();
+		Concept reportType = radiologyConfig.getRadiologyReportType();
 		boolean imagesReceived = false;
+		boolean reported = false;
 		for (TestOrder order : orders) {
 			for (Obs obs : rwandaEmrService.getObsByOrder(order)) {
-				if (obs.getConcept().equals(reportConstruct)) {
-					return PacsStatus.REPORTED;
+				if (obs.getConcept().equals(studyConstruct)) {
+					imagesReceived = true;
+					row.setImagesReceivedAt(earliest(row.getImagesReceivedAt(), getObsTime(obs)));
+					Obs images = getGroupMember(obs, imagesAvailable);
+					if (images != null && StringUtils.isNotBlank(images.getComment()) && row.getImageUrl() == null) {
+						row.setImageUrl(images.getComment().replaceFirst("^\\^", "").trim());
+					}
 				}
-				imagesReceived = imagesReceived || obs.getConcept().equals(studyConstruct);
+				else if (obs.getConcept().equals(reportConstruct)) {
+					reported = true;
+					row.setReportedAt(earliest(row.getReportedAt(), getObsTime(obs)));
+					row.setReportOrderId(row.getReportOrderId() == null ? order.getOrderId() : row.getReportOrderId());
+					Obs status = getGroupMember(obs, reportType);
+					if (status != null && status.getValueCoded() != null) {
+						row.setReportStatus(getConceptName(status.getValueCoded()));
+					}
+				}
 			}
 		}
+		if (reported) {
+			return PacsStatus.REPORTED;
+		}
 		return imagesReceived ? PacsStatus.IMAGES_RECEIVED : PacsStatus.SENT;
+	}
+
+	private Obs getGroupMember(Obs group, Concept concept) {
+		if (concept != null && group.getGroupMembers() != null) {
+			for (Obs member : group.getGroupMembers()) {
+				if (concept.equals(member.getConcept()) && !member.getVoided()) {
+					return member;
+				}
+			}
+		}
+		return null;
+	}
+
+	private Date getObsTime(Obs obs) {
+		if (obs.getEncounter() != null && obs.getEncounter().getEncounterDatetime() != null) {
+			return obs.getEncounter().getEncounterDatetime();
+		}
+		return obs.getObsDatetime();
+	}
+
+	private Date earliest(Date current, Date candidate) {
+		return current == null || (candidate != null && candidate.before(current)) ? candidate : current;
 	}
 
 	/**

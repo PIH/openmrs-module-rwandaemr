@@ -92,6 +92,24 @@ public class RadiologyQueueRestController {
 			o.put("pacsStatusLabel", row.getPacsStatus() == null ? null : row.getPacsStatus().getLabel());
 			o.put("paymentStatus", row.getPaymentStatus() == null ? null : row.getPaymentStatus().name());
 			o.put("paymentStatusLabel", row.getPaymentStatus() == null ? null : row.getPaymentStatus().getLabel());
+			o.put("stat", row.isStat());
+			o.put("reason", row.getReason());
+			o.put("readyForExam", row.isReadyForExam());
+			o.put("imageUrl", safeUrl(row.getImageUrl()));
+			o.put("imagesReceivedAt", row.getImagesReceivedAt() == null ? null : row.getImagesReceivedAt().getTime());
+			o.put("reportStatus", row.getReportStatus());
+			o.put("reportedAt", row.getReportedAt() == null ? null : row.getReportedAt().getTime());
+			o.put("reportOrderId", row.getReportOrderId());
+			List<SimpleObject> tests = new ArrayList<SimpleObject>();
+			for (RadiologyQueueRow.Test test : row.getTests()) {
+				SimpleObject t = new SimpleObject();
+				t.put("orderId", test.getOrderId());
+				t.put("orderNumber", test.getOrderNumber());
+				t.put("name", test.getName());
+				t.put("stat", test.isStat());
+				tests.add(t);
+			}
+			o.put("tests", tests);
 			o.put("processed", row.isProcessed());
 			o.put("processedLabel", row.getProcessedLabel());
 			o.put("timeOfPayment", row.getTimeOfPayment() == null ? null : row.getTimeOfPayment().getTime());
@@ -99,5 +117,16 @@ public class RadiologyQueueRestController {
 		}
 		ret.put("rows", rows);
 		return ret;
+	}
+
+	/**
+	 * @return the link only if it is a web address, so a link from PACS can never run script in the page
+	 */
+	private String safeUrl(String url) {
+		if (url == null) {
+			return null;
+		}
+		String lower = url.trim().toLowerCase();
+		return lower.startsWith("http://") || lower.startsWith("https://") ? url.trim() : null;
 	}
 }

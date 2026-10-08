@@ -63,6 +63,14 @@ public class RadiologyQueueRow {
 	private PaymentStatus paymentStatus;
 	private Date timeOfPayment;
 	private boolean processed;
+	private boolean stat;
+	private String reason;
+	private String imageUrl;
+	private Date imagesReceivedAt;
+	private String reportStatus;
+	private Date reportedAt;
+	private Integer reportOrderId;
+	private List<Test> tests = new ArrayList<Test>();
 
 	public String getAccessionNumber() {
 		return accessionNumber;
@@ -203,6 +211,77 @@ public class RadiologyQueueRow {
 		this.processed = processed;
 	}
 
+	/**
+	 * @return true when the patient can have the exam now: the study is paid (or there is nothing to pay), it has been
+	 * sent to PACS, and it has not been done yet
+	 */
+	public boolean isReadyForExam() {
+		return paymentStatus == PaymentStatus.PAID && pacsStatus == PacsStatus.SENT && !processed;
+	}
+
+	public boolean isStat() {
+		return stat;
+	}
+
+	public void setStat(boolean stat) {
+		this.stat = stat;
+	}
+
+	public String getReason() {
+		return reason;
+	}
+
+	public void setReason(String reason) {
+		this.reason = reason;
+	}
+
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public void setImageUrl(String imageUrl) {
+		this.imageUrl = imageUrl;
+	}
+
+	public Date getImagesReceivedAt() {
+		return imagesReceivedAt;
+	}
+
+	public void setImagesReceivedAt(Date imagesReceivedAt) {
+		this.imagesReceivedAt = imagesReceivedAt;
+	}
+
+	public String getReportStatus() {
+		return reportStatus;
+	}
+
+	public void setReportStatus(String reportStatus) {
+		this.reportStatus = reportStatus;
+	}
+
+	public Date getReportedAt() {
+		return reportedAt;
+	}
+
+	public void setReportedAt(Date reportedAt) {
+		this.reportedAt = reportedAt;
+	}
+
+	/**
+	 * @return the order whose page shows the report, if a report was received
+	 */
+	public Integer getReportOrderId() {
+		return reportOrderId;
+	}
+
+	public void setReportOrderId(Integer reportOrderId) {
+		this.reportOrderId = reportOrderId;
+	}
+
+	public List<Test> getTests() {
+		return tests;
+	}
+
 	public String getProcessedLabel() {
 		return processed ? "Processed" : "Not processed";
 	}
@@ -213,5 +292,39 @@ public class RadiologyQueueRow {
 
 	public void setTimeOfPayment(Date timeOfPayment) {
 		this.timeOfPayment = timeOfPayment;
+	}
+
+	/**
+	 * One test of the study
+	 */
+	public static class Test {
+
+		private final Integer orderId;
+		private final String orderNumber;
+		private final String name;
+		private final boolean stat;
+
+		public Test(Integer orderId, String orderNumber, String name, boolean stat) {
+			this.orderId = orderId;
+			this.orderNumber = orderNumber;
+			this.name = name;
+			this.stat = stat;
+		}
+
+		public Integer getOrderId() {
+			return orderId;
+		}
+
+		public String getOrderNumber() {
+			return orderNumber;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public boolean isStat() {
+			return stat;
+		}
 	}
 }

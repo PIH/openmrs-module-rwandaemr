@@ -173,6 +173,67 @@ public class RadiologyQueueServiceTest {
 	}
 
 	@Test
+	public void shouldShowUrgencyAndWhetherThePatientIsReadyForTheExam() throws Exception {
+		TestOrder foot = order(1, "ORD-1", footXray, null);
+		TestOrder hand = order(2, "ORD-2", handXray, null);
+		hand.setUrgency(org.openmrs.Order.Urgency.STAT);
+		foot.setAccessionNumber("ORD-1");
+		hand.setAccessionNumber("ORD-1");
+		Map<Integer, OrderPayment> payments = new HashMap<Integer, OrderPayment>();
+		payments.put(1, payment(PaymentStatus.PAID, orderTime));
+		payments.put(2, payment(PaymentStatus.PAID, orderTime));
+
+		RadiologyQueueRow row = service.toRow(Arrays.asList(foot, hand), orderables, payments);
+
+		assertThat(row.isStat(), equalTo(true));
+		assertThat(row.getTests().size(), equalTo(2));
+		assertThat(row.getTests().get(1).isStat(), equalTo(true));
+		// Paid, sent to PACS and not done yet
+		assertThat(row.isReadyForExam(), equalTo(true));
+
+		payments.put(2, payment(PaymentStatus.NOT_PAID, null));
+		assertThat(service.toRow(Arrays.asList(foot, hand), orderables, payments).isReadyForExam(), equalTo(false));
+	}
+
+	@Test
+	public void shouldShowTheImageLinkAndReportReceivedFromPacs() throws Exception {
+		Concept imagesAvailable = concept(102, "Radiology images available");
+		Concept reportType = concept(103, "Type of radiology report");
+		Concept finalReport = concept(104, "Final");
+		when(radiologyConfig.getRadiologyImagesAvailable()).thenReturn(imagesAvailable);
+		when(radiologyConfig.getRadiologyReportType()).thenReturn(reportType);
+		TestOrder foot = order(1, "ORD-1", footXray, null);
+		foot.setAccessionNumber("ORD-1");
+
+		Obs study = obs(studyConstruct);
+		Obs images = obs(imagesAvailable);
+		images.setComment("^https://pacs.example/viewer?AccessionNumber=ORD-1");
+		study.addGroupMember(images);
+		Encounter studyEncounter = new Encounter();
+		studyEncounter.setEncounterDatetime(new Date(orderTime.getTime() + 20 * MINUTE));
+		study.setEncounter(studyEncounter);
+		Obs report = obs(reportConstruct);
+		Obs status = obs(reportType);
+		status.setValueCoded(finalReport);
+		report.addGroupMember(status);
+		Encounter reportEncounter = new Encounter();
+		reportEncounter.setEncounterDatetime(new Date(orderTime.getTime() + 90 * MINUTE));
+		report.setEncounter(reportEncounter);
+		when(rwandaEmrService.getObsByOrder(foot)).thenReturn(Arrays.asList(study, report));
+
+		RadiologyQueueRow row = service.toRow(Collections.singletonList(foot), orderables, new HashMap<>());
+
+		assertThat(row.getPacsStatus(), equalTo(PacsStatus.REPORTED));
+		assertThat(row.getImageUrl(), equalTo("https://pacs.example/viewer?AccessionNumber=ORD-1"));
+		assertThat(row.getImagesReceivedAt(), equalTo(studyEncounter.getEncounterDatetime()));
+		assertThat(row.getReportedAt(), equalTo(reportEncounter.getEncounterDatetime()));
+		assertThat(row.getReportStatus(), equalTo("Final"));
+		assertThat(row.getReportOrderId(), equalTo(1));
+		assertThat(row.isProcessed(), equalTo(true));
+		assertThat(row.isReadyForExam(), equalTo(false));
+	}
+
+	@Test
 	public void shouldCombineThePaymentOfTheTestsInAStudy() throws Exception {
 		TestOrder foot = order(1, "ORD-1", footXray, null);
 		TestOrder hand = order(2, "ORD-2", handXray, null);

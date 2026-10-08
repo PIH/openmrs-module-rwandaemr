@@ -27,6 +27,7 @@ public class RadiologyQueueRequest {
 	private final String paymentStatus;
 	private final String processed;
 	private final String query;
+	private boolean statOnly;
 	private String error;
 	private Date fromDate;
 	private Date toDate;
@@ -61,12 +62,22 @@ public class RadiologyQueueRequest {
 	}
 
 	/**
+	 * Limits the rows to STAT requests
+	 */
+	public void setStatOnly(boolean statOnly) {
+		this.statOnly = statOnly;
+	}
+
+	/**
 	 * @return the rows that match the modality, status and text filters
 	 */
 	public List<RadiologyQueueRow> filter(List<RadiologyQueueRow> rows) {
 		List<RadiologyQueueRow> ret = new ArrayList<RadiologyQueueRow>();
 		String text = query.toLowerCase(Locale.ENGLISH);
 		for (RadiologyQueueRow row : rows) {
+			if (statOnly && !row.isStat()) {
+				continue;
+			}
 			if (StringUtils.isNotEmpty(modality) && !modality.equalsIgnoreCase(row.getModality())) {
 				continue;
 			}
@@ -79,7 +90,8 @@ public class RadiologyQueueRequest {
 				continue;
 			}
 			if ("YES".equalsIgnoreCase(processed) && !row.isProcessed()
-					|| "NO".equalsIgnoreCase(processed) && row.isProcessed()) {
+					|| "NO".equalsIgnoreCase(processed) && row.isProcessed()
+					|| "READY".equalsIgnoreCase(processed) && !row.isReadyForExam()) {
 				continue;
 			}
 			if (StringUtils.isNotEmpty(text)) {

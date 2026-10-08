@@ -21,11 +21,11 @@ final class RadiologyQueueExcel {
 	private static final String[] HEADERS = {
 			"S.No", "Patient ID", "Patient Name", "Age", "Sex", "Modality", "Type of Study", "Clinical History",
 			"Requesting Physician", "Requesting Department", "Time Requested", "PACS Status", "Processed",
-			"Payment Status", "Time of Payment", "Order Number(s)"
+			"Payment Status", "Time of Payment", "Order Number(s)", "Urgency", "Ready for Exam"
 	};
 
 	private static final int[] COLUMN_WIDTHS = {
-			7, 16, 28, 7, 6, 10, 40, 40, 26, 24, 18, 16, 15, 16, 18, 24
+			7, 16, 28, 7, 6, 10, 40, 40, 26, 24, 18, 16, 15, 16, 18, 24, 10, 14
 	};
 
 	private RadiologyQueueExcel() {
@@ -66,6 +66,8 @@ final class RadiologyQueueExcel {
 			setText(row, 13, queueRow.getPaymentStatus() == null ? null : queueRow.getPaymentStatus().getLabel(), null);
 			setDate(row, 14, queueRow.getTimeOfPayment(), dateStyle);
 			setText(row, 15, String.join(", ", queueRow.getOrderNumbers()), null);
+			setText(row, 16, queueRow.isStat() ? "STAT" : "Routine", null);
+			setText(row, 17, queueRow.isReadyForExam() ? "Yes" : "No", null);
 			rowNumber++;
 		}
 

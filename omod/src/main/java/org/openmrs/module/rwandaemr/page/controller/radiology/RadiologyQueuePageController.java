@@ -31,6 +31,7 @@ public class RadiologyQueuePageController {
 					  @RequestParam(value = "paymentStatus", required = false) String paymentStatus,
 					  @RequestParam(value = "processed", required = false) String processed,
 					  @RequestParam(value = "query", required = false) String query,
+					  @RequestParam(value = "stat", required = false) String stat,
 					  @RequestParam(value = "export", required = false) String export) {
 
 		boolean authorized = Context.hasPrivilege(RadiologyQueueService.PRIVILEGE_VIEW_RADIOLOGY_QUEUE);
@@ -41,6 +42,7 @@ public class RadiologyQueuePageController {
 
 		RadiologyQueueRequest request = new RadiologyQueueRequest(startDate, endDate, modality, pacsStatus,
 				paymentStatus, processed, query);
+		request.setStatOnly("YES".equalsIgnoreCase(stat));
 		if ("excel".equalsIgnoreCase(export) && request.isValid()) {
 			List<RadiologyQueueRow> rows = request.filter(
 					radiologyQueueService.getQueue(request.getFromDate(), request.getToDate()));
