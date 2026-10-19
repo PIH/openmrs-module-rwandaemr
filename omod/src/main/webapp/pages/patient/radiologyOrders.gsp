@@ -66,7 +66,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         <td>
             <% def imageUrl = result.get("imageUrl")
             if (imageUrl) { %>
-                <a href="${ imageUrl }" target="_blank">View</a>
+                <a href="${ ui.encodeHtmlAttribute(imageUrl) }" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">View</a>
+            <% } else if (result.get("studyDone")) { %>
+                <span style="color: #8a6d3b;">Study done &ndash; no image link yet</span>
             <% } %>
         </td>
         <td>
@@ -79,7 +81,11 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
             <% } %>
         </td>
         <td>
-            ${ ui.format(result.get("reportStatus")) }
+            <% if (order.dateStopped) { %>
+                <span style="color: #9f1d1d; font-weight: bold;">Cancelled</span>
+            <% } else { %>
+                ${ ui.format(result.get("reportStatus")) }
+            <% } %>
         </td>
     </tr>
     <% } %>

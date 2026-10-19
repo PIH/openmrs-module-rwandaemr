@@ -900,6 +900,74 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="20261010-create-radiology-hl7-message" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_radiology_hl7_message"/></not>
+        </preConditions>
+        <comment>Copy of every HL7 message exchanged with PACS: orders sent and results received, with how they were handled</comment>
+        <createTable tableName="rwandaemr_radiology_hl7_message">
+            <column name="radiology_hl7_message_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="direction" type="varchar(3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message_type" type="varchar(20)"/>
+            <column name="message_control_id" type="varchar(50)"/>
+            <column name="order_control" type="varchar(10)"/>
+            <column name="result_status" type="varchar(10)"/>
+            <column name="accession_number" type="varchar(50)"/>
+            <column name="order_numbers" type="varchar(1000)"/>
+            <column name="has_image_link" type="boolean"/>
+            <column name="status" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="error_message" type="text"/>
+            <column name="message" type="mediumtext"/>
+            <column name="ack_message" type="text"/>
+            <column name="creator" type="int"/>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="rwandaemr_radiology_hl7_message" indexName="idx_radiology_hl7_message_accession">
+            <column name="accession_number"/>
+        </createIndex>
+        <createIndex tableName="rwandaemr_radiology_hl7_message" indexName="idx_radiology_hl7_message_date">
+            <column name="date_created"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20261019-create-radiology-report-draft" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_radiology_report_draft"/></not>
+        </preConditions>
+        <comment>Radiology reports a radiologist has saved as draft. They are kept apart from the patient record, so
+            clinicians do not see them, and become the report when the radiologist saves it as final.</comment>
+        <createTable tableName="rwandaemr_radiology_report_draft">
+            <column name="radiology_report_draft_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="order_id" type="int">
+                <constraints nullable="false" unique="true" foreignKeyName="radiology_report_draft_order_fk" references="orders(order_id)"/>
+            </column>
+            <column name="report_text" type="mediumtext"/>
+            <column name="provider_id" type="int">
+                <constraints foreignKeyName="radiology_report_draft_provider_fk" references="provider(provider_id)"/>
+            </column>
+            <column name="creator" type="int">
+                <constraints nullable="false" foreignKeyName="radiology_report_draft_creator_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int">
+                <constraints foreignKeyName="radiology_report_draft_changed_by_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_changed" type="datetime"/>
+        </createTable>
+    </changeSet>
+
     <changeSet id="20261008-create-lab-result-validation" author="bniyonshuti">
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="rwandaemr_lab_result_validation"/></not>

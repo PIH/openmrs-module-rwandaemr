@@ -48,6 +48,15 @@
 
     .rq-status-line { display: flex; justify-content: space-between; color: #607d8b; font-size: 12px; margin: 0 0 6px; }
     .rq-error { color: #9f1d1d; font-weight: bold; }
+    .rq-creat { white-space: nowrap; font-weight: bold; }
+    .rq-creat-high { color: #9f1d1d; }
+    .rq-report-test { margin-bottom: 4px; }
+    .rq-report-test .rq-test-name { display: block; color: #455a64; font-size: 12px; }
+    .rq-draft { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 11px; font-weight: bold; color: #0b5394; background: #d9edf7; }
+    .rq-resend { display: inline-block; margin-top: 4px; padding: 2px 10px; font-size: 11.5px; font-weight: bold; min-height: 0; line-height: 1.6;
+        color: #0b5394; background: #fff; border: 1px solid #0b5394; border-radius: 12px; cursor: pointer; white-space: nowrap; }
+    .rq-resend:hover { background: #d9edf7; }
+    .rq-resend[disabled] { color: #78909c; border-color: #b0bec5; background: #eceff1; cursor: wait; }
 
     /* The table fits the screen; the header stays visible while scrolling */
     .rq-table-wrap { border: 1px solid #d9e2e7; background: #fff; border-radius: 6px; overflow: auto; max-height: calc(100vh - 330px); min-height: 220px; }
@@ -75,7 +84,7 @@
     .rq-PAID, .rq-REPORTED, .rq-processed { color: #1b5e20; background: #dff0d8; }
     .rq-PARTIALLY_PAID, .rq-SENT, .rq-IMAGES_RECEIVED { color: #0b5394; background: #d9edf7; }
     .rq-NOT_PAID, .rq-CANCELLED { color: #9f1d1d; background: #f8d7da; }
-    .rq-NOT_BILLED, .rq-NOT_SENT, .rq-not-processed { color: #8a6d3b; background: #fcf8e3; }
+    .rq-NOT_BILLED, .rq-NOT_SENT, .rq-STUDY_DONE_NO_LINK, .rq-not-processed { color: #8a6d3b; background: #fcf8e3; }
     .rq-ready { color: #fff; background: #2e7d32; }
     .rq-stat { color: #fff; background: #e53935; font-size: 10.5px; padding: 2px 6px; margin-right: 4px; vertical-align: 1px; }
     /* Not paid pulses to draw attention; a soft pulse rather than a hard blink, which is tiring to watch all day */
@@ -89,6 +98,7 @@
     .rq-wait-amber { color: #8a5300; background: #ffe0b2; }
     .rq-wait-red { color: #fff; background: #c62828; }
     .rq-links a { display: inline-block; margin: 0 6px 2px 0; font-weight: bold; white-space: nowrap; }
+    .rq-links a.rq-enter-report { color: #fff; background: #00473f; padding: 2px 8px; border-radius: 10px; text-decoration: none; }
 
     /* Detail panel */
     .rq-overlay { display: none; position: fixed; inset: 0; background: rgba(38,50,56,.35); z-index: 1000; }
@@ -213,6 +223,7 @@
                     <th data-col="modality" class="rq-sortable" data-sort="modality">Modality<span class="rq-arrow">&#8597;</span></th>
                     <th data-col="study" class="rq-sortable" data-sort="typeOfStudy">Type of Study<span class="rq-arrow">&#8597;</span></th>
                     <th data-col="history" class="rq-sortable" data-sort="clinicalHistory">Clinical History<span class="rq-arrow">&#8597;</span></th>
+                    <th data-col="creatinine" title="The patient's latest creatinine result, shown for CT">Creatinine</th>
                     <th data-col="requestedBy" class="rq-sortable" data-sort="requestingPhysician">Requested By<span class="rq-arrow">&#8597;</span></th>
                     <th data-col="requested" class="rq-sortable" data-sort="timeRequested" data-type="number">Time Requested<span class="rq-arrow">&#8597;</span></th>
                     <th data-col="pacs" class="rq-sortable" data-sort="pacsStatusLabel">PACS Status<span class="rq-arrow">&#8597;</span></th>
@@ -245,12 +256,16 @@
         var pageUrl = '${ ui.pageLink("rwandaemr", "radiology/radiologyQueue") }';
         var patientOrdersUrl = '${ ui.pageLink("rwandaemr", "patient/radiologyOrders") }';
         var orderUrl = '${ ui.pageLink("rwandaemr", "patient/radiologyOrder") }';
+        var reportUrl = '${ ui.pageLink("rwandaemr", "patient/radiologyReport") }';
+        var printUrl = '${ ui.pageLink("rwandaemr", "patient/radiologyReportPrint") }';
+        var resendUrl = '${ openmrsContextPath }/ws/rest/v1/rwandaemr/radiologyqueue/resend';
         var startedWithUrlFilters = window.location.search.indexOf('modality=') !== -1;
 
         var COLUMNS = [
             { key: 'patientId', label: 'Patient ID' }, { key: 'patientName', label: 'Patient Name' },
             { key: 'ageSex', label: 'Age/Sex' }, { key: 'modality', label: 'Modality' },
             { key: 'study', label: 'Type of Study' }, { key: 'history', label: 'Clinical History' },
+            { key: 'creatinine', label: 'Creatinine' },
             { key: 'requestedBy', label: 'Requested By' }, { key: 'requested', label: 'Time Requested' },
             { key: 'pacs', label: 'PACS Status' }, { key: 'processed', label: 'Processed' },
             { key: 'payment', label: 'Payment' }, { key: 'results', label: 'Results' }
@@ -416,15 +431,91 @@
             return '<div><span class="rq-wait' + cls + '" title="Waiting since the request">&#9201; ' + formatDuration(minutes) + '</span></div>';
         };
 
+        // Reports for modalities such as ultrasound are entered in OpenMRS by a radiologist, one report per test
+        var testReportLinks = function(r, t, showName) {
+            var links = [];
+            if (t.reported) {
+                links.push('<a href="' + orderUrl + '?orderId=' + t.orderId + '">&#128196; Report</a>');
+                links.push('<a href="' + printUrl + '?orderId=' + t.orderId + '" target="_blank" rel="noopener">&#128424; Print</a>');
+            }
+            else if (t.hasDraft) {
+                links.push('<span class="rq-draft" title="Only radiologists can see a draft">Draft</span>');
+            }
+            if (r.canEnterReport) {
+                var returnUrl = window.location.pathname + window.location.search;
+                links.push('<a class="rq-enter-report" href="' + reportUrl + '?orderId=' + t.orderId +
+                    '&returnUrl=' + encodeURIComponent(returnUrl) + '">&#9998; ' +
+                    (t.reported ? 'Correct report' : (t.hasDraft ? 'Continue draft' : 'Enter report')) + '</a>');
+            }
+            if (links.length === 0) {
+                return '';
+            }
+            return '<div class="rq-report-test">' + (showName ? '<span class="rq-test-name">' + escapeHtml(t.name) + '</span>' : '') +
+                '<div class="rq-links">' + links.join('') + '</div></div>';
+        };
+
         var resultLinks = function(r) {
             var links = [];
             if (r.imageUrl) {
-                links.push('<a href="' + escapeHtml(r.imageUrl) + '" target="_blank" rel="noopener noreferrer">&#128444; Images</a>');
+                links.push('<a href="' + escapeHtml(r.imageUrl) + '" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">&#128444; Images</a>');
+            }
+            if (r.manualReport) {
+                var tests = r.tests || [];
+                var perTest = tests.map(function(t) { return testReportLinks(r, t, tests.length > 1); }).join('');
+                return '<div class="rq-links">' + links.join('') + '</div>' + perTest;
             }
             if (r.reportOrderId) {
                 links.push('<a href="' + orderUrl + '?orderId=' + r.reportOrderId + '">&#128196; Report</a>');
+                links.push('<a href="' + printUrl + '?orderId=' + r.reportOrderId + '" target="_blank" rel="noopener">&#128424; Print</a>');
             }
             return '<div class="rq-links">' + links.join('') + '</div>';
+        };
+
+        // The latest creatinine of the patient, shown for CT as contrast may be given
+        var creatinineCell = function(r) {
+            if (r.modality !== 'CT') {
+                return '';
+            }
+            if (!r.creatinine) {
+                return '<span class="rq-muted">No result</span>';
+            }
+            return '<span class="rq-creat' + (r.creatinineHigh ? ' rq-creat-high' : '') + '"' +
+                (r.creatinineHigh ? ' title="Above the normal range"' : '') + '>' + escapeHtml(r.creatinine) +
+                (r.creatinineHigh ? ' &#9650;' : '') + '</span>' +
+                (r.creatinineDate ? '<div class="rq-muted rq-nowrap">' + formatTime(r.creatinineDate) + '</div>' : '');
+        };
+
+        // A study that never reached PACS can be sent again: only the message is sent, no order or bill is created
+        var resendButton = function(r) {
+            return r.canResend ? ' <button type="button" class="rq-resend" data-order-id="' + r.orderIds[0] + '"' +
+                ' title="Send this study to PACS again. No new order or bill is created.">&#8635; Resend to PACS</button>' : '';
+        };
+
+        var resend = function(button) {
+            button.prop('disabled', true).text('Sending...');
+            jq.ajax({
+                type: 'POST',
+                url: resendUrl,
+                data: { orderId: button.data('order-id') },
+                dataType: 'json'
+            }).done(function(result) {
+                if (result.error) {
+                    jq('#rq-message').html('<span class="rq-error">' + escapeHtml(result.error) + '</span>');
+                    button.prop('disabled', false).html('&#8635; Resend to PACS');
+                }
+                else {
+                    // Reloading the queue clears the message line, so the confirmation is shown as a toast
+                    var sent = 'Sent to PACS as study ' + result.accessionNumber;
+                    if (jq().toastmessage) {
+                        jq().toastmessage('showSuccessToast', sent);
+                    }
+                    load(false);
+                }
+            }).fail(function(xhr) {
+                jq('#rq-message').html('<span class="rq-error">Unable to send to PACS (HTTP ' + xhr.status + ')' +
+                    (xhr.status == 401 || xhr.status == 403 ? ': your session may have expired or you lack permission' : '') + '</span>');
+                button.prop('disabled', false).html('&#8635; Resend to PACS');
+            });
         };
 
         var cell = function(col, html, extraClass) {
@@ -448,7 +539,7 @@
                 .find('.rq-arrow').html(state.sortAscending ? '&#9650;' : '&#9660;');
 
             if (visible.length === 0) {
-                jq('#rq-body').html('<tr><td colspan="13" class="rq-muted">No radiology requests match these filters.</td></tr>');
+                jq('#rq-body').html('<tr><td colspan="14" class="rq-muted">No radiology requests match these filters.</td></tr>');
                 return;
             }
             var html = [];
@@ -472,9 +563,10 @@
                     cell('modality', escapeHtml(r.modality)) +
                     cell('study', study, 'rq-study') +
                     cell('history', '<div class="rq-history" title="' + escapeHtml(r.clinicalHistory) + '">' + escapeHtml(r.clinicalHistory) + '</div>') +
+                    cell('creatinine', creatinineCell(r)) +
                     cell('requestedBy', escapeHtml(r.requestingPhysician) + '<div class="rq-muted">' + escapeHtml(r.requestingDepartment) + '</div>') +
                     cell('requested', '<span class="rq-nowrap">' + formatTime(r.timeRequested) + '</span>' + waitBadge(r)) +
-                    cell('pacs', '<span class="rq-chip rq-' + escapeHtml(r.pacsStatus) + '">' + escapeHtml(r.pacsStatusLabel) + '</span>') +
+                    cell('pacs', '<span class="rq-chip rq-' + escapeHtml(r.pacsStatus) + '">' + escapeHtml(r.pacsStatusLabel) + '</span>' + resendButton(r)) +
                     cell('processed', processedCell(r)) +
                     cell('payment', payment) +
                     cell('results', resultLinks(r)) +
@@ -512,19 +604,24 @@
                 timelineItem('Requested', formatTime(r.timeRequested) + (wait !== null ? ' &middot; waiting ' + formatDuration(wait) : ''), true, false) +
                 timelineItem('Payment: ' + escapeHtml(r.paymentStatusLabel), formatTime(r.timeOfPayment), paid, r.paymentStatus === 'NOT_PAID') +
                 timelineItem(cancelled ? 'Cancelled in PACS' : (sent ? 'Sent to PACS' : 'Not sent to PACS yet'), '', sent, cancelled) +
-                timelineItem('Images received', formatTime(r.imagesReceivedAt), !!r.imagesReceivedAt, false) +
+                timelineItem(r.imagesReceivedAt && !r.imageUrl ? 'Study done &ndash; no image link from PACS yet' : 'Images received',
+                    formatTime(r.imagesReceivedAt), !!r.imagesReceivedAt, !!r.imagesReceivedAt && !r.imageUrl) +
                 timelineItem('Reported' + (r.reportStatus ? ' (' + escapeHtml(r.reportStatus) + ')' : ''), formatTime(r.reportedAt), !!r.reportedAt, false);
             jq('#rq-drawer-body').html(
                 '<div class="rq-section"><h5>' + ((r.tests || []).length > 1 ? 'Tests in this study' : 'Test') + '</h5><ul class="rq-tests">' + tests + '</ul></div>' +
                 '<div class="rq-section"><h5>Status</h5>' +
                     '<span class="rq-chip rq-' + escapeHtml(r.pacsStatus) + '">' + escapeHtml(r.pacsStatusLabel) + '</span> ' + processedCell(r) +
+                    resendButton(r) +
                     ' <span class="rq-chip rq-' + escapeHtml(r.paymentStatus) + '">' + escapeHtml(r.paymentStatusLabel) + '</span></div>' +
                 '<div class="rq-section"><h5>Progress</h5><ul class="rq-timeline">' + timeline + '</ul></div>' +
                 '<div class="rq-section"><h5>Clinical history</h5><p>' + (escapeHtml(r.clinicalHistory) || '<span class="rq-muted">None recorded</span>') + '</p></div>' +
                 (r.reason ? '<div class="rq-section"><h5>Reason</h5><p>' + escapeHtml(r.reason) + '</p></div>' : '') +
+                (r.modality === 'CT' ? '<div class="rq-section"><h5>Latest creatinine</h5>' + creatinineCell(r) + '</div>' : '') +
                 '<div class="rq-section"><h5>Requested by</h5><p>' + escapeHtml(r.requestingPhysician) +
                     (r.requestingDepartment ? ' &middot; ' + escapeHtml(r.requestingDepartment) : '') + '</p></div>' +
-                '<div class="rq-section"><h5>Results</h5>' + (r.imageUrl || r.reportOrderId ? resultLinks(r) : '<span class="rq-muted">No results yet</span>') + '</div>' +
+                '<div class="rq-section"><h5>Results</h5>' + (r.imageUrl || r.reportOrderId || r.canEnterReport ? resultLinks(r) : '<span class="rq-muted">No results yet</span>') +
+                    (r.manualReport && !r.reportOrderId ? '<div class="rq-muted">The report for this modality is entered in OpenMRS by a radiologist' +
+                        (r.imagesReceivedAt ? '.' : ', once the images are received from PACS.') + '</div>' : '') + '</div>' +
                 '<div class="rq-section"><a href="' + patientOrdersUrl + '?patientId=' + r.patientId + '">All radiology orders of this patient &rarr;</a></div>');
         };
 
@@ -652,6 +749,10 @@
                 openDrawer(String(jq(this).data('key')));
             });
             jq('#rq-overlay, #rq-drawer-close').click(closeDrawer);
+            jq(document).on('click', '.rq-resend', function(e) {
+                e.stopPropagation();
+                resend(jq(this));
+            });
             jq(document).keydown(function(e) { if (e.key === 'Escape') { closeDrawer(); jq('#rq-columns-menu').hide(); } });
 
             jq('#rq-columns-button').click(function(e) { e.stopPropagation(); jq('#rq-columns-menu').toggle(); });

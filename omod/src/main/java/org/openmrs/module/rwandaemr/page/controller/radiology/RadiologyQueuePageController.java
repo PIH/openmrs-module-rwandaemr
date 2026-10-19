@@ -1,6 +1,7 @@
 package org.openmrs.module.rwandaemr.page.controller.radiology;
 
 import org.openmrs.api.context.Context;
+import org.openmrs.module.rwandaemr.billing.PaymentStatus;
 import org.openmrs.module.rwandaemr.radiology.Modality;
 import org.openmrs.module.rwandaemr.radiology.RadiologyConfig;
 import org.openmrs.module.rwandaemr.radiology.queue.RadiologyQueueRow;
@@ -57,7 +58,7 @@ public class RadiologyQueuePageController {
 		model.addAttribute("queueRequest", request);
 		model.addAttribute("modalities", modalities);
 		model.addAttribute("pacsStatuses", RadiologyQueueRow.PacsStatus.values());
-		model.addAttribute("paymentStatuses", RadiologyQueueRow.PaymentStatus.values());
+		model.addAttribute("paymentStatuses", PaymentStatus.values());
 		return null;
 	}
 }

@@ -55,6 +55,7 @@ public class RadiologyOrderEventListener implements EventListener {
 	private final OrderService orderService;
 	private final OrderToORMO01Translator orderToORMTranslator;
 	private final RadiologyConfig radiologyConfig;
+	private RadiologyHl7MessageLog messageLog;
 
 	/**
 	 * Fulfiller comment recorded on a cancelled order once its cancellation has been sent to PACS
@@ -89,6 +90,11 @@ public class RadiologyOrderEventListener implements EventListener {
 		this.orderService = orderService;
 		this.orderToORMTranslator = orderToORMTranslator;
 		this.radiologyConfig = radiologyConfig;
+	}
+
+	@Autowired(required = false)
+	public void setMessageLog(RadiologyHl7MessageLog messageLog) {
+		this.messageLog = messageLog;
 	}
 
 	public String getHost() {
@@ -188,6 +194,34 @@ public class RadiologyOrderEventListener implements EventListener {
 				List<TestOrder> orders = getOrdersToSendWith(testOrder);
 				sendStudy(orders, testOrder.getAccessionNumber());
 			}
+		}
+	}
+
+	/**
+	 * Sends an order that was never sent to PACS, for example because PACS could not be reached when it was placed, as
+	 * a new study with the other unsent tests of the same modality in its encounter.  Only the HL7 message is sent: no
+	 * order is created and nothing is billed.
+	 * @return the accession number the study was sent with
+	 * @throws IllegalStateException if the order is cancelled or was already sent, or sending to PACS is not configured
+	 * @throws RuntimeException if PACS could not be reached or did not accept the study
+	 */
+	public String resendUnsentOrder(TestOrder testOrder) {
+		synchronized (studyLock) {
+			// Another user may have sent it in the meantime
+			Context.refreshEntity(testOrder);
+			if (orderToORMTranslator.isCancelled(testOrder)) {
+				throw new IllegalStateException("Order " + testOrder.getOrderNumber() + " is cancelled");
+			}
+			if (StringUtils.isNotBlank(testOrder.getAccessionNumber())) {
+				throw new IllegalStateException("Order " + testOrder.getOrderNumber() + " was already sent to PACS in study "
+						+ testOrder.getAccessionNumber());
+			}
+			if (getHost() == null || getPort() == null) {
+				throw new IllegalStateException("Sending radiology orders to PACS is not configured");
+			}
+			List<TestOrder> study = getOrdersForNewStudy(testOrder);
+			sendStudy(study, null);
+			return getAccessionNumber(study);
 		}
 	}
 
@@ -321,32 +355,57 @@ public class RadiologyOrderEventListener implements EventListener {
 		}
 		log.info("Sending radiology order message to PACS: " + orderControl + " study " + accessionNumber
 				+ " with order(s) " + orderNumbers);
+		String messageText = null;
+		String ackText = null;
+		String status = RadiologyHl7Message.STATUS_NO_RESPONSE;
+		String error = null;
 		try {
 			ORM_O01 hl7Message = orderToORMTranslator.toORM_O01(orders, accessionNumber, orderControl);
+			messageText = hl7Message.encode();
 			if (log.isTraceEnabled()) {
-				log.trace(hl7Message.encode());
+				log.trace(messageText);
 			}
 			ACK response = (ACK) sendWithRetry(hl7Message, getHost(), getPort());
+			ackText = response.encode();
+			if (log.isTraceEnabled()) {
+				log.trace(ackText);
+			}
 			String ackCode = response.getMSA().getAcknowledgementCode().getValue();
 			if (AcknowledgmentCode.AA.name().equals(ackCode)) {
+				status = RadiologyHl7Message.STATUS_ACCEPTED;
 				log.warn("Got response from PACS: " + response);
 				log.info("Radiology order sent successfully");
-				if (log.isTraceEnabled()) {
-					log.trace(response.encode());
-				}
 				return true;
 			}
-			else {
-				if (log.isTraceEnabled()) {
-					log.trace(response.encode());
-				}
-				String error = response.getERR() != null ? response.getERR().encode() : response.encode();
-				throw new RuntimeException("Radiology order sent failed: " + error);
-			}
+			status = RadiologyHl7Message.STATUS_REJECTED;
+			error = response.getERR() != null ? response.getERR().encode() : ackText;
+			throw new RuntimeException("Radiology order sent failed: " + error);
 		}
 		catch (Exception e) {
+			if (error == null) {
+				error = e.toString();
+			}
 			log.error("Error sending radiology order message to PACS: " + e);
 			throw new RuntimeException(e);
+		}
+		finally {
+			logMessage(orders, accessionNumber, orderControl, messageText, ackText, status, error);
+		}
+	}
+
+	/**
+	 * Keeps a copy of the message sent to PACS and of its answer.  Failing to keep it never affects sending.
+	 */
+	private void logMessage(List<TestOrder> orders, String accessionNumber, String orderControl, String messageText,
+							String ackText, String status, String error) {
+		if (messageLog == null || messageText == null) {
+			return;
+		}
+		try {
+			messageLog.logOutgoing(orders, accessionNumber, orderControl, messageText, ackText, status, error);
+		}
+		catch (Exception e) {
+			log.warn("Unable to keep a copy of the radiology order message sent to PACS", e);
 		}
 	}
 

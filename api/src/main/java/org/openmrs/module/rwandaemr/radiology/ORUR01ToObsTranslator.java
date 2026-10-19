@@ -34,6 +34,7 @@ import org.openmrs.api.OrderService;
 import org.openmrs.module.emrapi.adt.AdtService;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.module.rwandaemr.RwandaEmrService;
+import org.openmrs.util.OpenmrsUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -113,7 +114,7 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         // Study
         String dateTimeStudyPerformed = getField(hl7MessageString, "OBX", 19); // TODO: This is available in HL7 v2.5 only
         String dateTimeStudyReceivedOnPacs = obx1.getObx12_DateLastObsNormalValues().getTimeOfAnEvent().getValue();
-        String imageViewerLink = obx2.getObx5_ObservationValue(0).getData().encode();
+        String imageViewerLink = HL7Utils.getViewerUrl(obx2.getObx5_ObservationValue(0).getData().encode());
 
         // Report
         String reportText = obx1.getObx5_ObservationValue(0).getData().encode();
@@ -149,6 +150,13 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             reportDate = studyDate != null ? studyDate : order.getEncounter().getEncounterDatetime();
         }
 
+        // Reports for some modalities are entered in OpenMRS by a radiologist; PACS must never change or clear them
+        RadiologyConfig radiologyConfig = rwandaEmrConfig.getRadiologyConfig();
+        if (reportDate != null && radiologyConfig.isManualReportModality(radiologyConfig.getModality(order.getConcept()))) {
+            log.info("Ignoring report data from PACS for order " + orderNumber + ": its report is entered in OpenMRS");
+            reportDate = null;
+        }
+
         // The study and report apply to every test in the study, each recorded against its own order and procedure
         List<Encounter> encounters = new ArrayList<>();
         for (Order studyOrder : studyOrders) {
@@ -167,6 +175,17 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         else {
             rwandaEmrService.saveEncounters(encounters);
         }
+    }
+
+    /**
+     * Records a report entered in OpenMRS by a radiologist, for modalities that do not send reports through PACS.  It is
+     * saved the same way as a report received from PACS, as a final report, but only on the given test: each test of a
+     * study is reported separately.  Changing the text of a final report records it as a correction.
+     */
+    public void saveManualReport(Order order, Date reportDate, Provider radiologist, String reportText) {
+        List<Encounter> encounters = new ArrayList<>();
+        encounters.add(createOrUpdateRadiologyReport(order, reportDate, order.getConcept(), "F", radiologist, reportText));
+        rwandaEmrService.saveEncounters(encounters);
     }
 
     /**
@@ -228,15 +247,20 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             procedureObs.setValueCoded(testPerformedValue);
         }
 
-        // Add or modify existing images available obs in radiology study obs group
-        boolean hasImages = StringUtils.isNotBlank(imageViewerLink);
-        Concept hasImagesValueCoded = hasImages ? conceptService.getTrueConcept() : conceptService.getFalseConcept();
+        // Add or modify existing images available obs in radiology study obs group.  A message without a viewer link,
+        // such as a report sent separately from the images, keeps the link received earlier.
         Obs hasImagesAvailableObs = getObsFromGroup(radiologyStudyGroup, radiologyConfig.getRadiologyImagesAvailable());
-        if (hasImagesAvailableObs == null) {
-            hasImagesAvailableObs = createObs(encounter, order, radiologyStudyGroup, radiologyConfig.getRadiologyImagesAvailable());
+        boolean keepExistingLink = StringUtils.isBlank(imageViewerLink) && hasImagesAvailableObs != null
+                && StringUtils.isNotBlank(hasImagesAvailableObs.getComment());
+        if (!keepExistingLink) {
+            boolean hasImages = StringUtils.isNotBlank(imageViewerLink);
+            Concept hasImagesValueCoded = hasImages ? conceptService.getTrueConcept() : conceptService.getFalseConcept();
+            if (hasImagesAvailableObs == null) {
+                hasImagesAvailableObs = createObs(encounter, order, radiologyStudyGroup, radiologyConfig.getRadiologyImagesAvailable());
+            }
+            hasImagesAvailableObs.setValueCoded(hasImagesValueCoded);
+            hasImagesAvailableObs.setComment(hasImages ? imageViewerLink : null);
         }
-        hasImagesAvailableObs.setValueCoded(hasImagesValueCoded);
-        hasImagesAvailableObs.setComment(StringUtils.isNotBlank(imageViewerLink) ? imageViewerLink : null);
 
         return encounter;
     }
@@ -406,7 +430,8 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             provider = rwandaEmrConfig.getUnknownProvider();
         }
         for (EncounterProvider ep : encounter.getEncounterProviders()) {
-            if (ep.getEncounterRole().equals(role) && ep.getProvider().equals(provider) && !ep.getVoided()) {
+            if (OpenmrsUtil.nullSafeEquals(ep.getEncounterRole(), role) && OpenmrsUtil.nullSafeEquals(ep.getProvider(), provider)
+                    && !ep.getVoided()) {
                 return;
             }
         }

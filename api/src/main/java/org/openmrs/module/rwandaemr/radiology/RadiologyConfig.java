@@ -23,6 +23,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -42,6 +44,14 @@ public class RadiologyConfig {
 	public static final String GP_SUPPORTED_MODALITIES = "rwandaemr.radiology.supportedModalities";
 	public static final String GP_ORDERABLES_PREFIX = "rwandaemr.radiology.orderables.";
 	public static final String GP_COMBINE_ORDERS_BY_MODALITY = "rwandaemr.radiology.combineOrdersByModality";
+	public static final String GP_MANUAL_REPORT_MODALITIES = "rwandaemr.radiology.manualReportModalities";
+	public static final String GP_IMAGE_VIEWER_URL_TEMPLATE = "rwandaemr.radiology.imageViewerUrlTemplate";
+	public static final String GP_CREATININE_CONCEPT = "rwandaemr.radiology.creatinineConcept";
+
+	/**
+	 * Placeholder in {@link #GP_IMAGE_VIEWER_URL_TEMPLATE} replaced by the study's accession number
+	 */
+	public static final String ACCESSION_NUMBER_PLACEHOLDER = "{accessionNumber}";
 
 	public static final String RADIOLOGY_REQUEST_ENCOUNTER_UUID = "02965343-bbe7-4c3c-83c5-c3d084e715b7";
 	public static final String RADIOLOGY_STUDY_ENCOUNTER_UUID = "7d2fdd23-2cfc-11f0-bad6-56aa92787bc1";
@@ -104,6 +114,66 @@ public class RadiologyConfig {
 	public boolean isCombineOrdersByModality() {
 		String value = administrationService.getGlobalProperty(GP_COMBINE_ORDERS_BY_MODALITY, "true");
 		return !"false".equalsIgnoreCase(StringUtils.trimToEmpty(value));
+	}
+
+	/**
+	 * PACS only sends the link to view a study's images with its report, so studies whose reports are entered in
+	 * OpenMRS, and studies not reported yet, would have no link.  The PACS viewer can open any study by its accession
+	 * number, so a link is made from this global property, for example
+	 * https://pacs/PACSAPI/Launch_Viewer?AccessionNumber={accessionNumber}
+	 * @return the link to view the images of the study with the given accession number, or null if none is configured
+	 */
+	public String getImageViewerUrl(String accessionNumber) {
+		String template = StringUtils.trimToNull(administrationService.getGlobalProperty(GP_IMAGE_VIEWER_URL_TEMPLATE));
+		if (template == null || StringUtils.isBlank(accessionNumber) || !template.contains(ACCESSION_NUMBER_PLACEHOLDER)) {
+			return null;
+		}
+		try {
+			return template.replace(ACCESSION_NUMBER_PLACEHOLDER, URLEncoder.encode(accessionNumber.trim(), "UTF-8"));
+		}
+		catch (UnsupportedEncodingException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+	/**
+	 * @return the lab result concept whose latest value is shown in the radiology queue for CT studies, given by
+	 * uuid, mapping or id, or null if none is configured
+	 */
+	public Concept getCreatinineConcept() {
+		String ref = StringUtils.trimToNull(administrationService.getGlobalProperty(GP_CREATININE_CONCEPT));
+		if (ref == null) {
+			return null;
+		}
+		Concept concept = conceptService.getConceptByReference(ref);
+		if (concept == null && StringUtils.isNumeric(ref)) {
+			concept = conceptService.getConcept(Integer.valueOf(ref));
+		}
+		return concept;
+	}
+
+	/**
+	 * @return true if reports for the given modality are entered in OpenMRS by a radiologist, because the modality does
+	 * not send reports through PACS.  Configured as a comma-separated list of modality codes; US by default.
+	 */
+	public boolean isManualReportModality(Modality modality) {
+		if (modality == null) {
+			return false;
+		}
+		String value = administrationService.getGlobalProperty(GP_MANUAL_REPORT_MODALITIES, "US");
+		for (String code : StringUtils.defaultString(value).split(",")) {
+			if (modality.name().equalsIgnoreCase(code.trim())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @return the modality of the given radiology orderable, or null if it is not a configured radiology orderable
+	 */
+	public Modality getModality(Concept orderable) {
+		return orderable == null ? null : getOrderables(getModalityConceptSets()).get(orderable);
 	}
 
 	public Map<Modality, Concept> getModalityConceptSets() {

@@ -82,6 +82,26 @@ public class HL7Utils {
     }
 
     /**
+     * PACS sends the image viewer link as a reference pointer (RP) whose second component holds the address, so the
+     * encoded value starts with a component separator, as in "^https://...".  Links saved before this was handled are
+     * stored the same way.
+     * @return the web address of the image viewer, or null if there is none
+     */
+    public static String getViewerUrl(String value) {
+        if (StringUtils.isBlank(value)) {
+            return null;
+        }
+        for (String component : value.split("\\^")) {
+            String candidate = component.trim();
+            if (candidate.regionMatches(true, 0, "http://", 0, 7) || candidate.regionMatches(true, 0, "https://", 0, 8)) {
+                return candidate;
+            }
+        }
+        String trimmed = value.trim().replaceFirst("^\\^+", "").trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
      * For the given message and exception, generate an ACK message response
      */
     public static Message generateAckMessage(Message message, Exception e) {

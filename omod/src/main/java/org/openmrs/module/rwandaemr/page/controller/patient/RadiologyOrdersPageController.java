@@ -10,6 +10,7 @@ import org.openmrs.api.ConceptService;
 import org.openmrs.api.OrderService;
 import org.openmrs.module.emrapi.patient.PatientDomainWrapper;
 import org.openmrs.module.rwandaemr.RwandaEmrService;
+import org.openmrs.module.rwandaemr.radiology.HL7Utils;
 import org.openmrs.module.rwandaemr.radiology.Modality;
 import org.openmrs.module.rwandaemr.radiology.RadiologyConfig;
 import org.openmrs.parameter.OrderSearchCriteriaBuilder;
@@ -62,7 +63,13 @@ public class RadiologyOrdersPageController {
             b.setPatient(patient);
             b.setConcepts(orderables.keySet());
             b.setIncludeVoided(false);
-            orders = orderService.getOrders(b.build());
+            // A cancelled order is recorded by OpenMRS as a separate discontinue order for the same test, which is not
+            // an exam of its own, so only the cancelled order is listed, marked as cancelled
+            for (Order order : orderService.getOrders(b.build())) {
+                if (order.getAction() != Order.Action.DISCONTINUE) {
+                    orders.add(order);
+                }
+            }
         }
         model.addAttribute("orders", orders);
 
@@ -75,11 +82,12 @@ public class RadiologyOrdersPageController {
             List<Obs> obs = rwandaEmrService.getObsByOrder(order);
             Obs studyGroup = getObs(obs, radiologyConfig.getRadiologyStudyConstruct());
             if (studyGroup != null) {
+                result.put("studyDone", true);
                 Obs imagesObs = getObs(studyGroup.getGroupMembers(), radiologyConfig.getRadiologyImagesAvailable());
                 boolean imagesAvailable = imagesObs != null && OpenmrsUtil.nullSafeEquals(imagesObs.getValueCoded(), trueConcept);
-                if (imagesAvailable) {
-                    result.put("imageUrl", imagesObs.getComment());
-                }
+                String imageUrl = imagesAvailable ? HL7Utils.getViewerUrl(imagesObs.getComment()) : null;
+                // PACS only sends the link with the report, so otherwise the study is opened in the viewer by its accession number
+                result.put("imageUrl", imageUrl != null ? imageUrl : radiologyConfig.getImageViewerUrl(order.getAccessionNumber()));
             }
             Obs reportGroup = getObs(obs, radiologyConfig.getRadiologyReportConstruct());
             if (reportGroup != null) {
