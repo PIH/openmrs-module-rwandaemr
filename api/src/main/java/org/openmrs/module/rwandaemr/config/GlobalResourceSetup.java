@@ -22,6 +22,7 @@ public class GlobalResourceSetup implements Setup {
     public static final String GLOBAL_SCRIPTS_DIR = "globalresources/scripts";
     public static final String RWANDAEMR_HIDE_RHIP_RECEPTION_VISIT_ATTRIBUTE_SCRIPT =
             "scripts/hideRhipReceptionVisitAttribute.js";
+    public static final String RWANDAEMR_LAB_ORDER_LIST_SCRIPT = "scripts/labs/labOrderListRwanda.js";
 
     /**
      * Include custom styling sheets and scripts
@@ -47,6 +48,7 @@ public class GlobalResourceSetup implements Setup {
                 }
             }
             addGlobalResource(Resource.CATEGORY_JS, "rwandaemr", RWANDAEMR_HIDE_RHIP_RECEPTION_VISIT_ATTRIBUTE_SCRIPT);
+            addGlobalResource(Resource.CATEGORY_JS, "rwandaemr", RWANDAEMR_LAB_ORDER_LIST_SCRIPT);
             log.warn("Global resources loaded from configuration");
         }
         // this entire catch is a hack to get component test to pass until we find the proper way to mock this

@@ -80,6 +80,11 @@
 	</privilege>
 
 	<privilege>
+		<name>Task: rwandaemr.labs.validateResults</name>
+		<description>Validate lab results entered by another user, or return them to the lab for correction</description>
+	</privilege>
+
+	<privilege>
 		<name>RwandaEMR Queue: View</name>
 		<description>View queue entries for the current login location</description>
 	</privilege>
