@@ -968,4 +968,36 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="20261008-create-lab-result-validation" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_lab_result_validation"/></not>
+        </preConditions>
+        <comment>Audit trail of the validation of lab results: who validated or returned an order's results, and who entered them</comment>
+        <createTable tableName="rwandaemr_lab_result_validation">
+            <column name="lab_result_validation_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="order_id" type="int">
+                <constraints nullable="false" foreignKeyName="lab_result_validation_order_fk" references="orders(order_id)"/>
+            </column>
+            <column name="action" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="text"/>
+            <column name="results_entered_by" type="varchar(255)"/>
+            <column name="creator" type="int">
+                <constraints nullable="false" foreignKeyName="lab_result_validation_creator_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="uuid" type="char(38)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+        </createTable>
+        <createIndex tableName="rwandaemr_lab_result_validation" indexName="idx_lab_result_validation_order">
+            <column name="order_id"/>
+        </createIndex>
+    </changeSet>
+
 </databaseChangeLog>
