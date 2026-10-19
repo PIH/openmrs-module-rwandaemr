@@ -18,12 +18,10 @@ import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.module.rwandaemr.RwandaEmrService;
 import org.openmrs.module.rwandaemr.radiology.Modality;
 import org.openmrs.module.rwandaemr.radiology.RadiologyConfig;
-import org.openmrs.module.rwandaemr.radiology.queue.RadiologyPaymentLookup.BillItem;
-import org.openmrs.module.rwandaemr.radiology.queue.RadiologyPaymentLookup.OrderPayment;
+import org.openmrs.module.rwandaemr.billing.OrderPaymentLookup.OrderPayment;
+import org.openmrs.module.rwandaemr.billing.PaymentStatus;
 import org.openmrs.module.rwandaemr.radiology.queue.RadiologyQueueRow.PacsStatus;
-import org.openmrs.module.rwandaemr.radiology.queue.RadiologyQueueRow.PaymentStatus;
 
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -116,11 +114,26 @@ public class RadiologyQueueServiceTest {
 		assertThat(service.toRow(Collections.singletonList(notSent), orderables, new HashMap<>()).getPacsStatus(),
 				equalTo(PacsStatus.NOT_SENT));
 
-		TestOrder imaged = order(2, "ORD-2", footXray, null);
-		imaged.setAccessionNumber("ORD-2");
-		when(rwandaEmrService.getObsByOrder(imaged)).thenReturn(Collections.singletonList(obs(studyConstruct)));
-		assertThat(service.toRow(Collections.singletonList(imaged), orderables, new HashMap<>()).getPacsStatus(),
-				equalTo(PacsStatus.IMAGES_RECEIVED));
+		// PACS reported the study as done but sent no link to its images
+		TestOrder doneWithoutLink = order(2, "ORD-2", footXray, null);
+		doneWithoutLink.setAccessionNumber("ORD-2");
+		when(rwandaEmrService.getObsByOrder(doneWithoutLink)).thenReturn(Collections.singletonList(obs(studyConstruct)));
+		RadiologyQueueRow doneWithoutLinkRow = service.toRow(Collections.singletonList(doneWithoutLink), orderables, new HashMap<>());
+		assertThat(doneWithoutLinkRow.getPacsStatus(), equalTo(PacsStatus.STUDY_DONE_NO_LINK));
+		assertThat(doneWithoutLinkRow.isProcessed(), equalTo(true));
+
+		Concept imagesAvailable = concept(102, "Radiology images available");
+		when(radiologyConfig.getRadiologyImagesAvailable()).thenReturn(imagesAvailable);
+		TestOrder imaged = order(5, "ORD-5", footXray, null);
+		imaged.setAccessionNumber("ORD-5");
+		Obs study = obs(studyConstruct);
+		Obs images = obs(imagesAvailable);
+		images.setComment("https://pacs.example/viewer?AccessionNumber=ORD-5");
+		study.addGroupMember(images);
+		when(rwandaEmrService.getObsByOrder(imaged)).thenReturn(Collections.singletonList(study));
+		RadiologyQueueRow imagedRow = service.toRow(Collections.singletonList(imaged), orderables, new HashMap<>());
+		assertThat(imagedRow.getPacsStatus(), equalTo(PacsStatus.IMAGES_RECEIVED));
+		assertThat(imagedRow.getImageUrl(), equalTo("https://pacs.example/viewer?AccessionNumber=ORD-5"));
 
 		TestOrder reported = order(3, "ORD-3", footXray, null);
 		reported.setAccessionNumber("ORD-3");
@@ -133,6 +146,87 @@ public class RadiologyQueueServiceTest {
 		FieldUtils.writeField(cancelled, "dateStopped", new Date(), true);
 		assertThat(service.toRow(Collections.singletonList(cancelled), orderables, new HashMap<>()).getPacsStatus(),
 				equalTo(PacsStatus.CANCELLED));
+	}
+
+	@Test
+	public void shouldOpenADoneStudyWithoutALinkFromPacsInTheViewerByItsAccessionNumber() throws Exception {
+		when(radiologyConfig.getImageViewerUrl("ORD-7")).thenReturn("https://pacs.example/Launch_Viewer?AccessionNumber=ORD-7");
+		TestOrder done = order(7, "ORD-7", footXray, null);
+		done.setAccessionNumber("ORD-7");
+		when(rwandaEmrService.getObsByOrder(done)).thenReturn(Collections.singletonList(obs(studyConstruct)));
+
+		RadiologyQueueRow row = service.toRow(Collections.singletonList(done), orderables, new HashMap<>());
+
+		assertThat(row.getImageUrl(), equalTo("https://pacs.example/Launch_Viewer?AccessionNumber=ORD-7"));
+		assertThat(row.getPacsStatus(), equalTo(PacsStatus.IMAGES_RECEIVED));
+
+		// Not before PACS has done the study
+		TestOrder sent = order(8, "ORD-8", footXray, null);
+		sent.setAccessionNumber("ORD-8");
+		when(radiologyConfig.getImageViewerUrl("ORD-8")).thenReturn("https://pacs.example/Launch_Viewer?AccessionNumber=ORD-8");
+		RadiologyQueueRow sentRow = service.toRow(Collections.singletonList(sent), orderables, new HashMap<>());
+		assertThat(sentRow.getImageUrl(), nullValue());
+		assertThat(sentRow.getPacsStatus(), equalTo(PacsStatus.SENT));
+	}
+
+	@Test
+	public void shouldOnlyShowAStudyReportedInOpenMrsAsReportedOnceEveryTestHasItsReport() throws Exception {
+		when(radiologyConfig.isManualReportModality(Modality.DX)).thenReturn(true);
+		TestOrder foot = order(1, "ORD-1", footXray, null);
+		TestOrder hand = order(2, "ORD-2", handXray, null);
+		foot.setAccessionNumber("ORD-1");
+		hand.setAccessionNumber("ORD-1");
+		when(rwandaEmrService.getObsByOrder(foot)).thenReturn(Arrays.asList(obs(studyConstruct), obs(reportConstruct)));
+		when(rwandaEmrService.getObsByOrder(hand)).thenReturn(Collections.singletonList(obs(studyConstruct)));
+
+		RadiologyQueueRow row = service.toRow(Arrays.asList(foot, hand), orderables, new HashMap<>());
+
+		assertThat(row.getPacsStatus(), equalTo(PacsStatus.STUDY_DONE_NO_LINK));
+		assertThat(row.getTests().get(0).isReported(), equalTo(true));
+		assertThat(row.getTests().get(1).isReported(), equalTo(false));
+
+		when(rwandaEmrService.getObsByOrder(hand)).thenReturn(Arrays.asList(obs(studyConstruct), obs(reportConstruct)));
+		assertThat(service.toRow(Arrays.asList(foot, hand), orderables, new HashMap<>()).getPacsStatus(),
+				equalTo(PacsStatus.REPORTED));
+
+		// A study reported through PACS shares one report
+		when(radiologyConfig.isManualReportModality(Modality.DX)).thenReturn(false);
+		when(rwandaEmrService.getObsByOrder(hand)).thenReturn(Collections.singletonList(obs(studyConstruct)));
+		assertThat(service.toRow(Arrays.asList(foot, hand), orderables, new HashMap<>()).getPacsStatus(),
+				equalTo(PacsStatus.REPORTED));
+	}
+
+	@Test
+	public void shouldShowTheLatestCreatinineOnCtStudiesOnly() {
+		RadiologyQueueRow ct = new RadiologyQueueRow();
+		ct.setModality("CT");
+		ct.setPatientId(10);
+		ct.setPacsStatus(PacsStatus.SENT);
+		RadiologyQueueRow xray = new RadiologyQueueRow();
+		xray.setModality("DX");
+		xray.setPatientId(10);
+		xray.setPacsStatus(PacsStatus.SENT);
+		Map<Integer, RadiologyQueueRow.Creatinine> latest = new HashMap<Integer, RadiologyQueueRow.Creatinine>();
+		latest.put(10, new RadiologyQueueRow.Creatinine("1.2", "mg/dL", orderTime, false));
+
+		RadiologyQueueService.setCreatinine(Arrays.asList(ct, xray), latest);
+
+		assertThat(ct.getCreatinine().getDisplay(), equalTo("1.2 mg/dL"));
+		assertThat(xray.getCreatinine(), nullValue());
+	}
+
+	@Test
+	public void shouldFlagACreatinineAboveTheNormalRange() {
+		org.openmrs.ConceptNumeric creatinine = new org.openmrs.ConceptNumeric(790);
+		creatinine.setUnits("mg/dL");
+		creatinine.setHiNormal(1.3);
+
+		RadiologyQueueRow.Creatinine high = RadiologyQueueService.toCreatinine(2.10, null, orderTime, creatinine);
+		assertThat(high.getDisplay(), equalTo("2.1 mg/dL"));
+		assertThat(high.isHigh(), equalTo(true));
+		assertThat(RadiologyQueueService.toCreatinine(1.0, null, orderTime, creatinine).isHigh(), equalTo(false));
+		assertThat(RadiologyQueueService.toCreatinine(1.0, null, orderTime, creatinine).getDisplay(), equalTo("1 mg/dL"));
+		assertThat(RadiologyQueueService.toCreatinine(null, "Pending", orderTime, creatinine).getDisplay(), equalTo("Pending"));
 	}
 
 	@Test
@@ -254,40 +348,6 @@ public class RadiologyQueueServiceTest {
 				equalTo(PaymentStatus.NOT_BILLED));
 	}
 
-	@Test
-	public void shouldWorkOutTheStatusOfABillItem() {
-		assertThat(item(1, 0, false, new BigDecimal("1500")).getStatus(), equalTo(PaymentStatus.NOT_PAID));
-		assertThat(item(1, 1, false, new BigDecimal("1500")).getStatus(), equalTo(PaymentStatus.PAID));
-		assertThat(item(2, 1, false, new BigDecimal("1500")).getStatus(), equalTo(PaymentStatus.PARTIALLY_PAID));
-		assertThat(item(1, 0, true, new BigDecimal("1500")).getStatus(), equalTo(PaymentStatus.PAID));
-		// Fully covered by insurance: nothing for the patient to pay
-		assertThat(item(1, 0, false, BigDecimal.ZERO).getStatus(), equalTo(PaymentStatus.PAID));
-	}
-
-	@Test
-	public void shouldMatchEachOrderToTheClosestBillItemForTheSamePatientAndTest() throws Exception {
-		TestOrder foot = order(1, "ORD-1", footXray, null);
-		TestOrder hand = order(2, "ORD-2", handXray, null);
-		TestOrder otherFoot = order(3, "ORD-3", footXray, null);
-		otherFoot.setDateCreated(new Date(orderTime.getTime() + 5 * 60 * MINUTE));
-
-		BillItem footItem = billItem(footXray, orderTime.getTime() + 2000, 1);
-		footItem.lastPaymentDate = new Date(orderTime.getTime() + 40 * MINUTE);
-		BillItem laterFootItem = billItem(footXray, orderTime.getTime() + 5 * 60 * MINUTE + 3000, 0);
-		BillItem otherPatientsItem = billItem(handXray, orderTime.getTime() + 1000, 1);
-		otherPatientsItem.patientId = 99;
-		BillItem tooOld = billItem(handXray, orderTime.getTime() - 3 * 60 * MINUTE, 1);
-
-		Map<Integer, OrderPayment> payments = RadiologyPaymentLookup.matchOrdersToBillItems(
-				Arrays.asList(foot, hand, otherFoot), Arrays.asList(laterFootItem, footItem, otherPatientsItem, tooOld));
-
-		assertThat(payments.get(1).getStatus(), equalTo(PaymentStatus.PAID));
-		assertThat(payments.get(1).getLastPaymentDate(), equalTo(footItem.lastPaymentDate));
-		assertThat(payments.get(2).getStatus(), equalTo(PaymentStatus.NOT_BILLED));
-		assertThat(payments.get(3).getStatus(), equalTo(PaymentStatus.NOT_PAID));
-		assertThat(payments.get(3).getLastPaymentDate(), nullValue());
-	}
-
 	private RadiologyQueueRow paymentOf(List<TestOrder> study, OrderPayment first, OrderPayment second) {
 		Map<Integer, OrderPayment> payments = new HashMap<Integer, OrderPayment>();
 		payments.put(study.get(0).getOrderId(), first);
@@ -299,23 +359,6 @@ public class RadiologyQueueServiceTest {
 
 	private OrderPayment payment(PaymentStatus status, Date paidAt) {
 		return new OrderPayment(status, paidAt);
-	}
-
-	private BillItem item(int quantity, int paidQuantity, boolean markedPaid, BigDecimal patientDue) {
-		BillItem item = new BillItem();
-		item.quantity = new BigDecimal(quantity);
-		item.paidQuantity = new BigDecimal(paidQuantity);
-		item.markedPaid = markedPaid;
-		item.patientDue = patientDue;
-		return item;
-	}
-
-	private BillItem billItem(Concept concept, long createdTime, int paidQuantity) {
-		BillItem item = item(1, paidQuantity, false, new BigDecimal("1500"));
-		item.patientId = patient.getPatientId();
-		item.conceptId = concept.getConceptId();
-		item.createdDate = new Date(createdTime);
-		return item;
 	}
 
 	private TestOrder order(Integer orderId, String orderNumber, Concept concept, String clinicalHistory) throws Exception {

@@ -98,6 +98,96 @@ public class ORUToObsTranslatorTest extends BaseHL7TranslatorTest {
         assertThat(reportsForHand, equalTo(1));
     }
 
+    @Test
+    public void shouldNotLetPacsChangeAReportThatIsEnteredInOpenmrs() throws Exception {
+        // X-rays are configured here as a modality whose reports are entered in OpenMRS
+        org.mockito.Mockito.when(administrationService.getGlobalProperty(RadiologyConfig.GP_MANUAL_REPORT_MODALITIES, "US")).thenReturn("CR");
+
+        String finalMessage = IOUtils.resourceToString("/orur01-example-1-final.txt", StandardCharsets.UTF_8);
+        oruToObsTranslator.fromORU_R01(finalMessage);
+
+        // The images are recorded, but the report sent by PACS is ignored
+        List<Encounter> encounters = rwandaEmrService.getEncounters();
+        assertThat(encounters.size(), equalTo(1));
+        assertThat(encounters.get(0).getEncounterType(), equalTo(radiologyConfig.getRadiologyStudyEncounterType()));
+    }
+
+    @Test
+    public void shouldRecordAManualReportAsAFinalReportOnlyOnTheTestItIsFor() throws Exception {
+        Concept handXrayConcept = createConcept("X-RAY, HAND", loinc, "37001-0");
+        crConceptSet.addSetMember(handXrayConcept);
+        org.openmrs.TestOrder handXray = new org.openmrs.TestOrder();
+        handXray.setPatient(patient);
+        encounter.addOrder(handXray);
+        handXray.setDateActivated(encounter.getEncounterDatetime());
+        handXray.setConcept(handXrayConcept);
+        org.apache.commons.lang3.reflect.FieldUtils.writeField(handXray, "orderNumber", "ORD-764592", true);
+        testOrder.setOrderId(1);
+        handXray.setOrderId(2);
+        testOrder.setAccessionNumber("ORD-764591");
+        handXray.setAccessionNumber("ORD-764591");
+        org.openmrs.Provider radiologist = new org.openmrs.Provider();
+        radiologist.setIdentifier("RAD-1");
+        java.util.Date reportDate = ymdhms.parse("20261008103000");
+
+        oruToObsTranslator.saveManualReport(handXray, reportDate, radiologist, "Normal liver and kidneys.");
+
+        // Each test of the study has its own report, so only the hand x-ray is reported
+        List<Encounter> encounters = rwandaEmrService.getEncounters();
+        assertThat(encounters.size(), equalTo(1));
+        Encounter e = encounters.get(0);
+        assertThat(e.getEncounterType(), equalTo(radiologyConfig.getRadiologyReportEncounterType()));
+        assertThat(e.getEncounterDatetime(), equalTo(reportDate));
+        EncounterProvider ep = e.getEncounterProviders().iterator().next();
+        assertThat(ep.getProvider(), equalTo(radiologist));
+        assertThat(ep.getEncounterRole(), equalTo(radiologyConfig.getPrincipalResultsInterpreterEncounterRole()));
+        Obs report = e.getObsAtTopLevel(false).iterator().next();
+        assertThat(report.getOrder(), equalTo(handXray));
+        assertThat(getObs(report, radiologyReportComments).getValueText(), equalTo("Normal liver and kidneys."));
+        assertThat(getObs(report, radiologyReportType).getValueCoded(), equalTo(finalConcept));
+        assertThat(getObs(report, radiologyProcedurePerformed).getValueCoded(), equalTo(handXrayConcept));
+    }
+
+    @Test
+    public void shouldRecordAChangedManualReportAsACorrection() throws Exception {
+        org.openmrs.Provider radiologist = new org.openmrs.Provider();
+        java.util.Date reportDate = ymdhms.parse("20261008103000");
+        oruToObsTranslator.saveManualReport(testOrder, reportDate, radiologist, "First reading.");
+        Obs firstReport = rwandaEmrService.getEncounters().get(0).getObsAtTopLevel(false).iterator().next();
+        rwandaEmrService.addObsForOrder(testOrder, firstReport);
+
+        oruToObsTranslator.saveManualReport(testOrder, reportDate, radiologist, "Corrected reading.");
+
+        Obs report = rwandaEmrService.getEncounters().get(0).getObsAtTopLevel(false).iterator().next();
+        assertThat(getObs(report, radiologyReportComments).getValueText(), equalTo("Corrected reading."));
+        assertThat(getObs(report, radiologyReportType).getValueCoded(), equalTo(correctionConcept));
+    }
+
+    @Test
+    public void shouldKeepTheImageLinkWhenALaterMessageHasNone() throws Exception {
+        String finalMessage = IOUtils.resourceToString("/orur01-example-1-final.txt", StandardCharsets.UTF_8);
+        oruToObsTranslator.fromORU_R01(finalMessage);
+        Obs studyGroup = rwandaEmrService.getEncounters().get(0).getObsAtTopLevel(false).iterator().next();
+        rwandaEmrService.addObsForOrder(testOrder, studyGroup);
+
+        // A later message for the same order without the viewer link
+        String completedMessage = IOUtils.resourceToString("/orur01-example-1-completed.txt", StandardCharsets.UTF_8);
+        oruToObsTranslator.fromORU_R01(completedMessage);
+
+        Obs images = getObs(studyGroup, radiologyImagesAvailable);
+        assertThat(images.getValueCoded(), equalTo(conceptService.getTrueConcept()));
+        assertThat(images.getComment(), equalTo("https://192.168.3.100/PACSAPI/Launch_Viewer?Username=hisuser&Password=hisuser&AccessionNumber=ORD-764591"));
+    }
+
+    @Test
+    public void shouldExtractTheViewerAddressFromTheReferencePointer() {
+        assertThat(HL7Utils.getViewerUrl("^https://pacs/viewer?a=1&b=2"), equalTo("https://pacs/viewer?a=1&b=2"));
+        assertThat(HL7Utils.getViewerUrl("https://pacs/viewer"), equalTo("https://pacs/viewer"));
+        assertThat(HL7Utils.getViewerUrl("PTR^http://pacs/view^IMAGE"), equalTo("http://pacs/view"));
+        assertThat(HL7Utils.getViewerUrl("^"), nullValue());
+        assertThat(HL7Utils.getViewerUrl(null), nullValue());
+    }
+
     private void testStudyEncounter(Encounter studyEncounter, boolean hasImageUrl) throws Exception {
         assertThat(studyEncounter.getPatient(), equalTo(patient));
         assertThat(studyEncounter.getEncounterType(), equalTo(radiologyConfig.getRadiologyStudyEncounterType()));
@@ -119,7 +209,7 @@ public class ORUToObsTranslatorTest extends BaseHL7TranslatorTest {
         assertThat(getObs(studyObs, radiologyImagesAvailable).getOrder(), equalTo(testOrder));
         if (hasImageUrl) {
             assertThat(getObs(studyObs, radiologyImagesAvailable).getValueCoded(), equalTo(conceptService.getTrueConcept()));
-            assertThat(getObs(studyObs, radiologyImagesAvailable).getComment(), equalTo("^https://192.168.3.100/PACSAPI/Launch_Viewer?Username=hisuser&Password=hisuser&AccessionNumber=ORD-764591"));
+            assertThat(getObs(studyObs, radiologyImagesAvailable).getComment(), equalTo("https://192.168.3.100/PACSAPI/Launch_Viewer?Username=hisuser&Password=hisuser&AccessionNumber=ORD-764591"));
         }
         else {
             assertThat(getObs(studyObs, radiologyImagesAvailable).getValueCoded(), equalTo(conceptService.getFalseConcept()));

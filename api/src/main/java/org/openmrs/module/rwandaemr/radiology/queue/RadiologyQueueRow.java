@@ -1,5 +1,7 @@
 package org.openmrs.module.rwandaemr.radiology.queue;
 
+import org.openmrs.module.rwandaemr.billing.PaymentStatus;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -13,6 +15,8 @@ public class RadiologyQueueRow {
 	public enum PacsStatus {
 		NOT_SENT("Not sent"),
 		SENT("Sent"),
+		// PACS reported the study as done but has not sent a link to view its images
+		STUDY_DONE_NO_LINK("Study done \u2013 no image link yet"),
 		IMAGES_RECEIVED("Images received"),
 		REPORTED("Reported"),
 		CANCELLED("Cancelled");
@@ -26,22 +30,12 @@ public class RadiologyQueueRow {
 		public String getLabel() {
 			return label;
 		}
-	}
 
-	public enum PaymentStatus {
-		PAID("Paid"),
-		PARTIALLY_PAID("Partially paid"),
-		NOT_PAID("Not paid"),
-		NOT_BILLED("Not billed");
-
-		private final String label;
-
-		PaymentStatus(String label) {
-			this.label = label;
-		}
-
-		public String getLabel() {
-			return label;
+		/**
+		 * @return true if PACS has reported the study as done
+		 */
+		public boolean isStudyDone() {
+			return this == STUDY_DONE_NO_LINK || this == IMAGES_RECEIVED || this == REPORTED;
 		}
 	}
 
@@ -71,6 +65,7 @@ public class RadiologyQueueRow {
 	private Date reportedAt;
 	private Integer reportOrderId;
 	private List<Test> tests = new ArrayList<Test>();
+	private Creatinine creatinine;
 
 	public String getAccessionNumber() {
 		return accessionNumber;
@@ -282,6 +277,17 @@ public class RadiologyQueueRow {
 		return tests;
 	}
 
+	/**
+	 * @return the patient's latest creatinine result, for CT studies, or null if there is none
+	 */
+	public Creatinine getCreatinine() {
+		return creatinine;
+	}
+
+	public void setCreatinine(Creatinine creatinine) {
+		this.creatinine = creatinine;
+	}
+
 	public String getProcessedLabel() {
 		return processed ? "Processed" : "Not processed";
 	}
@@ -325,6 +331,72 @@ public class RadiologyQueueRow {
 
 		public boolean isStat() {
 			return stat;
+		}
+
+		private boolean reported;
+		private String reportStatus;
+
+		/**
+		 * @return true if this test has a report.  Tests reported in OpenMRS each have their own report.
+		 */
+		public boolean isReported() {
+			return reported;
+		}
+
+		public void setReported(boolean reported) {
+			this.reported = reported;
+		}
+
+		public String getReportStatus() {
+			return reportStatus;
+		}
+
+		public void setReportStatus(String reportStatus) {
+			this.reportStatus = reportStatus;
+		}
+	}
+
+	/**
+	 * The patient's latest creatinine result, shown for CT studies, as contrast may be given
+	 */
+	public static class Creatinine {
+
+		private final String value;
+		private final String units;
+		private final Date date;
+		private final boolean high;
+
+		public Creatinine(String value, String units, Date date, boolean high) {
+			this.value = value;
+			this.units = units;
+			this.date = date;
+			this.high = high;
+		}
+
+		public String getValue() {
+			return value;
+		}
+
+		public String getUnits() {
+			return units;
+		}
+
+		public Date getDate() {
+			return date;
+		}
+
+		/**
+		 * @return true if the result is above the normal range of the creatinine concept
+		 */
+		public boolean isHigh() {
+			return high;
+		}
+
+		/**
+		 * @return the value with its units, for example "1.2 mg/dL"
+		 */
+		public String getDisplay() {
+			return units == null ? value : value + " " + units;
 		}
 	}
 }

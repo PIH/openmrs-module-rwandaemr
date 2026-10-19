@@ -6,6 +6,7 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.openmrs.Concept;
 import org.openmrs.Order;
 import org.openmrs.TestOrder;
@@ -27,6 +28,13 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class RadiologyOrderEventListenerTest extends BaseHL7TranslatorTest {
@@ -74,6 +82,44 @@ public class RadiologyOrderEventListenerTest extends BaseHL7TranslatorTest {
 
 		assertThat(ris.connectionTimes.size(), equalTo(1));
 		assertThat(ris.messagesAcknowledged.get(), equalTo(1));
+	}
+
+	@Test
+	public void shouldKeepACopyOfTheOrderSentAndTheAnswerFromPacs() throws Exception {
+		RadiologyHl7MessageLog messageLog = mock(RadiologyHl7MessageLog.class);
+		listener.setMessageLog(messageLog);
+		ris = new Ris(0, false);
+
+		listener.sendRadiologyOrderMessage(testOrder);
+
+		verify(messageLog).logOutgoing(anyList(), eq(testOrder.getOrderNumber()), eq("NW"), ArgumentMatchers.startsWith("MSH|"),
+				ArgumentMatchers.startsWith("MSH|"), eq(RadiologyHl7Message.STATUS_ACCEPTED), isNull());
+	}
+
+	@Test
+	public void shouldKeepACopyOfTheOrderWhenPacsCannotBeReached() throws Exception {
+		RadiologyHl7MessageLog messageLog = mock(RadiologyHl7MessageLog.class);
+		listener.setMessageLog(messageLog);
+		ris = new Ris(10, false);
+
+		assertThrows(RuntimeException.class, () -> listener.sendRadiologyOrderMessage(testOrder));
+
+		verify(messageLog).logOutgoing(anyList(), eq(testOrder.getOrderNumber()), eq("NW"), ArgumentMatchers.startsWith("MSH|"),
+				isNull(), eq(RadiologyHl7Message.STATUS_NO_RESPONSE), contains("did not accept the order"));
+	}
+
+	@Test
+	public void shouldStillSendWhenTheCopyCannotBeKept() throws Exception {
+		RadiologyHl7MessageLog messageLog = mock(RadiologyHl7MessageLog.class);
+		doThrow(new RuntimeException("table missing")).when(messageLog)
+				.logOutgoing(any(), any(), any(), any(), any(), any(), any());
+		listener.setMessageLog(messageLog);
+		ris = new Ris(0, false);
+
+		listener.sendRadiologyOrderMessage(testOrder);
+
+		assertThat(ris.messagesAcknowledged.get(), equalTo(1));
+		assertThat(testOrder.getAccessionNumber(), equalTo(testOrder.getOrderNumber()));
 	}
 
 	@Test

@@ -12,6 +12,16 @@
 	<name>Rwanda EMR Module API</name>
 	<description>API project for Rwanda EMR</description>
 
+	<dependencies>
+		<!-- Cleans the formatted text of radiology reports entered in OpenMRS, so they can be shown safely -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.17.2</version>
+			<scope>compile</scope>
+		</dependency>
+	</dependencies>
+
 	<build>
 		<resources>
 			<resource>

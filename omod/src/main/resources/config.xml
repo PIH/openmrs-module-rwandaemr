@@ -75,6 +75,16 @@
 	</privilege>
 
 	<privilege>
+		<name>Task: rwandaemr.radiologyReport.enter</name>
+		<description>Enter and correct radiology reports in OpenMRS, for modalities such as ultrasound that do not send reports through PACS</description>
+	</privilege>
+
+	<privilege>
+		<name>Task: rwandaemr.radiologyOrder.cancel</name>
+		<description>Cancel radiology orders that have not been done yet; the cancellation is sent to PACS</description>
+	</privilege>
+
+	<privilege>
 		<name>Task: rwandaemr.radiologyQueue</name>
 		<description>View the radiology queue of requested studies with their PACS and payment status</description>
 	</privilege>
@@ -137,6 +147,38 @@
 		<name>Billing RHIP Approval - Check Status</name>
 		<description>Check RHIP approval request status</description>
 	</privilege>
+
+	<globalProperty>
+		<property>rwandaemr.radiology.creatinineConcept</property>
+		<defaultValue></defaultValue>
+		<description>
+			Lab result concept (uuid, mapping such as CIEL:790, or id) whose latest value for the patient is shown in the radiology queue for CT studies, as contrast may be given. No creatinine is shown when blank.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.radiology.imageViewerUrlTemplate</property>
+		<defaultValue></defaultValue>
+		<description>
+			Link to the PACS viewer used for studies PACS has done but sent no image link for, as PACS only sends the link with the report. {accessionNumber} is replaced by the study's accession number, for example https://pacs-host/PACSAPI/Launch_Viewer?AccessionNumber={accessionNumber}. Anything in the link, including any user name and password, can be seen by users who can open it. No link is made when blank.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.radiology.billing.ctMediaFacilityServicePriceId</property>
+		<defaultValue></defaultValue>
+		<description>
+			Facility service price id of the CD/DVD billed for each CT study, on the patient's private insurance policy (the insurance named in rwandaemr.autoCreateInsuranceType). Not billed when blank, or when the patient has no private policy with an open global bill.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.radiology.billing.ctaFacilityServicePriceIds</property>
+		<defaultValue></defaultValue>
+		<description>
+			Facility service price ids, separated by commas, each billed once for every CTA test (CT tests whose name starts with CTA), on the same insurance as the test. Not billed when blank.
+		</description>
+	</globalProperty>
 
 	<globalProperty>
 		<property>registration.serviceRequestedConcept</property>

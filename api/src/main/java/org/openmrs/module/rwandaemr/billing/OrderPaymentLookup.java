@@ -1,9 +1,11 @@
-package org.openmrs.module.rwandaemr.radiology.queue;
+package org.openmrs.module.rwandaemr.billing;
 
 import org.hibernate.query.NativeQuery;
+import org.openmrs.Concept;
 import org.openmrs.Order;
+import org.openmrs.api.context.Context;
+import org.openmrs.module.mohbilling.automation.MohBillingOrderHandler;
 import org.openmrs.api.db.hibernate.DbSessionFactory;
-import org.openmrs.module.rwandaemr.radiology.queue.RadiologyQueueRow.PaymentStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,12 +22,14 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Finds the payment status of radiology orders from the billing module.  Bill items do not record the order they were
- * created for, so each order is matched to the bill item for the same patient and the same test whose consommation was
- * created closest to the time of the order, from shortly before it until a day after it.
+ * Finds the payment status of orders, such as radiology and lab tests, from the billing module.  Bill items do not
+ * record the order they were created for, so each order is matched to the bill item for the same patient and the same
+ * billed test whose consommation was created closest to the time of the order, from shortly before it until a day after
+ * it.  Tests that the billing module bills at the level of their concept set (laboratorymanagement.conceptSetsToBill)
+ * are billed once for the set, so the tests of a set ordered together share the set's bill item.
  */
 @Component
-public class RadiologyPaymentLookup {
+public class OrderPaymentLookup {
 
 	/**
 	 * Bill items are normally created as the order is saved; allow a small margin for clock differences
@@ -38,7 +43,7 @@ public class RadiologyPaymentLookup {
 
 	private final DbSessionFactory dbSessionFactory;
 
-	public RadiologyPaymentLookup(@Autowired DbSessionFactory dbSessionFactory) {
+	public OrderPaymentLookup(@Autowired DbSessionFactory dbSessionFactory) {
 		this.dbSessionFactory = dbSessionFactory;
 	}
 
@@ -51,38 +56,70 @@ public class RadiologyPaymentLookup {
 		if (orders == null || orders.isEmpty()) {
 			return ret;
 		}
+		Map<Concept, Concept> billedAtSetLevel = getConceptsBilledAtSetLevel();
 		Set<Integer> patientIds = new HashSet<Integer>();
 		Set<Integer> conceptIds = new HashSet<Integer>();
 		Date from = null;
 		Date to = null;
 		for (Order order : orders) {
 			patientIds.add(order.getPatient().getPatientId());
-			conceptIds.add(order.getConcept().getConceptId());
+			conceptIds.add(getBilledConcept(order, billedAtSetLevel).getConceptId());
 			Date created = getOrderTime(order);
 			from = (from == null || created.before(from)) ? created : from;
 			to = (to == null || created.after(to)) ? created : to;
 		}
 		List<BillItem> items = findBillItems(patientIds, conceptIds,
 				new Date(from.getTime() - MATCH_BEFORE_ORDER_MS), new Date(to.getTime() + MATCH_AFTER_ORDER_MS));
-		return matchOrdersToBillItems(orders, items);
+		return matchOrdersToBillItems(orders, items, billedAtSetLevel);
 	}
 
 	/**
-	 * Matches each order to the closest bill item in time for the same patient and test.  Each bill item is used for at
-	 * most one order.
+	 * @return the concept set that each test billed at the level of its set is billed as, as the billing module bills it
 	 */
+	Map<Concept, Concept> getConceptsBilledAtSetLevel() {
+		List<MohBillingOrderHandler> handlers = Context.getRegisteredComponents(MohBillingOrderHandler.class);
+		return handlers.isEmpty() ? Collections.<Concept, Concept>emptyMap() : handlers.get(0).getConceptsToBillAtSetLevel();
+	}
+
+	static Concept getBilledConcept(Order order, Map<Concept, Concept> billedAtSetLevel) {
+		Concept billedAs = billedAtSetLevel.get(order.getConcept());
+		return billedAs == null ? order.getConcept() : billedAs;
+	}
+
 	static Map<Integer, OrderPayment> matchOrdersToBillItems(Collection<? extends Order> orders, List<BillItem> items) {
+		return matchOrdersToBillItems(orders, items, Collections.<Concept, Concept>emptyMap());
+	}
+
+	/**
+	 * Matches each order to the closest bill item in time for the same patient and billed test.  Each bill item is used
+	 * for at most one order, except that the tests of a set billed at the level of the set, ordered in the same
+	 * encounter, share the set's bill item.
+	 */
+	static Map<Integer, OrderPayment> matchOrdersToBillItems(Collection<? extends Order> orders, List<BillItem> items,
+															 Map<Concept, Concept> billedAtSetLevel) {
 		Map<Integer, OrderPayment> ret = new HashMap<Integer, OrderPayment>();
 		Set<BillItem> used = new HashSet<BillItem>();
+		Map<String, BillItem> setItems = new HashMap<String, BillItem>();
 		List<Order> sortedOrders = new ArrayList<Order>(orders);
 		sortedOrders.sort((a, b) -> getOrderTime(a).compareTo(getOrderTime(b)));
 		for (Order order : sortedOrders) {
+			Integer billedConceptId = getBilledConcept(order, billedAtSetLevel).getConceptId();
+			String setKey = null;
+			if (billedAtSetLevel.containsKey(order.getConcept())) {
+				setKey = order.getPatient().getPatientId() + ":" + billedConceptId + ":"
+						+ (order.getEncounter() == null ? "order" + order.getOrderId() : order.getEncounter().getEncounterId());
+				BillItem setItem = setItems.get(setKey);
+				if (setItem != null) {
+					ret.put(order.getOrderId(), new OrderPayment(setItem.getStatus(), setItem.lastPaymentDate));
+					continue;
+				}
+			}
 			long orderTime = getOrderTime(order).getTime();
 			BillItem best = null;
 			long bestDistance = Long.MAX_VALUE;
 			for (BillItem item : items) {
 				if (used.contains(item) || !item.patientId.equals(order.getPatient().getPatientId())
-						|| !item.conceptId.equals(order.getConcept().getConceptId())) {
+						|| !item.conceptId.equals(billedConceptId)) {
 					continue;
 				}
 				long offset = item.createdDate.getTime() - orderTime;
@@ -100,6 +137,9 @@ public class RadiologyPaymentLookup {
 			}
 			else {
 				used.add(best);
+				if (setKey != null) {
+					setItems.put(setKey, best);
+				}
 				ret.put(order.getOrderId(), new OrderPayment(best.getStatus(), best.lastPaymentDate));
 			}
 		}
@@ -116,7 +156,9 @@ public class RadiologyPaymentLookup {
 		Map<String, Object> ret = new java.util.LinkedHashMap<String, Object>();
 		Date orderTime = getOrderTime(order);
 		ret.put("orderId", order.getOrderId());
+		Concept billedConcept = getBilledConcept(order, getConceptsBilledAtSetLevel());
 		ret.put("orderConceptId", order.getConcept().getConceptId());
+		ret.put("billedConceptId", billedConcept.getConceptId());
 		ret.put("orderDateCreated", String.valueOf(order.getDateCreated()));
 		ret.put("orderDateActivated", String.valueOf(order.getDateActivated()));
 		ret.put("matchWindow", "consommation created from " + (MATCH_BEFORE_ORDER_MS / 60000) + " minutes before to "
@@ -162,8 +204,8 @@ public class RadiologyPaymentLookup {
 			else if (v[2] == null) {
 				reasons.add("price has no concept");
 			}
-			else if (((Number) v[2]).intValue() != order.getConcept().getConceptId()) {
-				reasons.add("price concept differs from the ordered test's concept");
+			else if (((Number) v[2]).intValue() != billedConcept.getConceptId()) {
+				reasons.add("price concept differs from the concept the ordered test is billed as");
 			}
 			if (isTrue(v[5])) {
 				reasons.add("bill item voided");
