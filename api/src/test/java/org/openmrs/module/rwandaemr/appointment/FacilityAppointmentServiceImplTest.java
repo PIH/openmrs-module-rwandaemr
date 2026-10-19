@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -91,6 +92,27 @@ public class FacilityAppointmentServiceImplTest {
         assertEquals(AppointmentStatus.CONFIRMED, booking.getStatus());
         assertEquals("Follow-up", booking.getNotes());
         verify(dao).saveBooking(booking);
+    }
+
+    @Test
+    public void shouldLoadAllFutureAvailableSchedulesWhenEndDateIsNotSpecified() {
+        AppointmentSchedule distantSchedule = new AppointmentSchedule();
+        distantSchedule.setId(32);
+        distantSchedule.setServicePoint(servicePoint);
+        distantSchedule.setScheduleDate(futureDate(365));
+        distantSchedule.setMaximumPatients(2);
+        distantSchedule.setActive(true);
+        distantSchedule.setVoided(false);
+        when(dao.getSchedules(eq(servicePoint), any(Date.class), isNull(), eq(false)))
+                .thenReturn(Collections.singletonList(distantSchedule));
+        when(dao.countBookings(distantSchedule, capacityStatuses())).thenReturn(0);
+
+        List<AppointmentScheduleSummary> available =
+                service.getAvailableSchedules(servicePoint, new Date(), null);
+
+        assertEquals(1, available.size());
+        assertSame(distantSchedule, available.get(0).getSchedule());
+        verify(dao).getSchedules(eq(servicePoint), any(Date.class), isNull(), eq(false));
     }
 
     @Test

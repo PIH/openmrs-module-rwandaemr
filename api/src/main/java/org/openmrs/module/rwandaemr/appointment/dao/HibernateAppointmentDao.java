@@ -71,7 +71,10 @@ public class HibernateAppointmentDao implements AppointmentDao {
     public List<AppointmentSchedule> getSchedules(Location servicePoint, Date startDate, Date endDate,
                                                   boolean includeInactive) {
         String hql = "from AppointmentSchedule s where s.voided = false " +
-                "and s.scheduleDate >= :startDate and s.scheduleDate <= :endDate";
+                "and s.scheduleDate >= :startDate";
+        if (endDate != null) {
+            hql += " and s.scheduleDate <= :endDate";
+        }
         if (servicePoint != null) {
             hql += " and s.servicePoint = :servicePoint";
         }
@@ -80,8 +83,10 @@ public class HibernateAppointmentDao implements AppointmentDao {
         }
         hql += " order by s.scheduleDate, s.servicePoint.name";
         Query query = session().createQuery(hql)
-                .setParameter("startDate", startDate)
-                .setParameter("endDate", endDate);
+                .setParameter("startDate", startDate);
+        if (endDate != null) {
+            query.setParameter("endDate", endDate);
+        }
         if (servicePoint != null) {
             query.setParameter("servicePoint", servicePoint);
         }

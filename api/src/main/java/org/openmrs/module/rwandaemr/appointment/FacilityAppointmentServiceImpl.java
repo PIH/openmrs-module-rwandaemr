@@ -158,8 +158,13 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
             return new ArrayList<AppointmentScheduleSummary>();
         }
         List<AppointmentScheduleSummary> available = new ArrayList<AppointmentScheduleSummary>();
-        for (AppointmentScheduleSummary summary : getScheduleSummaries(
-                servicePoint, laterOf(startDate, today()), endDate, false)) {
+        Date rangeStart = laterOf(startDate, today());
+        Date rangeEnd = endDate == null ? null : normalizeDate(endDate);
+        if (rangeEnd != null && rangeEnd.before(rangeStart)) {
+            throw new IllegalArgumentException("End date must be on or after start date");
+        }
+        for (AppointmentScheduleSummary summary : summarize(
+                dao.getSchedules(servicePoint, rangeStart, rangeEnd, false))) {
             if (summary.isAvailable()) {
                 available.add(summary);
             }

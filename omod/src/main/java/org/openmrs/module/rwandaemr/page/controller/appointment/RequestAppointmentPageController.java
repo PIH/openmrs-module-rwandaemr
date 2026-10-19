@@ -2,7 +2,6 @@ package org.openmrs.module.rwandaemr.page.controller.appointment;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -47,7 +46,7 @@ public class RequestAppointmentPageController extends AppointmentPageSupport {
         List<AppointmentScheduleSummary> availableSchedules = selectedServicePoint == null
                 ? Collections.<AppointmentScheduleSummary>emptyList()
                 : appointmentService.getAvailableSchedules(
-                        selectedServicePoint, toDate(today), toDate(today.plusDays(90)));
+                        selectedServicePoint, toDate(today), null);
         List<AppointmentBooking> patientBookings = patient == null
                 ? Collections.<AppointmentBooking>emptyList()
                 : appointmentService.getPatientBookings(patient, toDate(today), null);
@@ -63,17 +62,11 @@ public class RequestAppointmentPageController extends AppointmentPageSupport {
             if ((AppointmentStatus.REQUESTED.equals(booking.getStatus())
                     || AppointmentStatus.CONFIRMED.equals(booking.getStatus()))
                     && booking.getSchedule() != null && booking.getSchedule().getServicePoint() != null) {
-                Calendar calendar = Calendar.getInstance();
-                calendar.setTime(booking.getSchedule().getScheduleDate());
-                LocalDate currentDate = LocalDate.of(
-                        calendar.get(Calendar.YEAR),
-                        calendar.get(Calendar.MONTH) + 1,
-                        calendar.get(Calendar.DAY_OF_MONTH));
                 List<AppointmentScheduleSummary> availablePostponeSchedules =
                         appointmentService.getAvailableSchedules(
                         booking.getSchedule().getServicePoint(),
                         toDate(today),
-                        toDate(currentDate.plusDays(90)));
+                        null);
                 List<AppointmentScheduleSummary> postponeSchedules =
                         new ArrayList<AppointmentScheduleSummary>();
                 for (AppointmentScheduleSummary summary : availablePostponeSchedules) {
