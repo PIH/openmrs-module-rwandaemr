@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -19,6 +21,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.openmrs.Location;
 import org.openmrs.Patient;
 import org.openmrs.Person;
@@ -32,6 +35,7 @@ import org.openmrs.module.rwandaemr.LocationTagUtil;
 import org.openmrs.module.rwandaemr.appointment.dao.AppointmentDao;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentBooking;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentSchedule;
+import org.openmrs.module.rbcmessaging.api.RBCMessagingService;
 
 public class FacilityAppointmentServiceImplTest {
 
@@ -42,16 +46,19 @@ public class FacilityAppointmentServiceImplTest {
     private Location servicePoint;
     private Patient patient;
     private AppointmentSchedule schedule;
+    private RBCMessagingService messagingService;
 
     @BeforeEach
     public void setUp() {
         dao = mock(AppointmentDao.class);
         locationTagUtil = mock(LocationTagUtil.class);
         providerService = mock(ProviderService.class);
+        messagingService = mock(RBCMessagingService.class);
         service = new TestFacilityAppointmentService();
         service.setDao(dao);
         service.setLocationTagUtil(locationTagUtil);
         service.setProviderService(providerService);
+        service.setRbcMessagingService(messagingService);
         service.user = new User(1);
 
         servicePoint = new Location(11);
@@ -92,6 +99,31 @@ public class FacilityAppointmentServiceImplTest {
         assertEquals(AppointmentStatus.CONFIRMED, booking.getStatus());
         assertEquals("Follow-up", booking.getNotes());
         verify(dao).saveBooking(booking);
+        verify(messagingService).sendSms(eq(patient), anyString());
+    }
+
+    @Test
+    public void shouldSendAndRecordReminderTwoDaysBeforeAppointment() {
+        AppointmentBooking confirmed = booking(AppointmentStatus.CONFIRMED);
+        confirmed.setSchedule(schedule(32, servicePoint, 2, 4));
+        when(dao.getBookingsAwaitingReminder(any(Date.class), eq(java.util.Arrays.asList("REQUESTED", "CONFIRMED"))))
+                .thenReturn(Collections.singletonList(confirmed));
+
+        int sent = service.sendAppointmentReminders();
+
+        assertEquals(1, sent);
+        ArgumentCaptor<Date> reminderDate = ArgumentCaptor.forClass(Date.class);
+        verify(dao).getBookingsAwaitingReminder(
+                reminderDate.capture(), eq(java.util.Arrays.asList("REQUESTED", "CONFIRMED")));
+        Calendar expected = Calendar.getInstance();
+        expected.add(Calendar.DAY_OF_MONTH, 2);
+        Calendar actual = Calendar.getInstance();
+        actual.setTime(reminderDate.getValue());
+        assertEquals(expected.get(Calendar.YEAR), actual.get(Calendar.YEAR));
+        assertEquals(expected.get(Calendar.DAY_OF_YEAR), actual.get(Calendar.DAY_OF_YEAR));
+        verify(messagingService).sendSms(eq(patient), anyString());
+        verify(dao).saveBooking(confirmed);
+        assertTrue(confirmed.getReminderSmsSentAt() != null);
     }
 
     @Test
@@ -381,6 +413,8 @@ public class FacilityAppointmentServiceImplTest {
         assertEquals(AppointmentStatus.CONFIRMED, result.getStatus());
         assertSame(service.user, result.getChangedBy());
         verify(dao).saveBooking(confirmed);
+        verify(messagingService).sendSms(eq(patient), argThat(message ->
+                message.contains("changed from") && message.contains(" to ")));
     }
 
     @Test
@@ -428,6 +462,59 @@ public class FacilityAppointmentServiceImplTest {
         assertEquals("The selected appointment date is fully booked", exception.getMessage());
         assertSame(schedule, confirmed.getSchedule());
         verify(dao, never()).saveBooking(confirmed);
+    }
+
+    @Test
+    public void shouldRescheduleAllActivePatientsForServicePointAndDate() {
+        AppointmentSchedule secondProviderSchedule = schedule(33, servicePoint, 2, 4);
+        AppointmentSchedule newSchedule = schedule(34, servicePoint, 5, 5);
+        AppointmentBooking first = booking(AppointmentStatus.CONFIRMED);
+        AppointmentBooking second = booking(AppointmentStatus.REQUESTED);
+        second.setId(42);
+        second.setPatient(new Patient(22));
+        second.setSchedule(secondProviderSchedule);
+        when(dao.getScheduleForUpdate(31)).thenReturn(schedule);
+        when(dao.getScheduleForUpdate(34)).thenReturn(newSchedule);
+        when(dao.getSchedules(eq(servicePoint), eq(schedule.getScheduleDate()),
+                eq(schedule.getScheduleDate()), eq(true)))
+                .thenReturn(java.util.Arrays.asList(schedule, secondProviderSchedule));
+        when(dao.getBookings(any(List.class))).thenReturn(java.util.Arrays.asList(first, second));
+        when(dao.countBookings(newSchedule, capacityStatuses())).thenReturn(1);
+
+        int moved = service.rescheduleServicePointDate(31, 34);
+
+        assertEquals(2, moved);
+        assertSame(newSchedule, first.getSchedule());
+        assertSame(newSchedule, second.getSchedule());
+        assertEquals(AppointmentStatus.CONFIRMED, second.getStatus());
+        verify(dao).saveBooking(first);
+        verify(dao).saveBooking(second);
+        verify(messagingService).sendSms(eq(first.getPatient()), anyString());
+        verify(messagingService).sendSms(eq(second.getPatient()), anyString());
+    }
+
+    @Test
+    public void shouldRejectBulkRescheduleWhenNewDateCannotFitEveryone() {
+        AppointmentSchedule newSchedule = schedule(34, servicePoint, 5, 2);
+        AppointmentBooking first = booking(AppointmentStatus.CONFIRMED);
+        AppointmentBooking second = booking(AppointmentStatus.CONFIRMED);
+        second.setId(42);
+        second.setPatient(new Patient(22));
+        when(dao.getScheduleForUpdate(31)).thenReturn(schedule);
+        when(dao.getScheduleForUpdate(34)).thenReturn(newSchedule);
+        when(dao.getSchedules(eq(servicePoint), eq(schedule.getScheduleDate()),
+                eq(schedule.getScheduleDate()), eq(true)))
+                .thenReturn(Collections.singletonList(schedule));
+        when(dao.getBookings(any(List.class))).thenReturn(java.util.Arrays.asList(first, second));
+        when(dao.countBookings(newSchedule, capacityStatuses())).thenReturn(1);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.rescheduleServicePointDate(31, 34));
+
+        assertSame(schedule, first.getSchedule());
+        assertSame(schedule, second.getSchedule());
+        verify(dao, never()).saveBooking(first);
+        verify(dao, never()).saveBooking(second);
     }
 
     private AppointmentBooking booking(AppointmentStatus status) {
@@ -484,6 +571,11 @@ public class FacilityAppointmentServiceImplTest {
         @Override
         protected User getAuthenticatedUser() {
             return user;
+        }
+
+        @Override
+        protected String getTemplate(String property, String defaultTemplate) {
+            return defaultTemplate;
         }
     }
 }

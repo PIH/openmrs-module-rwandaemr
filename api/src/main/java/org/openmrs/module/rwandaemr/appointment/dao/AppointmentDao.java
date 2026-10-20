@@ -39,4 +39,6 @@ public interface AppointmentDao {
     List<AppointmentBooking> getBookings(Collection<AppointmentSchedule> schedules);
 
     List<AppointmentBooking> getPatientBookings(Patient patient, Date startDate, Date endDate);
+
+    List<AppointmentBooking> getBookingsAwaitingReminder(Date scheduleDate, List<String> statusNames);
 }

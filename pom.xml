@@ -89,6 +89,7 @@
         <!-- growthchart-2.2.0-SNAPSHOT.omod  -->
         <!-- muzimacore-2.5.3-SNAPSHOT.omod -->
         <!-- rbcmessaging-1.0-SNAPSHOT -->
+        <rbcmessagingVersion>1.1-SNAPSHOT</rbcmessagingVersion>
         <lombokVersion>1.18.42</lombokVersion>
 
         <pihMavenPluginVersion>1.6.0</pihMavenPluginVersion>

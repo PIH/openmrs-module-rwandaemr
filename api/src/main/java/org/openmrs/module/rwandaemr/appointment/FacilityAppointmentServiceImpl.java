@@ -9,9 +9,12 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.text.SimpleDateFormat;
 
 import lombok.Setter;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.openmrs.BaseOpenmrsData;
 import org.openmrs.Location;
 import org.openmrs.Patient;
@@ -26,10 +29,25 @@ import org.openmrs.module.rwandaemr.LocationTagUtil;
 import org.openmrs.module.rwandaemr.appointment.dao.AppointmentDao;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentBooking;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentSchedule;
+import org.openmrs.module.rbcmessaging.api.RBCMessagingService;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implements FacilityAppointmentService {
+
+    public static final String CONFIRMATION_TEMPLATE_PROPERTY =
+            "rwandaemr.appointment.sms.confirmationTemplate";
+    public static final String REMINDER_TEMPLATE_PROPERTY =
+            "rwandaemr.appointment.sms.reminderTemplate";
+    public static final String RESCHEDULE_TEMPLATE_PROPERTY =
+            "rwandaemr.appointment.sms.rescheduleTemplate";
+    private static final String DEFAULT_CONFIRMATION_TEMPLATE =
+            "Your appointment at {servicePoint} is confirmed for {date}.";
+    private static final String DEFAULT_REMINDER_TEMPLATE =
+            "Reminder: your appointment at {servicePoint} is in 2 days, on {date}.";
+    private static final String DEFAULT_RESCHEDULE_TEMPLATE =
+            "Your appointment at {servicePoint} has changed from {oldDate} to {newDate}.";
+    private static final Log log = LogFactory.getLog(FacilityAppointmentServiceImpl.class);
 
     private static final List<String> CAPACITY_STATUSES = Arrays.asList(
             AppointmentStatus.REQUESTED.name(),
@@ -45,6 +63,9 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
 
     @Setter
     private ProviderService providerService;
+
+    @Setter
+    private RBCMessagingService rbcMessagingService;
 
     @Override
     @Authorized(AppointmentPrivileges.MANAGE_SCHEDULES)
@@ -151,7 +172,7 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
 
     @Override
     @Transactional(readOnly = true)
-    @Authorized(AppointmentPrivileges.BOOK)
+    @Authorized({ AppointmentPrivileges.BOOK, AppointmentPrivileges.MANAGE })
     public List<AppointmentScheduleSummary> getAvailableSchedules(Location servicePoint, Date startDate,
                                                                   Date endDate) {
         if (servicePoint == null) {
@@ -198,7 +219,9 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
             if (AppointmentStatus.REQUESTED.equals(booking.getStatus())) {
                 booking.setStatus(AppointmentStatus.CONFIRMED);
                 setChangeMetadata(booking, new Date());
-                return dao.saveBooking(booking);
+                AppointmentBooking savedBooking = dao.saveBooking(booking);
+                sendConfirmationSms(savedBooking);
+                return savedBooking;
             }
             return booking;
         }
@@ -222,11 +245,13 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
         booking.setStatus(AppointmentStatus.CONFIRMED);
         booking.setRequestedAt(now);
         booking.setNotes(StringUtils.trimToNull(notes));
-        return dao.saveBooking(booking);
+        AppointmentBooking savedBooking = dao.saveBooking(booking);
+        sendConfirmationSms(savedBooking);
+        return savedBooking;
     }
 
     @Override
-    @Authorized(AppointmentPrivileges.BOOK)
+    @Authorized({ AppointmentPrivileges.BOOK, AppointmentPrivileges.MANAGE })
     public AppointmentBooking postponeBooking(Integer bookingId, Integer newScheduleId) {
         AppointmentBooking booking = requireBookingForUpdate(bookingId);
         if (!AppointmentStatus.REQUESTED.equals(booking.getStatus())
@@ -259,11 +284,69 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
         }
 
         booking.setSchedule(newSchedule);
+        booking.setReminderSmsSentAt(null);
         if (AppointmentStatus.REQUESTED.equals(booking.getStatus())) {
             booking.setStatus(AppointmentStatus.CONFIRMED);
         }
         setChangeMetadata(booking, new Date());
-        return dao.saveBooking(booking);
+        AppointmentBooking savedBooking = dao.saveBooking(booking);
+        sendRescheduleSms(savedBooking, currentSchedule.getScheduleDate(), newSchedule.getScheduleDate());
+        return savedBooking;
+    }
+
+    @Override
+    @Authorized(AppointmentPrivileges.MANAGE)
+    public int rescheduleServicePointDate(Integer sourceScheduleId, Integer newScheduleId) {
+        AppointmentSchedule sourceSchedule = requireScheduleForUpdate(sourceScheduleId);
+        AppointmentSchedule newSchedule = requireScheduleForUpdate(newScheduleId);
+        if (sourceSchedule.getId().equals(newSchedule.getId())
+                || normalizeDate(sourceSchedule.getScheduleDate()).equals(normalizeDate(newSchedule.getScheduleDate()))) {
+            throw new IllegalArgumentException("Select an appointment schedule on a different date");
+        }
+        if (!sourceSchedule.getServicePoint().equals(newSchedule.getServicePoint())) {
+            throw new IllegalArgumentException("The new appointment date must use the same service point");
+        }
+        if (!Boolean.TRUE.equals(newSchedule.getActive())
+                || normalizeDate(newSchedule.getScheduleDate()).before(today())) {
+            throw new IllegalStateException("The selected appointment date is not available");
+        }
+
+        List<AppointmentSchedule> sameDaySchedules = dao.getSchedules(
+                sourceSchedule.getServicePoint(), sourceSchedule.getScheduleDate(),
+                sourceSchedule.getScheduleDate(), true);
+        List<AppointmentBooking> eligibleBookings = new ArrayList<AppointmentBooking>();
+        for (AppointmentBooking booking : dao.getBookings(sameDaySchedules)) {
+            if (AppointmentStatus.REQUESTED.equals(booking.getStatus())
+                    || AppointmentStatus.CONFIRMED.equals(booking.getStatus())) {
+                if (dao.getBooking(booking.getPatient(), newSchedule) != null) {
+                    throw new IllegalStateException(
+                            "A patient already has an appointment on the selected schedule");
+                }
+                eligibleBookings.add(booking);
+            }
+        }
+        if (eligibleBookings.isEmpty()) {
+            throw new IllegalStateException("There are no active appointments to reschedule");
+        }
+        int bookedPatients = dao.countBookings(newSchedule, CAPACITY_STATUSES);
+        int maximumPatients = newSchedule.getMaximumPatients() == null ? 0 : newSchedule.getMaximumPatients();
+        if (bookedPatients + eligibleBookings.size() > maximumPatients) {
+            throw new IllegalStateException("The selected appointment date does not have enough remaining places");
+        }
+
+        Date now = new Date();
+        for (AppointmentBooking booking : eligibleBookings) {
+            Date previousDate = booking.getSchedule().getScheduleDate();
+            booking.setSchedule(newSchedule);
+            booking.setReminderSmsSentAt(null);
+            if (AppointmentStatus.REQUESTED.equals(booking.getStatus())) {
+                booking.setStatus(AppointmentStatus.CONFIRMED);
+            }
+            setChangeMetadata(booking, now);
+            dao.saveBooking(booking);
+            sendRescheduleSms(booking, previousDate, newSchedule.getScheduleDate());
+        }
+        return eligibleBookings.size();
     }
 
     @Override
@@ -369,6 +452,76 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
             }
         });
         return licensedProviders;
+    }
+
+    @Override
+    @Authorized(AppointmentPrivileges.BOOK)
+    public int sendAppointmentReminders() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(today());
+        calendar.add(Calendar.DAY_OF_MONTH, 2);
+        List<AppointmentBooking> bookings = dao.getBookingsAwaitingReminder(
+                calendar.getTime(), Arrays.asList(
+                        AppointmentStatus.REQUESTED.name(), AppointmentStatus.CONFIRMED.name()));
+        int sent = 0;
+        for (AppointmentBooking booking : bookings) {
+            try {
+                requireMessagingService().sendSms(booking.getPatient(), formatMessage(
+                        getTemplate(REMINDER_TEMPLATE_PROPERTY, DEFAULT_REMINDER_TEMPLATE), booking));
+                booking.setReminderSmsSentAt(new Date());
+                setChangeMetadata(booking, new Date());
+                dao.saveBooking(booking);
+                sent++;
+            }
+            catch (RuntimeException e) {
+                log.warn("Unable to send appointment reminder SMS for booking " + booking.getId(), e);
+            }
+        }
+        return sent;
+    }
+
+    private void sendConfirmationSms(AppointmentBooking booking) {
+        try {
+            requireMessagingService().sendSms(booking.getPatient(), formatMessage(
+                    getTemplate(CONFIRMATION_TEMPLATE_PROPERTY, DEFAULT_CONFIRMATION_TEMPLATE), booking));
+        }
+        catch (RuntimeException e) {
+            log.warn("Appointment booked, but confirmation SMS could not be sent for booking " + booking.getId(), e);
+        }
+    }
+
+    private void sendRescheduleSms(AppointmentBooking booking, Date oldDate, Date newDate) {
+        try {
+            String message = getTemplate(RESCHEDULE_TEMPLATE_PROPERTY, DEFAULT_RESCHEDULE_TEMPLATE)
+                    .replace("{oldDate}", formatDate(oldDate))
+                    .replace("{newDate}", formatDate(newDate));
+            requireMessagingService().sendSms(booking.getPatient(), formatMessage(message, booking));
+        }
+        catch (RuntimeException e) {
+            log.warn("Appointment rescheduled, but SMS could not be sent for booking " + booking.getId(), e);
+        }
+    }
+
+    private RBCMessagingService requireMessagingService() {
+        return rbcMessagingService == null
+                ? Context.getService(RBCMessagingService.class) : rbcMessagingService;
+    }
+
+    protected String getTemplate(String property, String defaultTemplate) {
+        String configured = Context.getAdministrationService().getGlobalProperty(property);
+        return StringUtils.isBlank(configured) ? defaultTemplate : configured;
+    }
+
+    private String formatMessage(String template, AppointmentBooking booking) {
+        AppointmentSchedule appointmentSchedule = booking.getSchedule();
+        String date = appointmentSchedule == null ? "" : formatDate(appointmentSchedule.getScheduleDate());
+        String servicePoint = appointmentSchedule == null || appointmentSchedule.getServicePoint() == null
+                ? "" : StringUtils.defaultString(appointmentSchedule.getServicePoint().getName());
+        return template.replace("{date}", date).replace("{servicePoint}", servicePoint);
+    }
+
+    private String formatDate(Date date) {
+        return date == null ? "" : new SimpleDateFormat("dd/MM/yyyy").format(date);
     }
 
     protected User getAuthenticatedUser() {

@@ -198,6 +198,21 @@ public class HibernateAppointmentDao implements AppointmentDao {
         return query.list();
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<AppointmentBooking> getBookingsAwaitingReminder(Date scheduleDate, List<String> statusNames) {
+        if (scheduleDate == null || statusNames == null || statusNames.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return session().createQuery(
+                        "from AppointmentBooking b where b.voided = false and b.reminderSmsSentAt is null " +
+                                "and b.statusName in (:statuses) and b.schedule.voided = false " +
+                                "and b.schedule.active = true and b.schedule.scheduleDate = :scheduleDate")
+                .setParameterList("statuses", statusNames)
+                .setParameter("scheduleDate", scheduleDate)
+                .list();
+    }
+
     private DbSession session() {
         return sessionFactory.getCurrentSession();
     }

@@ -205,6 +205,42 @@
     .appointment-registration-form {
         margin: 0;
     }
+
+    .appointment-reschedule-all {
+        align-items: center;
+        background: #eef5f4;
+        border: 1px solid #bfd2cf;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 10px;
+        padding: 8px 10px;
+    }
+
+    .appointment-reschedule-unavailable {
+        align-items: center;
+        background: #fff4d6;
+        border: 1px solid #e0bd62;
+        color: #735315;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 10px;
+        padding: 8px 10px;
+    }
+
+    .appointment-reschedule-form {
+        align-items: center;
+        display: flex;
+        gap: 6px;
+        margin: 0;
+    }
+
+    .appointment-reschedule-form select,
+    .appointment-reschedule-all select {
+        min-height: 32px;
+        max-width: 250px;
+    }
 </style>
 
 <% if (!authorized) { %>
@@ -288,6 +324,17 @@
             <% scheduleSummaries.each { summary ->
                 def schedule = summary.schedule
                 def bookings = bookingsByScheduleId[schedule.id] ?: []
+                def rescheduleSchedules = rescheduleSchedulesByScheduleId[schedule.id] ?: []
+                def activeBookingCount = bookingsByScheduleId.values().flatten().count { candidateBooking ->
+                    candidateBooking.schedule?.servicePoint?.id == schedule.servicePoint?.id &&
+                            candidateBooking.schedule?.scheduleDate == schedule.scheduleDate &&
+                            (candidateBooking.status?.name() == "REQUESTED" ||
+                                    candidateBooking.status?.name() == "CONFIRMED")
+                }
+                def bulkRescheduleSchedules = rescheduleSchedules.findAll {
+                    it.schedule.scheduleDate != schedule.scheduleDate &&
+                            it.remainingCapacity >= activeBookingCount
+                }
                 def detailId = "appointment-schedule-detail-" + schedule.id
             %>
                 <tr>
@@ -314,6 +361,39 @@
                 <tr id="${ detailId }" class="appointment-detail-row">
                     <td colspan="8">
                         <div class="appointment-detail-content">
+                            <% if (canManageAppointments && activeBookingCount > 0) { %>
+                                <% if (!bulkRescheduleSchedules.isEmpty()) { %>
+                                    <form class="appointment-reschedule-all" method="post"
+                                          action="${ ui.pageLink("rwandaemr", "appointment/appointmentDashboard") }"
+                                          onsubmit="return confirm('Reschedule all active patients from this service point and date?');">
+                                        <input type="hidden" name="action" value="rescheduleAll"/>
+                                        <input type="hidden" name="sourceScheduleId" value="${ schedule.id }"/>
+                                        <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
+                                        <input type="hidden" name="startDate" value="${ ui.escapeAttribute(selectedStartDate) }"/>
+                                        <input type="hidden" name="endDate" value="${ ui.escapeAttribute(selectedEndDate) }"/>
+                                        <strong>Reschedule all ${ activeBookingCount } active patient(s):</strong>
+                                        <select name="newScheduleId" required="required">
+                                            <option value="">Select new date</option>
+                                            <% bulkRescheduleSchedules.each { candidate -> %>
+                                                <option value="${ candidate.schedule.id }">
+                                                    ${ ui.format(candidate.schedule.scheduleDate) }${ candidate.schedule.provider?.name ? " - " + ui.encodeHtmlContent(candidate.schedule.provider.name) : "" } - ${ candidate.remainingCapacity } places
+                                                </option>
+                                            <% } %>
+                                        </select>
+                                        <button type="submit" class="button confirm">
+                                            <i class="icon-calendar" aria-hidden="true"></i> Reschedule all
+                                        </button>
+                                    </form>
+                                <% } else { %>
+                                    <div class="appointment-reschedule-unavailable">
+                                        <strong>Reschedule patients:</strong>
+                                        No other open future date has enough places for all ${ activeBookingCount } patient(s).
+                                        <a class="button" href="${ ui.pageLink("rwandaemr", "appointment/appointmentTimetable", [servicePointId: schedule.servicePoint?.id]) }">
+                                            <i class="icon-calendar" aria-hidden="true"></i> Manage schedules
+                                        </a>
+                                    </div>
+                                <% } %>
+                            <% } %>
                             <table class="appointment-patient-table">
                                 <thead>
                                 <tr>
@@ -342,6 +422,7 @@
                                     }
                                     def canRegisterToday = statusName != "CANCELLED" &&
                                             booking.patient?.id && todayScheduleIds.contains(schedule.id)
+                                    def canReschedule = statusName == "REQUESTED" || statusName == "CONFIRMED"
                                     def registrationEncounterId = null
                                     def registrationActionLabel = "Register"
                                     if (canRegisterToday) {
@@ -366,7 +447,8 @@
                                         <td>${ ui.format(booking.requestedAt) }</td>
                                         <td>${ ui.encodeHtmlContent(booking.notes ?: "") }</td>
                                         <td>
-                                            <% if (canRegisterToday || (canManageAppointments && !nextStatuses.isEmpty())) { %>
+                                            <% if (canRegisterToday || (canManageAppointments &&
+                                                    (!nextStatuses.isEmpty() || canReschedule))) { %>
                                                 <div class="appointment-booking-actions">
                                                     <% if (canRegisterToday) { %>
                                                         <form class="appointment-registration-form" method="post"
@@ -400,6 +482,32 @@
                                                                 <% } %>
                                                             </select>
                                                         </form>
+                                                    <% } %>
+                                                    <% if (canManageAppointments && canReschedule && !rescheduleSchedules.isEmpty()) { %>
+                                                        <form class="appointment-reschedule-form" method="post"
+                                                              action="${ ui.pageLink("rwandaemr", "appointment/appointmentDashboard") }">
+                                                            <input type="hidden" name="action" value="reschedule"/>
+                                                            <input type="hidden" name="bookingId" value="${ booking.id }"/>
+                                                            <input type="hidden" name="servicePointId" value="${ selectedServicePoint?.id ?: "" }"/>
+                                                            <input type="hidden" name="startDate" value="${ ui.escapeAttribute(selectedStartDate) }"/>
+                                                            <input type="hidden" name="endDate" value="${ ui.escapeAttribute(selectedEndDate) }"/>
+                                                            <select name="newScheduleId" required="required">
+                                                                <option value="">Reschedule to...</option>
+                                                                <% rescheduleSchedules.each { candidate -> %>
+                                                                    <option value="${ candidate.schedule.id }">
+                                                                        ${ ui.format(candidate.schedule.scheduleDate) }${ candidate.schedule.provider?.name ? " - " + ui.encodeHtmlContent(candidate.schedule.provider.name) : "" } - ${ candidate.remainingCapacity } places
+                                                                    </option>
+                                                                <% } %>
+                                                            </select>
+                                                            <button type="submit" class="button" title="Reschedule this patient">
+                                                                <i class="icon-calendar" aria-hidden="true"></i> Move
+                                                            </button>
+                                                        </form>
+                                                    <% } %>
+                                                    <% if (canManageAppointments && canReschedule && rescheduleSchedules.isEmpty()) { %>
+                                                        <span class="appointment-muted" title="Create another open schedule for this service point first">
+                                                            No available date
+                                                        </span>
                                                     <% } %>
                                                 </div>
                                             <% } %>

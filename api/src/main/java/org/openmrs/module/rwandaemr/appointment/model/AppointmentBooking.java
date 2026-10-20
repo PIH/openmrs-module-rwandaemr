@@ -17,6 +17,7 @@ public class AppointmentBooking extends BaseOpenmrsData {
     private String visitTypeName;
     private String statusName = AppointmentStatus.CONFIRMED.name();
     private Date requestedAt;
+    private Date reminderSmsSentAt;
     private String notes;
 
     @Override
@@ -91,6 +92,14 @@ public class AppointmentBooking extends BaseOpenmrsData {
 
     public void setRequestedAt(Date requestedAt) {
         this.requestedAt = requestedAt;
+    }
+
+    public Date getReminderSmsSentAt() {
+        return reminderSmsSentAt;
+    }
+
+    public void setReminderSmsSentAt(Date reminderSmsSentAt) {
+        this.reminderSmsSentAt = reminderSmsSentAt;
     }
 
     public String getNotes() {

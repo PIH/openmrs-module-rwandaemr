@@ -34,6 +34,7 @@
 		<require_module version="${metadatamappingVersion}">org.openmrs.module.metadatamapping</require_module>
 		<require_module version="${metadatasharingVersion}">org.openmrs.module.metadatasharing</require_module>
 		<require_module version="${mohappointmentVersion}">org.openmrs.module.mohappointment</require_module>
+		<require_module version="${rbcmessagingVersion}">org.openmrs.module.rbcmessaging</require_module>
 		<require_module version="${mohbillingVersion}">org.openmrs.module.mohbilling</require_module>
 		<require_module version="${namephoneticsVersion}">org.openmrs.module.namephonetics</require_module>
 		<require_module version="${pihappsVersion}">org.openmrs.module.pihapps</require_module>
@@ -49,7 +50,7 @@
 		<require_module version="${uiframeworkVersion}">org.openmrs.module.uiframework</require_module>
 		<require_module version="${uilibraryVersion}">org.openmrs.module.uilibrary</require_module>
 		<require_module version="${webservicesRestVersion}">org.openmrs.module.webservices.rest</require_module>
-    </require_modules>
+	</require_modules>
 
 	<activator>org.openmrs.module.rwandaemr.RwandaEmrActivator</activator>
 
@@ -152,6 +153,22 @@
 		<name>Billing RHIP Approval - Check Status</name>
 		<description>Check RHIP approval request status</description>
 	</privilege>
+
+	<globalProperty>
+		<property>rwandaemr.appointment.sms.confirmationTemplate</property>
+		<defaultValue>Your appointment at {servicePoint} is confirmed for {date}.</defaultValue>
+		<description>SMS sent when an appointment is requested. Supported placeholders: {servicePoint}, {date}</description>
+	</globalProperty>
+	<globalProperty>
+		<property>rwandaemr.appointment.sms.reminderTemplate</property>
+		<defaultValue>Reminder: your appointment at {servicePoint} is in 2 days, on {date}.</defaultValue>
+		<description>SMS sent two days before an appointment. Supported placeholders: {servicePoint}, {date}</description>
+	</globalProperty>
+	<globalProperty>
+		<property>rwandaemr.appointment.sms.rescheduleTemplate</property>
+		<defaultValue>Your appointment at {servicePoint} has changed from {oldDate} to {newDate}.</defaultValue>
+		<description>SMS sent after an appointment is rescheduled. Supported placeholders: {servicePoint}, {oldDate}, {newDate}</description>
+	</globalProperty>
 
 	<globalProperty>
 		<property>rwandaemr.radiology.creatinineConcept</property>

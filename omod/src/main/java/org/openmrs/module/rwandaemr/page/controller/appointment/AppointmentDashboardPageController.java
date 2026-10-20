@@ -63,6 +63,8 @@ public class AppointmentDashboardPageController extends AppointmentPageSupport {
         List<AppointmentScheduleSummary> summaries = Collections.emptyList();
         Map<Integer, List<AppointmentBooking>> bookingsByScheduleId =
                 new LinkedHashMap<Integer, List<AppointmentBooking>>();
+        Map<Integer, List<AppointmentScheduleSummary>> rescheduleSchedulesByScheduleId =
+                new LinkedHashMap<Integer, List<AppointmentScheduleSummary>>();
         Map<Integer, Patient> displayedPatientsById = new LinkedHashMap<Integer, Patient>();
         Map<Integer, Patient> bookedPatientsById = new LinkedHashMap<Integer, Patient>();
         Map<Integer, String> phoneNumberByPatientId = Collections.emptyMap();
@@ -72,6 +74,7 @@ public class AppointmentDashboardPageController extends AppointmentPageSupport {
         String dateRangeError = null;
         int totalCapacity = 0;
         int totalBooked = 0;
+        boolean canManageAppointments = Context.hasPrivilege(AppointmentPrivileges.MANAGE);
         try {
             LocalDate rangeStart = parseDate(selectedStartDate, today);
             LocalDate rangeEnd = parseDate(selectedEndDate, today);
@@ -87,6 +90,16 @@ public class AppointmentDashboardPageController extends AppointmentPageSupport {
                 AppointmentSchedule schedule = summary.getSchedule();
                 schedules.add(schedule);
                 bookingsByScheduleId.put(schedule.getId(), new ArrayList<AppointmentBooking>());
+                List<AppointmentScheduleSummary> rescheduleSchedules = new ArrayList<AppointmentScheduleSummary>();
+                if (canManageAppointments) {
+                    for (AppointmentScheduleSummary candidate : appointmentService.getAvailableSchedules(
+                            schedule.getServicePoint(), todayStart, null)) {
+                        if (!schedule.getId().equals(candidate.getSchedule().getId())) {
+                            rescheduleSchedules.add(candidate);
+                        }
+                    }
+                }
+                rescheduleSchedulesByScheduleId.put(schedule.getId(), rescheduleSchedules);
                 Date scheduleDate = schedule.getScheduleDate();
                 if (scheduleDate != null && !scheduleDate.before(todayStart) && scheduleDate.before(tomorrowStart)) {
                     todayScheduleIds.add(schedule.getId());
@@ -117,7 +130,7 @@ public class AppointmentDashboardPageController extends AppointmentPageSupport {
             dateRangeError = e.getMessage();
         }
         model.addAttribute("authorized", true);
-        model.addAttribute("canManageAppointments", Context.hasPrivilege(AppointmentPrivileges.MANAGE));
+        model.addAttribute("canManageAppointments", canManageAppointments);
         model.addAttribute("servicePoints", servicePoints);
         model.addAttribute("selectedServicePoint", selectedServicePoint);
         model.addAttribute("selectedStartDate", selectedStartDate);
@@ -125,6 +138,7 @@ public class AppointmentDashboardPageController extends AppointmentPageSupport {
         model.addAttribute("dateRangeError", dateRangeError);
         model.addAttribute("scheduleSummaries", summaries);
         model.addAttribute("bookingsByScheduleId", bookingsByScheduleId);
+        model.addAttribute("rescheduleSchedulesByScheduleId", rescheduleSchedulesByScheduleId);
         model.addAttribute("todayScheduleIds", todayScheduleIds);
         model.addAttribute("phoneNumberByPatientId", phoneNumberByPatientId);
         model.addAttribute("registrationEncounterIdsByPatientId", registrationEncounterIdsByPatientId);
@@ -148,6 +162,8 @@ public class AppointmentDashboardPageController extends AppointmentPageSupport {
                        @SpringBean("visitService") VisitService visitService,
                        @RequestParam(value = "action", required = false) String action,
                        @RequestParam(value = "bookingId", required = false) Integer bookingId,
+                       @RequestParam(value = "sourceScheduleId", required = false) Integer sourceScheduleId,
+                       @RequestParam(value = "newScheduleId", required = false) Integer newScheduleId,
                        @RequestParam(value = "appointmentStatus", required = false) String appointmentStatus,
                        @RequestParam(value = "servicePointId", required = false) Integer servicePointId,
                        @RequestParam(value = "startDate", required = false) String startDate,
@@ -157,6 +173,18 @@ public class AppointmentDashboardPageController extends AppointmentPageSupport {
                 AppointmentBooking booking = appointmentService.markBookingPresent(bookingId);
                 return registrationRedirect(
                         ui, encounterService, visitService, rwandaEmrConfig, booking);
+            }
+            if ("reschedule".equals(action)) {
+                appointmentService.postponeBooking(bookingId, newScheduleId);
+                setToast(sessionContext, "Appointment rescheduled");
+                return redirect(ui, "appointment/appointmentDashboard",
+                        "servicePointId", servicePointId, "startDate", startDate, "endDate", endDate);
+            }
+            if ("rescheduleAll".equals(action)) {
+                int moved = appointmentService.rescheduleServicePointDate(sourceScheduleId, newScheduleId);
+                setToast(sessionContext, moved + " appointments rescheduled");
+                return redirect(ui, "appointment/appointmentDashboard",
+                        "servicePointId", servicePointId, "startDate", startDate, "endDate", endDate);
             }
             AppointmentStatus status = StringUtils.isBlank(appointmentStatus)
                     ? null : AppointmentStatus.valueOf(appointmentStatus);

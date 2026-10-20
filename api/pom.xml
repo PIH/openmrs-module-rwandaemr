@@ -13,6 +13,12 @@
 	<description>API project for Rwanda EMR</description>
 
 	<dependencies>
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>rbcmessaging-api</artifactId>
+			<version>${rbcmessagingVersion}</version>
+			<scope>provided</scope>
+		</dependency>
 		<!-- Cleans the formatted text of radiology reports entered in OpenMRS, so they can be shown safely -->
 		<dependency>
 			<groupId>org.jsoup</groupId>

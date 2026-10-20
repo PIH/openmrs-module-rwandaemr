@@ -37,6 +37,8 @@ public interface FacilityAppointmentService extends OpenmrsService {
 
     AppointmentBooking postponeBooking(Integer bookingId, Integer newScheduleId);
 
+    int rescheduleServicePointDate(Integer sourceScheduleId, Integer newScheduleId);
+
     AppointmentBooking cancelBooking(Integer bookingId);
 
     AppointmentBooking markBookingPresent(Integer bookingId);
@@ -52,4 +54,6 @@ public interface FacilityAppointmentService extends OpenmrsService {
     List<Location> getServicePointLocations();
 
     List<Provider> getLicensedProviders();
+
+    int sendAppointmentReminders();
 }

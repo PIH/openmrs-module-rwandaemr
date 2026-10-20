@@ -900,6 +900,18 @@
         </addColumn>
     </changeSet>
 
+    <changeSet id="20261020-add-appointment-reminder-sms-timestamp" author="rwandaemr">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="rwandaemr_appointment_booking"/>
+                <not><columnExists tableName="rwandaemr_appointment_booking" columnName="reminder_sms_sent_at"/></not>
+            </and>
+        </preConditions>
+        <addColumn tableName="rwandaemr_appointment_booking">
+            <column name="reminder_sms_sent_at" type="datetime"/>
+        </addColumn>
+    </changeSet>
+
     <changeSet id="20261010-create-radiology-hl7-message" author="bniyonshuti">
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="rwandaemr_radiology_hl7_message"/></not>

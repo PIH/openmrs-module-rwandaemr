@@ -37,6 +37,7 @@
 		<property name="visitTypeName" type="java.lang.String" column="visit_type" length="20"/>
 		<property name="statusName" type="java.lang.String" column="status" length="50" not-null="true"/>
 		<property name="requestedAt" type="java.util.Date" column="requested_at" not-null="true"/>
+		<property name="reminderSmsSentAt" type="java.util.Date" column="reminder_sms_sent_at"/>
 		<property name="notes" type="java.lang.String" column="notes" length="1024"/>
 		<many-to-one name="creator" class="org.openmrs.User" column="creator" not-null="true"/>
 		<property name="dateCreated" type="java.util.Date" column="date_created" not-null="true"/>
