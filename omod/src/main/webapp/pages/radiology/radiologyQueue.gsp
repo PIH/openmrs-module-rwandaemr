@@ -15,7 +15,10 @@
 <% } else { %>
 
 <style>
-    .rq-page { max-width: 1760px; margin: 0 auto; }
+    /* The queue is wide, so on this page it uses the whole screen: the standard page and the Rwanda EMR stylesheet
+       (globalresources/styles/global.css, which sets body to 1500px) both make pages narrower */
+    body { max-width: none !important; width: auto !important; margin: 10px 12px !important; }
+    .rq-page { margin: 0 auto; }
     .rq-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 8px 0 12px; flex-wrap: wrap; }
     .rq-title { margin: 0; font-size: 28px; color: #263238; }
     .rq-subtitle { margin: 4px 0 0; color: #607d8b; font-size: 13px; }
@@ -59,7 +62,8 @@
     .rq-resend[disabled] { color: #78909c; border-color: #b0bec5; background: #eceff1; cursor: wait; }
 
     /* The table fits the screen; the header stays visible while scrolling */
-    .rq-table-wrap { border: 1px solid #d9e2e7; background: #fff; border-radius: 6px; overflow: auto; max-height: calc(100vh - 330px); min-height: 220px; }
+    /* The table scrolls with the page, not in a box of its own; its header stays at the top of the screen while scrolling */
+    .rq-table-wrap { border: 1px solid #d9e2e7; background: #fff; border-radius: 6px; }
     table.rq-table { width: 100%; border-collapse: separate; border-spacing: 0; }
     .rq-table th { position: sticky; top: 0; z-index: 2; background: #f3f6f8; color: #455a64; font-size: 11px; text-transform: uppercase;
                    border-bottom: 1px solid #d9e2e7; padding: 8px 7px; text-align: left; white-space: nowrap; }
@@ -97,8 +101,10 @@
     .rq-wait { display: inline-block; margin-top: 3px; font-size: 11.5px; font-weight: bold; padding: 1px 6px; border-radius: 10px; color: #455a64; background: #eceff1; }
     .rq-wait-amber { color: #8a5300; background: #ffe0b2; }
     .rq-wait-red { color: #fff; background: #c62828; }
-    .rq-links a { display: inline-block; margin: 0 6px 2px 0; font-weight: bold; white-space: nowrap; }
-    .rq-links a.rq-enter-report { color: #fff; background: #00473f; padding: 2px 8px; border-radius: 10px; text-decoration: none; }
+    /* Results are icons, named in their tooltip */
+    .rq-links a { display: inline-block; margin: 0 4px 2px 0; padding: 2px 5px; font-size: 17px; line-height: 1.2; text-decoration: none; border-radius: 4px; }
+    .rq-links a:hover { background: #e6edf1; }
+    .rq-links a.rq-enter-report { color: #fff; background: #00473f; }
 
     /* Detail panel */
     .rq-overlay { display: none; position: fixed; inset: 0; background: rgba(38,50,56,.35); z-index: 1000; }
@@ -431,21 +437,40 @@
             return '<div><span class="rq-wait' + cls + '" title="Waiting since the request">&#9201; ' + formatDuration(minutes) + '</span></div>';
         };
 
+        // The time a step was reached; its tooltip says how long after the request, to follow the turnaround time
+        var stepTime = function(r, millis) {
+            if (!millis) { return ''; }
+            var title = r.timeRequested ? ' title="' + formatDuration(Math.max(0, Math.floor((millis - r.timeRequested) / 60000))) +
+                ' after the request"' : '';
+            return '<div class="rq-muted rq-nowrap"' + title + '>' + formatTime(millis) + '</div>';
+        };
+
+        // When the study reached its PACS status
+        var pacsStatusTime = function(r) {
+            if (r.pacsStatus === 'SENT') { return r.sentAt; }
+            if (r.pacsStatus === 'REPORTED') { return r.reportedAt; }
+            if (r.pacsStatus === 'IMAGES_RECEIVED' || r.pacsStatus === 'STUDY_DONE_NO_LINK') { return r.imagesReceivedAt; }
+            return null;
+        };
+
+        var iconLink = function(href, icon, label, attributes) {
+            return '<a href="' + href + '" title="' + label + '" aria-label="' + label + '"' + (attributes || '') + '>' + icon + '</a>';
+        };
+
         // Reports for modalities such as ultrasound are entered in OpenMRS by a radiologist, one report per test
         var testReportLinks = function(r, t, showName) {
             var links = [];
             if (t.reported) {
-                links.push('<a href="' + orderUrl + '?orderId=' + t.orderId + '">&#128196; Report</a>');
-                links.push('<a href="' + printUrl + '?orderId=' + t.orderId + '" target="_blank" rel="noopener">&#128424; Print</a>');
+                links.push(iconLink(orderUrl + '?orderId=' + t.orderId, '&#128196;', 'View report'));
+                links.push(iconLink(printUrl + '?orderId=' + t.orderId, '&#128424;', 'Print report', ' target="_blank" rel="noopener"'));
             }
             else if (t.hasDraft) {
                 links.push('<span class="rq-draft" title="Only radiologists can see a draft">Draft</span>');
             }
             if (r.canEnterReport) {
                 var returnUrl = window.location.pathname + window.location.search;
-                links.push('<a class="rq-enter-report" href="' + reportUrl + '?orderId=' + t.orderId +
-                    '&returnUrl=' + encodeURIComponent(returnUrl) + '">&#9998; ' +
-                    (t.reported ? 'Correct report' : (t.hasDraft ? 'Continue draft' : 'Enter report')) + '</a>');
+                links.push(iconLink(reportUrl + '?orderId=' + t.orderId + '&returnUrl=' + encodeURIComponent(returnUrl), '&#9998;',
+                    t.reported ? 'Correct report' : (t.hasDraft ? 'Continue draft' : 'Enter report'), ' class="rq-enter-report"'));
             }
             if (links.length === 0) {
                 return '';
@@ -457,7 +482,7 @@
         var resultLinks = function(r) {
             var links = [];
             if (r.imageUrl) {
-                links.push('<a href="' + escapeHtml(r.imageUrl) + '" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">&#128444; Images</a>');
+                links.push(iconLink(escapeHtml(r.imageUrl), '&#128444;', 'View images', ' target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer"'));
             }
             if (r.manualReport) {
                 var tests = r.tests || [];
@@ -465,8 +490,8 @@
                 return '<div class="rq-links">' + links.join('') + '</div>' + perTest;
             }
             if (r.reportOrderId) {
-                links.push('<a href="' + orderUrl + '?orderId=' + r.reportOrderId + '">&#128196; Report</a>');
-                links.push('<a href="' + printUrl + '?orderId=' + r.reportOrderId + '" target="_blank" rel="noopener">&#128424; Print</a>');
+                links.push(iconLink(orderUrl + '?orderId=' + r.reportOrderId, '&#128196;', 'View report'));
+                links.push(iconLink(printUrl + '?orderId=' + r.reportOrderId, '&#128424;', 'Print report', ' target="_blank" rel="noopener"'));
             }
             return '<div class="rq-links">' + links.join('') + '</div>';
         };
@@ -566,8 +591,9 @@
                     cell('creatinine', creatinineCell(r)) +
                     cell('requestedBy', escapeHtml(r.requestingPhysician) + '<div class="rq-muted">' + escapeHtml(r.requestingDepartment) + '</div>') +
                     cell('requested', '<span class="rq-nowrap">' + formatTime(r.timeRequested) + '</span>' + waitBadge(r)) +
-                    cell('pacs', '<span class="rq-chip rq-' + escapeHtml(r.pacsStatus) + '">' + escapeHtml(r.pacsStatusLabel) + '</span>' + resendButton(r)) +
-                    cell('processed', processedCell(r)) +
+                    cell('pacs', '<span class="rq-chip rq-' + escapeHtml(r.pacsStatus) + '">' + escapeHtml(r.pacsStatusLabel) + '</span>' +
+                        stepTime(r, pacsStatusTime(r)) + resendButton(r)) +
+                    cell('processed', processedCell(r) + (r.processed ? stepTime(r, r.imagesReceivedAt || r.reportedAt) : '')) +
                     cell('payment', payment) +
                     cell('results', resultLinks(r)) +
                     '</tr>');
@@ -603,7 +629,7 @@
             var timeline =
                 timelineItem('Requested', formatTime(r.timeRequested) + (wait !== null ? ' &middot; waiting ' + formatDuration(wait) : ''), true, false) +
                 timelineItem('Payment: ' + escapeHtml(r.paymentStatusLabel), formatTime(r.timeOfPayment), paid, r.paymentStatus === 'NOT_PAID') +
-                timelineItem(cancelled ? 'Cancelled in PACS' : (sent ? 'Sent to PACS' : 'Not sent to PACS yet'), '', sent, cancelled) +
+                timelineItem(cancelled ? 'Cancelled in PACS' : (sent ? 'Sent to PACS' : 'Not sent to PACS yet'), formatTime(r.sentAt), sent, cancelled) +
                 timelineItem(r.imagesReceivedAt && !r.imageUrl ? 'Study done &ndash; no image link from PACS yet' : 'Images received',
                     formatTime(r.imagesReceivedAt), !!r.imagesReceivedAt, !!r.imagesReceivedAt && !r.imageUrl) +
                 timelineItem('Reported' + (r.reportStatus ? ' (' + escapeHtml(r.reportStatus) + ')' : ''), formatTime(r.reportedAt), !!r.reportedAt, false);

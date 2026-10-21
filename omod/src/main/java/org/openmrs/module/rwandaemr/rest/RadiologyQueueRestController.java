@@ -170,6 +170,7 @@ public class RadiologyQueueRestController {
 			o.put("reason", row.getReason());
 			o.put("readyForExam", row.isReadyForExam());
 			o.put("imageUrl", safeUrl(row.getImageUrl()));
+			o.put("sentAt", row.getSentAt() == null ? null : row.getSentAt().getTime());
 			o.put("imagesReceivedAt", row.getImagesReceivedAt() == null ? null : row.getImagesReceivedAt().getTime());
 			o.put("reportStatus", row.getReportStatus());
 			o.put("reportedAt", row.getReportedAt() == null ? null : row.getReportedAt().getTime());

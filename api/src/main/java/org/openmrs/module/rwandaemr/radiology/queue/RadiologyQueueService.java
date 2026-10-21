@@ -93,7 +93,37 @@ public class RadiologyQueueService {
 			rows.add(toRow(study, orderables, payments));
 		}
 		setCreatinine(rows, getLatestCreatinine(rows));
+		setSentTimes(rows);
 		return rows;
+	}
+
+	/**
+	 * Records when each study was sent to PACS: its first new order message that PACS accepted or did not answer.  Studies
+	 * sent before messages were logged have no time.
+	 */
+	private void setSentTimes(List<RadiologyQueueRow> rows) {
+		Set<String> accessionNumbers = new HashSet<String>();
+		for (RadiologyQueueRow row : rows) {
+			if (StringUtils.isNotBlank(row.getAccessionNumber())) {
+				accessionNumbers.add(row.getAccessionNumber());
+			}
+		}
+		if (accessionNumbers.isEmpty()) {
+			return;
+		}
+		NativeQuery<?> query = dbSessionFactory.getHibernateSessionFactory().getCurrentSession().createSQLQuery(
+				"select accession_number, min(date_created) from rwandaemr_radiology_hl7_message " +
+						"where direction = 'OUT' and order_control = 'NW' and status in ('ACCEPTED', 'NO_RESPONSE') " +
+						"and accession_number in (:accessionNumbers) group by accession_number");
+		query.setParameterList("accessionNumbers", accessionNumbers);
+		Map<String, Date> sentTimes = new HashMap<String, Date>();
+		for (Object result : query.list()) {
+			Object[] values = (Object[]) result;
+			sentTimes.put((String) values[0], (Date) values[1]);
+		}
+		for (RadiologyQueueRow row : rows) {
+			row.setSentAt(sentTimes.get(row.getAccessionNumber()));
+		}
 	}
 
 	private List<TestOrder> getRadiologyOrders(Set<Concept> orderables, Date fromDate, Date toDate) {

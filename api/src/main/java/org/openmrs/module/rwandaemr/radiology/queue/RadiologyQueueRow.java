@@ -60,6 +60,7 @@ public class RadiologyQueueRow {
 	private boolean stat;
 	private String reason;
 	private String imageUrl;
+	private Date sentAt;
 	private Date imagesReceivedAt;
 	private String reportStatus;
 	private Date reportedAt;
@@ -236,6 +237,17 @@ public class RadiologyQueueRow {
 
 	public void setImageUrl(String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	/**
+	 * @return when the study was first sent to PACS, or null if that is not known
+	 */
+	public Date getSentAt() {
+		return sentAt;
+	}
+
+	public void setSentAt(Date sentAt) {
+		this.sentAt = sentAt;
 	}
 
 	public Date getImagesReceivedAt() {
