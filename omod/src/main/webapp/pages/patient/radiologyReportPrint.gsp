@@ -102,7 +102,7 @@
         <div class="rp-signature">
             <div>
                 <strong>${ ui.encodeHtmlContent(report.radiologist ?: "") }</strong>
-                <div class="rp-line">Radiologist</div>
+                <div class="rp-line">Reported by</div>
             </div>
             <div>
                 <strong>${ report.reportDate ? dateFormat.format(report.reportDate) : "" }</strong>
