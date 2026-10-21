@@ -1,5 +1,6 @@
 package org.openmrs.module.rwandaemr.radiology;
 
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -34,6 +35,11 @@ public class RadiologyReportText {
 	private static final Pattern TEXT_ALIGN = Pattern.compile("text-align\\s*:\\s*(left|center|right|justify)",
 			Pattern.CASE_INSENSITIVE);
 
+	/**
+	 * An escaped tag, escaped once (&amp;lt;) or more (&amp;amp;lt;)
+	 */
+	private static final Pattern ESCAPED_TAG = Pattern.compile("&(amp;)*lt;");
+
 	private static final Set<String> ALIGNMENT_CLASSES = new HashSet<String>(Arrays.asList(
 			"ra-left", "ra-center", "ra-right", "ra-justify"));
 
@@ -54,7 +60,7 @@ public class RadiologyReportText {
 	 * @throws IllegalArgumentException if it has no text, or is too long
 	 */
 	public static String toStorage(String editorHtml) {
-		String cleaned = clean(editorHtml);
+		String cleaned = clean(unescapeIfEscaped(editorHtml));
 		if (StringUtils.isBlank(Jsoup.parseBodyFragment(cleaned).text())) {
 			throw new IllegalArgumentException("The report cannot be empty");
 		}
@@ -87,7 +93,7 @@ public class RadiologyReportText {
 			if (inner.endsWith(FORMATTED_END)) {
 				inner = inner.substring(0, inner.length() - FORMATTED_END.length());
 			}
-			return clean(inner);
+			return clean(unescapeIfEscaped(inner));
 		}
 		return Encode.forHtml(text).replace("\r\n", "\n").replace("\n", "<br>");
 	}
@@ -105,6 +111,27 @@ public class RadiologyReportText {
 		document.select("p, div, h3, h4, li").before("\\n");
 		return document.body().text().replace("\\n", "\n").replaceAll("[ \\t]*\n[ \\t]*", "\n")
 				.replaceAll("\n{3,}", "\n\n").trim();
+	}
+
+	/**
+	 * The Legacy UI module's XSS filter HTML-escapes every value submitted to a page, so the report from the editor
+	 * arrives with its tags escaped, and reports saved before this was handled were stored that way.  Formatted text
+	 * from the editor always has tags, so text with escaped tags and no real ones is unescaped, as many times as it was
+	 * escaped.  It is cleaned afterwards, so this never lets anything unsafe through.
+	 */
+	static String unescapeIfEscaped(String html) {
+		String value = html;
+		for (int i = 0; value != null && i < 5 && !value.contains("<") && ESCAPED_TAG.matcher(value).find(); i++) {
+			value = StringEscapeUtils.unescapeHtml(value);
+		}
+		return value;
+	}
+
+	/**
+	 * @return text submitted to a page as it was typed, undoing the HTML escaping of the Legacy UI module's XSS filter
+	 */
+	public static String fromRequest(String value) {
+		return value == null ? null : StringEscapeUtils.unescapeHtml(value);
 	}
 
 	/**

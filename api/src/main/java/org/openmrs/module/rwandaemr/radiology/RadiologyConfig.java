@@ -9,6 +9,7 @@
  */
 package org.openmrs.module.rwandaemr.radiology;
 
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -124,7 +125,9 @@ public class RadiologyConfig {
 	 * @return the link to view the images of the study with the given accession number, or null if none is configured
 	 */
 	public String getImageViewerUrl(String accessionNumber) {
-		String template = StringUtils.trimToNull(administrationService.getGlobalProperty(GP_IMAGE_VIEWER_URL_TEMPLATE));
+		// Settings saved through the admin pages may have & escaped as &amp; by the Legacy UI module's XSS filter
+		String template = StringUtils.trimToNull(StringEscapeUtils.unescapeHtml(
+				administrationService.getGlobalProperty(GP_IMAGE_VIEWER_URL_TEMPLATE)));
 		if (template == null || StringUtils.isBlank(accessionNumber) || !template.contains(ACCESSION_NUMBER_PLACEHOLDER)) {
 			return null;
 		}

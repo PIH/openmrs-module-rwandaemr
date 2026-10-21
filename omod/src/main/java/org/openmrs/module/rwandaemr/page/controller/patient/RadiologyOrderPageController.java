@@ -128,7 +128,8 @@ public class RadiologyOrderPageController {
         }
         else {
             try {
-                radiologyOrderCancelService.cancel(order, cancelReason);
+                // The Legacy UI module's XSS filter escapes submitted values; the reason is kept as it was typed
+                radiologyOrderCancelService.cancel(order, RadiologyReportText.fromRequest(cancelReason));
                 sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_INFO_MESSAGE,
                         "Order " + order.getOrderNumber() + " cancelled. The cancellation is sent to PACS.");
                 sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_TOAST_MESSAGE, "true");

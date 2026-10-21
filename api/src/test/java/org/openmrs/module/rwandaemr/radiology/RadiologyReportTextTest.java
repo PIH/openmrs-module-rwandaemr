@@ -69,6 +69,34 @@ public class RadiologyReportTextTest {
 	}
 
 	@Test
+	public void shouldUndoTheEscapingOfTheLegacyUiXssFilter() {
+		// What the filter makes of "<p><b>Findings</b> &amp; notes</p>" from the editor
+		String submitted = "&lt;p&gt;&lt;b&gt;Findings&lt;/b&gt; &amp;amp; notes&lt;/p&gt;";
+		assertThat(RadiologyReportText.toStorage(submitted), equalTo(RadiologyReportText.FORMATTED_START
+				+ "<p><b>Findings</b> &amp; notes</p>" + RadiologyReportText.FORMATTED_END));
+		// A script escaped by the filter is still removed once unescaped
+		assertThat(RadiologyReportText.toStorage("&lt;p&gt;Normal&lt;script&gt;alert(1)&lt;/script&gt;&lt;/p&gt;"),
+				equalTo(RadiologyReportText.FORMATTED_START + "<p>Normal</p>" + RadiologyReportText.FORMATTED_END));
+	}
+
+	@Test
+	public void shouldRepairReportsSavedWithEscapedTags() {
+		// How a report was stored before the filter's escaping was undone, once or twice
+		String once = RadiologyReportText.FORMATTED_START + "ADULT CARDIAC ULTRASOUND&lt;p&gt;Findings&lt;/p&gt;&lt;p&gt;Normal&lt;/p&gt;"
+				+ RadiologyReportText.FORMATTED_END;
+		String twice = RadiologyReportText.FORMATTED_START + "ADULT CARDIAC ULTRASOUND&amp;lt;p&amp;gt;Findings&amp;lt;/p&amp;gt;"
+				+ RadiologyReportText.FORMATTED_END;
+		assertThat(RadiologyReportText.toEditorHtml(once), equalTo("ADULT CARDIAC ULTRASOUND<p>Findings</p><p>Normal</p>"));
+		assertThat(RadiologyReportText.toEditorHtml(twice), equalTo("ADULT CARDIAC ULTRASOUND<p>Findings</p>"));
+	}
+
+	@Test
+	public void shouldKeepTextAsTypedWhenItIsPlainText() {
+		assertThat(RadiologyReportText.fromRequest("Wrong exam &amp; duplicate"), equalTo("Wrong exam & duplicate"));
+		assertThat(RadiologyReportText.toEditorHtml("No fracture <seen>"), equalTo("No fracture &lt;seen&gt;"));
+	}
+
+	@Test
 	public void shouldCleanAStoredReportAgainBeforeShowingIt() {
 		String tampered = RadiologyReportText.FORMATTED_START + "<p>Normal</p><script>alert(1)</script>" + RadiologyReportText.FORMATTED_END;
 		assertThat(RadiologyReportText.toHtml(tampered), equalTo("<div class=\"radiology-report\"><p>Normal</p></div>"));

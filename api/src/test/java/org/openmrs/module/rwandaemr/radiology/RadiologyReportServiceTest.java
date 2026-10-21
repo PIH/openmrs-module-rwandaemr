@@ -78,6 +78,14 @@ public class RadiologyReportServiceTest extends BaseHL7TranslatorTest {
 				equalTo("https://pacs.example/PACSAPI/Launch_Viewer?AccessionNumber=A%26B+1"));
 		assertThat(radiologyConfig.getImageViewerUrl(null), nullValue());
 
+		// Saved through the admin pages, which escape & as &amp;
+		when(administrationService.getGlobalProperty(RadiologyConfig.GP_IMAGE_VIEWER_URL_TEMPLATE)).thenReturn(
+				"https://pacs.example/Launch_Viewer?Username=u&amp;Password=p&amp;AccessionNumber={accessionNumber}");
+		assertThat(radiologyConfig.getImageViewerUrl("ORD-1"),
+				equalTo("https://pacs.example/Launch_Viewer?Username=u&Password=p&AccessionNumber=ORD-1"));
+		when(administrationService.getGlobalProperty(RadiologyConfig.GP_IMAGE_VIEWER_URL_TEMPLATE)).thenReturn(
+				" https://pacs.example/PACSAPI/Launch_Viewer?AccessionNumber={accessionNumber} ");
+
 		testOrder.setAccessionNumber("ORD-764591");
 		assertThat(service.getImageUrl(testOrder),
 				equalTo("https://pacs.example/PACSAPI/Launch_Viewer?AccessionNumber=ORD-764591"));
