@@ -11,6 +11,8 @@
     ui.includeJavascript("pihapps", "formHelper.js")
     ui.includeJavascript("pihapps", "labs/labResultFields.js")
     ui.includeCss("pihapps", "labs/labs.css")
+    ui.includeJavascript("rwandaemr", "labs/antibiogram.js")
+    ui.includeCss("rwandaemr", "labs/antibiogram.css")
 
     def validateMode = (mode == "validate")
     def title = validateMode ? "Validate lab results" : "Enter lab results"
@@ -73,6 +75,9 @@
     .lr-reason { margin: 0 0 6px 242px; }
     .lr-note { color: #b26a00; font-size: 0.85em; margin: 0 0 4px 242px; }
     .lr-hidden { display: none; }
+    .lr-ab-row .test-name { font-weight: normal; }
+    .lr-order > .lr-ab-row .test-name, .lr-panel-members .lr-ab-row .test-name { padding-left: 16px; }
+    .lr-ab-button { padding: 1px 10px; font-size: 0.9em; }
 
     /* Result fields: the same width for each kind of field, so that units and comments line up */
     .lr-specimen .obs-widget { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 8px; }
@@ -190,8 +195,14 @@
         const encounterRep = "uuid,encounterDatetime,encounterType:(uuid),location:(uuid,display)," +
             "encounterProviders:(provider:(uuid,display),encounterRole:(uuid,display)),obs:(" + obsRep + ",groupMembers:(" + obsRep + "))";
 
-        getJson(rest + "pihapps/config?v=custom:(" + configRep + ")").then(config => {
+        Promise.all([
+            getJson(rest + "pihapps/config?v=custom:(" + configRep + ")"),
+            // Without the antibiogram configuration the page still works, without antibiograms
+            getJson(rest + "rwandaemr/lab/antibiogram/config").catch(() => ({ tests: [] }))
+        ]).then(([config, antibiogramConfig]) => {
             const labConfig = config.labOrderConfig;
+            const antibiogram = new RwandaAntibiogram(jq, antibiogramConfig);
+            const antibiogramsByOrder = {};  // order uuid -> isolates
             const dateUtils = new PihAppsDateUtils(moment, config.dateFormat, config.dateTimeFormat);
 
             // The category of each test, so that each specimen shows a section per category
@@ -256,6 +267,13 @@
                     loads.push(getJson(rest + "encounter/" + specimen.encounterUuid + "?v=custom:(" + encounterRep + ")")
                         .then(encounter => { specimen.encounter = encounter; }));
                 });
+                const cultureOrders = group.orders.filter(o => antibiogram.isAntibiogramTest(o.concept.uuid));
+                if (cultureOrders.length > 0) {
+                    loads.push(getJson(rest + "rwandaemr/lab/antibiogram?" + jq.param({ order: cultureOrders.map(o => o.uuid) }, true))
+                        .then(result => {
+                            Object.keys(result).forEach(uuid => { antibiogramsByOrder[uuid] = RwandaAntibiogram.fromRest(result[uuid]); });
+                        }));
+                }
                 let validation = {};
                 if (validateMode) {
                     loads.push(getJson(rest + "rwandaemr/lab/resultValidation?" + jq.param({ order: group.orders.map(o => o.uuid) }, true))
@@ -443,6 +461,12 @@
                         return postJson(rest + "encounterFulfillingOrders/" + form.specimen.encounterUuid, payload)
                             .then(() => saved.push(form.specimen.orders[0].accessionNumber));
                     }), Promise.resolve()).then(() => {
+                        // Then the antibiograms that were changed, each in the encounter of its specimen
+                        return blocks.filter(b => b.antibiogram && b.antibiogram.changed()).reduce((previous, b) => previous.then(() =>
+                            postJson(rest + "rwandaemr/lab/antibiogram",
+                                RwandaAntibiogram.toPayload(b.order.uuid, b.order.fulfillerEncounter.uuid, b.antibiogram.isolates()))
+                        ), Promise.resolve());
+                    }).then(() => {
                         dirty = false;
                         emr.successMessage("Lab results saved");
                         window.location.reload();
@@ -472,6 +496,39 @@
                     markAndSave.focus();
                 });
                 return page;
+            }
+
+            // A row with the antibiogram summary, and a button that opens the dialog to enter it
+            function createAntibiogramEditor(order) {
+                let isolates = antibiogramsByOrder[order.uuid] ?? [];
+                let changed = false;
+                const summary = jq("<span>").addClass("lr-ab-summary");
+                const button = jq("<button>").attr("type", "button").addClass("lr-ab-button").text("Antibiogram");
+                const row = jq("<div>").addClass("result-row lr-ab-row")
+                    .append(jq("<span>").addClass("test-name").text("Antibiogram"))
+                    .append(jq("<span>").addClass("form-field-widgets").append(button).append(summary))
+                    .append(jq("<span>"));
+                const refresh = () => summary.html(antibiogram.summaryHtml(isolates));
+                button.on("click", () => {
+                    antibiogram.openEditor("Antibiogram: " + order.concept.displayStringForLab, isolates, (updated) => {
+                        isolates = updated;
+                        changed = true;
+                        dirty = true;
+                        refresh();
+                    });
+                });
+                refresh();
+                return {
+                    row: row,
+                    isolates: () => isolates,
+                    changed: () => changed,
+                    clear: () => {
+                        if (isolates.length > 0) {
+                            isolates = [];
+                            changed = true;
+                        }
+                    }
+                };
             }
 
             function renderEntryOrder(order, orderable, formHelper, obsFor, idPrefix) {
@@ -523,6 +580,11 @@
                     element.append(results);
                 }
 
+                const antibiogramEditor = antibiogram.isAntibiogramTest(order.concept.uuid) ? createAntibiogramEditor(order) : null;
+                if (antibiogramEditor) {
+                    (isPanel ? results : element).append(antibiogramEditor.row);
+                }
+
                 if (order.fulfillerComment && order.fulfillerComment.indexOf("Returned for correction") === 0) {
                     element.append(jq("<div>").addClass("lr-note").text(order.fulfillerComment));
                 }
@@ -550,6 +612,7 @@
                 const status = () => statusWidget.val();
                 const applyStatus = () => {
                     element.toggleClass("lr-not-performed", status() === 'EXCEPTION');
+                    antibiogramEditor?.row.toggle(status() !== 'EXCEPTION');
                     reasonSection.toggle(status() === 'EXCEPTION');
                 };
                 statusWidget.on("change", () => { dirty = true; applyStatus(); });
@@ -559,13 +622,16 @@
                 return {
                     order: order,
                     element: element,
+                    antibiogram: antibiogramEditor,
                     status: status,
                     setStatus: (value) => statusCell.find(".select-buttons button[data-value='" + value + "']").click(),
                     reasonValue: () => reasonSection.find(".result-value-field").val(),
-                    hasResults: () => resultFields().filter((i, e) => jq(e).is(":checkbox") ? jq(e).is(":checked") : !!jq(e).val()).length > 0,
+                    hasResults: () => resultFields().filter((i, e) => jq(e).is(":checkbox") ? jq(e).is(":checked") : !!jq(e).val()).length > 0
+                        || (antibiogramEditor?.isolates().length ?? 0) > 0,
                     prepareForSave: (resultDate) => {
                         // Results are kept unless the test was not performed; the reason only when it was not
                         if (status() === 'EXCEPTION') {
+                            antibiogramEditor?.clear();
                             results.find(":input").not("button").val("");
                             results.find(":checkbox").prop("checked", false);
                             resultDateField.val("");
@@ -638,6 +704,11 @@
                             }
                             else {
                                 element.append(valueRow(tests[0], nameCell).row.append(enteredBy));
+                            }
+                            if (antibiogram.isAntibiogramTest(order.concept.uuid)) {
+                                element.append(jq("<div>").addClass("lr-row lr-ab-row")
+                                    .append(jq("<span>").addClass("test-name").text("Antibiogram"))
+                                    .append(jq("<span>").css("grid-column", "2 / -1").append(antibiogram.readOnly(antibiogramsByOrder[order.uuid]))));
                             }
                             if (info.enteredByCurrentUser) {
                                 element.append(jq("<div>").addClass("lr-note").text("You entered or changed these results, so another user must validate them."));

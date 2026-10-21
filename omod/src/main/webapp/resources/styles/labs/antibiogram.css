@@ -1,0 +1,35 @@
+/* Antibiogram entry dialog and read only view: see scripts/labs/antibiogram.js */
+.ab-overlay { position: fixed; inset: 0; background: rgba(38, 50, 56, 0.45); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+.ab-dialog { background: #fff; border-radius: 6px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25); width: min(860px, 96vw); max-height: 92vh;
+             display: flex; flex-direction: column; padding: 14px 18px; }
+.ab-dialog h3 { margin: 0 0 10px; color: #00473f; }
+.ab-germs { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+.ab-germs label { font-weight: bold; color: #455a64; }
+.ab-germs select { width: 220px; margin-left: 4px; }
+.ab-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 6px; }
+.ab-search { width: 240px; }
+.ab-grid-wrapper { overflow: auto; border: 1px solid #d9e2e7; flex: 1 1 auto; min-height: 200px; }
+.ab-grid { border-collapse: collapse; width: 100%; }
+.ab-grid th { position: sticky; background: #f5f7f8; z-index: 1; font-size: 0.85em; color: #455a64; padding: 3px 6px; }
+.ab-grid thead tr:first-child th { top: 0; }
+.ab-grid thead tr:nth-child(2) th { top: 24px; }
+.ab-grid td { padding: 1px 6px; border-bottom: 1px solid #f1f3f4; }
+.ab-grid tbody tr:hover { background: #f1f8f6; }
+.ab-name { white-space: nowrap; }
+.ab-cell { text-align: center; width: 34px; }
+.ab-germ-start, .ab-germ-head { border-left: 2px solid #d9e2e7; }
+.ab-code-S { color: #2e7d32; }
+.ab-code-I { color: #e65100; }
+.ab-code-R { color: #c62828; }
+.ab-errors { color: #c62828; margin-top: 6px; }
+.ab-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
+.ab-none { color: #90a4ae; }
+.ab-summary-isolate { margin-left: 8px; color: #37474f; }
+.ab-view-isolate { margin: 2px 0 6px; }
+.ab-view-organism { font-weight: bold; font-style: italic; }
+.ab-view-line { padding-left: 12px; }
+.ab-view-label { font-weight: bold; }
+.ab-view-S .ab-view-label { color: #2e7d32; }
+.ab-view-I .ab-view-label { color: #e65100; }
+.ab-view-R .ab-view-label { color: #c62828; }

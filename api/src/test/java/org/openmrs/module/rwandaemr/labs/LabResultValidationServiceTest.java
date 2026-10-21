@@ -45,7 +45,7 @@ public class LabResultValidationServiceTest {
 	public void setUp() {
 		orderService = mock(OrderService.class);
 		repository = mock(LabResultValidationRepository.class);
-		service = spy(new LabResultValidationService(mock(DbSessionFactory.class), orderService, repository));
+		service = spy(new LabResultValidationService(mock(DbSessionFactory.class), orderService, repository, mock(AntibiogramConfig.class)));
 		technician = new User(10);
 		validator = new User(20);
 		loginAs(validator);
