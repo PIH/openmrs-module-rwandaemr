@@ -1,0 +1,21 @@
+[
+  {
+    "id": "rwandaemr.medicalPlan",
+    "description": "Most recent medical plan during the active visit",
+    "label": "rwandaemr.medicalPlan.label",
+    "icon": "fas fa-fw fa-notes-medical",
+    "order": 1,
+    "extensions": [
+      {
+        "id": "rwandaemr.medicalPlan.clinicianDashboardSecondColumn",
+        "appId": "rwandaemr.medicalPlan",
+        "extensionPointId": "patientDashboard.secondColumnFragments",
+        "extensionParams": {
+          "provider": "rwandaemr",
+          "fragment": "patient/medicalPlan"
+        },
+        "order": -1
+      }
+    ]
+  }
+]
