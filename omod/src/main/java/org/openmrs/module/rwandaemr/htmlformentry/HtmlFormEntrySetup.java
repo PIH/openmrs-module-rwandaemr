@@ -41,6 +41,8 @@ public class HtmlFormEntrySetup implements Setup {
 
     public static final String LABOUR_EPISODE_ID_OBS_TAG = "labourEpisodeIdObs";
 
+    public static final String APPOINTMENT_BOOKING_TAG = "appointmentBooking";
+
     public static final String FORM_ENGINE_RESOURCE_NAME = "formEngine";
 
     public static final String FORM_ENGINE_RESOURCE_VALUE = "htmlformentry";
@@ -68,6 +70,10 @@ public class HtmlFormEntrySetup implements Setup {
 
         htmlFormEntryService.addHandler(LABOUR_EPISODE_ID_OBS_TAG, new LabourEpisodeIdObsTagHandler());
         log.warn("Registered " + LABOUR_EPISODE_ID_OBS_TAG + " tag with htmlformentry");
+
+        AppointmentBookingTagHandler appointmentBookingTagHandler = new AppointmentBookingTagHandler();
+        htmlFormEntryService.addHandler(APPOINTMENT_BOOKING_TAG, appointmentBookingTagHandler);
+        log.warn("Registered " + APPOINTMENT_BOOKING_TAG + " tag with htmlformentry");
 
         // Add form engine resources
         int numResourcesSaved = 0;

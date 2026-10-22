@@ -14,6 +14,7 @@ import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.module.rwandaemr.labnotification.IntouchSmsClient;
 import org.openmrs.module.rwandaemr.labnotification.IntouchSmsResponse;
 import org.openmrs.module.rwandaemr.sms.SmsGatewayConfig;
+import org.openmrs.module.rwandaemr.sms.SmsMessageFormatter;
 import org.openmrs.util.ConfigUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -33,13 +34,16 @@ public class PaymentClearanceService {
 	private final SmsGatewayConfig smsConfig;
 	private final IntouchSmsClient smsClient;
 	private final PaymentClearanceLogRepository logRepository;
+	private final SmsMessageFormatter smsMessageFormatter;
 
 	public PaymentClearanceService(@Autowired SmsGatewayConfig smsConfig,
 	                               @Autowired IntouchSmsClient smsClient,
-	                               @Autowired PaymentClearanceLogRepository logRepository) {
+	                               @Autowired PaymentClearanceLogRepository logRepository,
+	                               @Autowired SmsMessageFormatter smsMessageFormatter) {
 		this.smsConfig = smsConfig;
 		this.smsClient = smsClient;
 		this.logRepository = logRepository;
+		this.smsMessageFormatter = smsMessageFormatter;
 	}
 
 	public PaymentClearanceResult sendClearanceSms(GlobalBill globalBill) {
@@ -59,7 +63,7 @@ public class PaymentClearanceService {
 		}
 		String phoneNumber = normalizePhone(getPatientPhoneNumber(patient));
 		Date now = new Date();
-		String message = buildMessage(patient, now);
+		String message = smsMessageFormatter.appendHospitalName(buildMessage(patient, now));
 		IntouchSmsResponse smsResponse = smsClient.send(phoneNumber, message);
 		logRepository.saveLogEntry(buildLogEntry(globalBill, patient, phoneNumber, message, smsResponse, now));
 		return buildResult(phoneNumber, smsResponse);

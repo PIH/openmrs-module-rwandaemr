@@ -35,6 +35,7 @@ import org.openmrs.module.rwandaemr.LocationTagUtil;
 import org.openmrs.module.rwandaemr.appointment.dao.AppointmentDao;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentBooking;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentSchedule;
+import org.openmrs.module.rwandaemr.sms.SmsMessageFormatter;
 import org.openmrs.module.rbcmessaging.api.RBCMessagingService;
 
 public class FacilityAppointmentServiceImplTest {
@@ -59,10 +60,19 @@ public class FacilityAppointmentServiceImplTest {
         service.setLocationTagUtil(locationTagUtil);
         service.setProviderService(providerService);
         service.setRbcMessagingService(messagingService);
+        service.setSmsMessageFormatter(new SmsMessageFormatter() {
+            @Override
+            protected Location getLoginLocation() {
+                return null;
+            }
+        });
         service.user = new User(1);
 
         servicePoint = new Location(11);
         servicePoint.setName("Consultation");
+		Location hospital = new Location(10);
+		hospital.setName("District Hospital");
+		servicePoint.setParentLocation(hospital);
         servicePoint.setRetired(false);
         when(locationTagUtil.isLoginLocation(servicePoint)).thenReturn(true);
 
@@ -99,7 +109,8 @@ public class FacilityAppointmentServiceImplTest {
         assertEquals(AppointmentStatus.CONFIRMED, booking.getStatus());
         assertEquals("Follow-up", booking.getNotes());
         verify(dao).saveBooking(booking);
-        verify(messagingService).sendSms(eq(patient), anyString());
+        verify(messagingService).sendSms(eq(patient), argThat(message ->
+                message.endsWith("\nDistrict Hospital")));
     }
 
     @Test

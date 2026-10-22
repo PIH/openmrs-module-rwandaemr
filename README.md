@@ -217,3 +217,90 @@ Appointment privileges:
 - `RwandaEMR Appointments: Manage Schedules`
 - `RwandaEMR Appointments: Book`
 - `RwandaEMR Appointments: Manage`
+
+### HTML Form Entry appointment booking tag
+
+RwandaEMR registers the custom `<appointmentBooking/>` HTML Form Entry tag when
+the module starts. Add the tag inside an HTML Form Entry form to let the user
+book a future appointment for the patient associated with the form encounter:
+
+```xml
+<appointmentBooking/>
+```
+
+The widget first displays a service-point selector. After the user selects a
+service point and clicks **Check Availability**, it displays the open future
+schedules that still have capacity. Each date option includes the provider,
+when one is assigned, and the number of remaining places.
+
+The selected schedule is validated again when the form is submitted. This
+prevents a stale page from booking a schedule that has since been closed or
+filled. After HTML Form Entry successfully saves the encounter, RwandaEMR calls
+the facility appointment service to create a confirmed booking for the
+encounter patient. The same capacity checks, duplicate prevention, audit
+metadata, and appointment confirmation SMS used by the Request Appointment page
+also apply to bookings created by this tag.
+
+Only one `<appointmentBooking/>` tag should be used in a form.
+
+#### Tag attributes
+
+The tag supports these optional attributes:
+
+| Attribute | Default | Description |
+| --- | --- | --- |
+| `id` | `appointment-booking` | HTML identifier for the widget. It must start with a letter and contain only letters, numbers, `_`, or `-`. |
+| `required` | `true` | Set to `false` to allow the form to be submitted without booking an appointment. |
+| `notes` | empty | Notes saved on the appointment booking. |
+| `servicePoints` | all appointment service points | Comma-separated service points to display. Each value may be an OpenMRS location ID, UUID, or exact location name. |
+
+For example, this tag limits the dropdown to NCD Clinic and Oncology and saves
+a note on the resulting booking:
+
+```xml
+<appointmentBooking
+    id="followup-appointment"
+    servicePoints="NCD Clinic,Oncology"
+    notes="Booked from follow-up form"/>
+```
+
+Service-point identifiers can be mixed:
+
+```xml
+<appointmentBooking
+    servicePoints="11,0d8a4f20-89e0-4d7f-b6c6-f46f493c8f20,Maternity"/>
+```
+
+Whitespace around comma-separated values is ignored, and duplicate values are
+shown only once. If a configured ID, UUID, or name does not match an available
+appointment service-point location, the form reports an `Unknown appointment
+service point` design error instead of silently displaying an unintended list.
+
+To make appointment selection optional:
+
+```xml
+<appointmentBooking required="false"/>
+```
+
+#### Configuration and permissions
+
+The available dates come from schedules created on the Appointment Timetable
+page. A service point with no open future schedule that has remaining capacity
+will show a `No appointment dates with remaining capacity are available`
+message.
+
+The user entering the form needs `RwandaEMR Appointments: Book` or
+`RwandaEMR Appointments: Manage` so the tag can read availability and create the
+booking. For confirmation SMS delivery, RBC Messaging must be running and its
+patient phone-number attribute and gateway settings must be configured.
+
+### SMS hospital signature
+
+Every SMS sent by RwandaEMR ends with the hospital name on a separate line. The
+hospital is the parent location of the current user's login location. For
+scheduled appointment reminders, where there may be no interactive login
+location, RwandaEMR uses the parent of the appointment service point. The same
+signature is applied to appointment confirmation, reminder and reschedule
+messages, lab-result notifications, custom lab messages, and payment-clearance
+messages. A hospital name already present at the end of a message is not added
+again.

@@ -13,6 +13,7 @@ import org.openmrs.api.OrderService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.module.rwandaemr.RwandaEmrService;
+import org.openmrs.module.rwandaemr.sms.SmsMessageFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -30,19 +31,22 @@ public class LabNotificationService {
 	private final LabNotificationConfig config;
 	private final IntouchSmsClient smsClient;
 	private final LabNotificationLogRepository logRepository;
+	private final SmsMessageFormatter smsMessageFormatter;
 
 	public LabNotificationService(@Autowired OrderService orderService,
 	                              @Autowired RwandaEmrService rwandaEmrService,
 	                              @Autowired RwandaEmrConfig rwandaEmrConfig,
 	                              @Autowired LabNotificationConfig config,
 	                              @Autowired IntouchSmsClient smsClient,
-	                              @Autowired LabNotificationLogRepository logRepository) {
+	                              @Autowired LabNotificationLogRepository logRepository,
+	                              @Autowired SmsMessageFormatter smsMessageFormatter) {
 		this.orderService = orderService;
 		this.rwandaEmrService = rwandaEmrService;
 		this.rwandaEmrConfig = rwandaEmrConfig;
 		this.config = config;
 		this.smsClient = smsClient;
 		this.logRepository = logRepository;
+		this.smsMessageFormatter = smsMessageFormatter;
 	}
 
 	public LabNotificationResult notifyPatient(String orderUuid, String phoneNumberOverride, String messageOverride,
@@ -76,6 +80,7 @@ public class LabNotificationService {
 		}
 		String phoneNumber = normalizePhone(StringUtils.defaultIfBlank(phoneNumberOverride, getPatientPhoneNumber(patient)));
 		String message = StringUtils.defaultIfBlank(messageOverride, buildDefaultMessage(order, patient));
+		message = smsMessageFormatter.appendHospitalName(message, getOrderLocation(order));
 		IntouchSmsResponse smsResponse = smsClient.send(phoneNumber, message);
 		LabNotificationLogEntry logEntry = buildLogEntry(order, patient, phoneNumber, message, smsResponse);
 		logRepository.saveLogEntry(logEntry);
@@ -133,11 +138,15 @@ public class LabNotificationService {
 	}
 
 	private String getFacilityName(Order order) {
-		Location location = order.getEncounter() == null ? null : order.getEncounter().getLocation();
+		Location location = getOrderLocation(order);
 		if (location == null && Context.getUserContext() != null) {
 			location = Context.getUserContext().getLocation();
 		}
 		return location == null ? null : location.getName();
+	}
+
+	private Location getOrderLocation(Order order) {
+		return order.getEncounter() == null ? null : order.getEncounter().getLocation();
 	}
 
 	private String getOrderDisplay(Order order) {
