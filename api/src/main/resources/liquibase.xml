@@ -1012,4 +1012,65 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="20261026-create-pathology-case" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_pathology_case"/></not>
+        </preConditions>
+        <comment>Pathology requests the lab has received or rejected: one for each request encounter, with its accession
+            number and where it is in the lab</comment>
+        <createTable tableName="rwandaemr_pathology_case">
+            <column name="pathology_case_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="encounter_id" type="int">
+                <constraints nullable="false" unique="true" foreignKeyName="pathology_case_encounter_fk" references="encounter(encounter_id)"/>
+            </column>
+            <column name="accession_number" type="varchar(50)">
+                <constraints unique="true"/>
+            </column>
+            <column name="status" type="varchar(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rejection_reason" type="varchar(255)"/>
+            <column name="creator" type="int">
+                <constraints nullable="false" foreignKeyName="pathology_case_creator_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int">
+                <constraints foreignKeyName="pathology_case_changed_by_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_changed" type="datetime"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20261026-create-pathology-case-status" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_pathology_case_status"/></not>
+        </preConditions>
+        <comment>History of the statuses of pathology cases: who moved each case to each status, and when</comment>
+        <createTable tableName="rwandaemr_pathology_case_status">
+            <column name="pathology_case_status_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="pathology_case_id" type="int">
+                <constraints nullable="false" foreignKeyName="pathology_case_status_case_fk" references="rwandaemr_pathology_case(pathology_case_id)"/>
+            </column>
+            <column name="status" type="varchar(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="varchar(255)"/>
+            <column name="creator" type="int">
+                <constraints nullable="false" foreignKeyName="pathology_case_status_creator_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="rwandaemr_pathology_case_status" indexName="idx_pathology_case_status_case">
+            <column name="pathology_case_id"/>
+        </createIndex>
+    </changeSet>
+
 </databaseChangeLog>

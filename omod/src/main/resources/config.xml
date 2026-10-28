@@ -91,6 +91,26 @@
 	</privilege>
 
 	<privilege>
+		<name>Task: rwandaemr.pathologyorders</name>
+		<description>Access the pathology orders page from the patient chart, to see and request a patient's pathology tests</description>
+	</privilege>
+
+	<privilege>
+		<name>Task: rwandaemr.pathologyQueue</name>
+		<description>View the pathology queue of requests with where each is in the lab and whether it is paid</description>
+	</privilege>
+
+	<privilege>
+		<name>Task: rwandaemr.pathology.processSpecimens</name>
+		<description>Receive or reject pathology specimens and record grossing, processing and additional stains</description>
+	</privilege>
+
+	<privilege>
+		<name>Task: rwandaemr.pathology.signOut</name>
+		<description>Enter the pathologist's part of pathology reports and sign them out</description>
+	</privilege>
+
+	<privilege>
 		<name>Task: rwandaemr.labs.validateResults</name>
 		<description>Validate lab results entered by another user, or return them to the lab for correction</description>
 	</privilege>
@@ -255,6 +275,22 @@
 			Internal tracking value used to auto-generate Lab IDs. Stores the last date a Lab ID
 			was generated and the next sequence value to use, in the format yyyy-MM-dd:N. Not
 			meant to be edited manually.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.pathology.orderables</property>
+		<defaultValue></defaultValue>
+		<description>
+			Concept set (uuid, mapping or id) of the pathology tests that can be ordered. Each test checked on the pathology request form becomes a pathology order.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.pathology.accessionNextSequenceValue</property>
+		<defaultValue></defaultValue>
+		<description>
+			Internal tracking value used to generate pathology accession numbers, such as PAT2026-0001. Stores the year of the last accession number and the next sequence value to use, in the format yyyy:N. Not meant to be edited manually.
 		</description>
 	</globalProperty>
 
