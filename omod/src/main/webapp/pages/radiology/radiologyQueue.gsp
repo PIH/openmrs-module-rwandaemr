@@ -409,8 +409,16 @@
         // ---------- rendering ----------
         var renderSummary = function(filtered) {
             var count = function(name) { return filtered.filter(QUICK_FILTERS[name]).length; };
+            // A row is one PACS study, which may hold several tests, and a patient may have several rows
+            var patients = {};
+            var orders = 0;
+            filtered.forEach(function(r) {
+                patients[r.patientId] = true;
+                orders += (r.orderIds || []).length;
+            });
             var cards = [
-                { id: '', label: 'Studies', value: filtered.length, cls: '' },
+                { id: '', label: 'Patients', value: Object.keys(patients).length, cls: '', title: 'Patients with radiology requests. Click to show all.' },
+                { id: '', label: 'Studies', value: orders, cls: '', title: 'Tests ordered, one per order number (ORD). Click to show all.' },
                 { id: 'STAT', label: 'STAT', value: count('STAT'), cls: 'rq-card-stat' },
                 { id: 'READY', label: 'Ready for exam', value: count('READY'), cls: 'rq-card-ready' },
                 { id: 'NOT_PROCESSED', label: 'Not processed', value: count('NOT_PROCESSED'), cls: '' },
@@ -421,7 +429,7 @@
             jq('#rq-summary').html(cards.map(function(c) {
                 var active = (state.quickFilter || '') === c.id;
                 return '<div class="rq-card ' + c.cls + (active ? ' rq-active' : '') + '" data-quick="' + c.id + '" title="' +
-                    (c.id ? 'Show only: ' + c.label : 'Show all studies') + '"><span>' + c.label + '</span><strong>' + c.value + '</strong></div>';
+                    (c.title || (c.id ? 'Show only: ' + c.label : 'Show all studies')) + '"><span>' + c.label + '</span><strong>' + c.value + '</strong></div>';
             }).join(''));
         };
 
