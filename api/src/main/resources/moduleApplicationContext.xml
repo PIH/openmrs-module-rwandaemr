@@ -102,6 +102,7 @@
 	<bean id="appointmentDao" class="org.openmrs.module.rwandaemr.appointment.dao.HibernateAppointmentDao">
 		<property name="sessionFactory"><ref bean="dbSessionFactory"/></property>
 	</bean>
+	<bean id="smsMessageFormatter" class="org.openmrs.module.rwandaemr.sms.SmsMessageFormatter"/>
 
 	<bean id="facilityAppointmentService" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
 		<property name="transactionManager"><ref bean="transactionManager"/></property>
@@ -110,6 +111,7 @@
 				<property name="dao"><ref bean="appointmentDao"/></property>
 				<property name="locationTagUtil"><ref bean="locationTagUtil"/></property>
 				<property name="providerService"><ref bean="providerService"/></property>
+				<property name="smsMessageFormatter"><ref bean="smsMessageFormatter"/></property>
 			</bean>
 		</property>
 		<property name="preInterceptors">
@@ -172,6 +174,7 @@
 		<constructor-arg ref="smsGatewayConfig"/>
 		<constructor-arg ref="intouchSmsClient"/>
 		<constructor-arg ref="paymentClearanceLogRepository"/>
+		<constructor-arg ref="smsMessageFormatter"/>
 	</bean>
 
 </beans>

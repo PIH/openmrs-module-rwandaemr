@@ -216,9 +216,10 @@
                             <option value="">Select available date</option>
                             <% availableSchedules.each { summary ->
                                 def providerName = summary.schedule.provider?.name
+                                def scheduleNote = summary.schedule.notes
                             %>
                                 <option value="${ summary.schedule.id }">
-                                    ${ ui.format(summary.schedule.scheduleDate) }${ providerName ? " - Provider: " + ui.encodeHtmlContent(providerName) : "" } - ${ summary.remainingCapacity } places remaining
+                                    ${ ui.format(summary.schedule.scheduleDate) } - ${ summary.remainingCapacity } places remaining - Provider: ${ ui.encodeHtmlContent(providerName ?: "Not assigned") } - Note: ${ ui.encodeHtmlContent(scheduleNote ?: "None") }
                                 </option>
                             <% } %>
                         </select>

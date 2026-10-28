@@ -29,6 +29,7 @@ import org.openmrs.module.rwandaemr.LocationTagUtil;
 import org.openmrs.module.rwandaemr.appointment.dao.AppointmentDao;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentBooking;
 import org.openmrs.module.rwandaemr.appointment.model.AppointmentSchedule;
+import org.openmrs.module.rwandaemr.sms.SmsMessageFormatter;
 import org.openmrs.module.rbcmessaging.api.RBCMessagingService;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,11 +43,11 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
     public static final String RESCHEDULE_TEMPLATE_PROPERTY =
             "rwandaemr.appointment.sms.rescheduleTemplate";
     private static final String DEFAULT_CONFIRMATION_TEMPLATE =
-            "Your appointment at {servicePoint} is confirmed for {date}.";
+            "Randevu yawe muri {servicePoint} yemejwe ku wa {date}.";
     private static final String DEFAULT_REMINDER_TEMPLATE =
-            "Reminder: your appointment at {servicePoint} is in 2 days, on {date}.";
+            "Turakwibutsa ko randevu yawe muri {servicePoint} isigaje iminsi 2, ikaba iteganyijwe ku wa {date}.";
     private static final String DEFAULT_RESCHEDULE_TEMPLATE =
-            "Your appointment at {servicePoint} has changed from {oldDate} to {newDate}.";
+            "Randevu yawe muri {servicePoint} yahinduwe: yari iteganyijwe ku wa {oldDate}, yimurirwa ku wa {newDate}.";
     private static final Log log = LogFactory.getLog(FacilityAppointmentServiceImpl.class);
 
     private static final List<String> CAPACITY_STATUSES = Arrays.asList(
@@ -66,6 +67,9 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
 
     @Setter
     private RBCMessagingService rbcMessagingService;
+
+    @Setter
+    private SmsMessageFormatter smsMessageFormatter;
 
     @Override
     @Authorized(AppointmentPrivileges.MANAGE_SCHEDULES)
@@ -466,7 +470,7 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
         int sent = 0;
         for (AppointmentBooking booking : bookings) {
             try {
-                requireMessagingService().sendSms(booking.getPatient(), formatMessage(
+                requireMessagingService().sendSms(booking.getPatient(), formatSmsMessage(
                         getTemplate(REMINDER_TEMPLATE_PROPERTY, DEFAULT_REMINDER_TEMPLATE), booking));
                 booking.setReminderSmsSentAt(new Date());
                 setChangeMetadata(booking, new Date());
@@ -482,7 +486,7 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
 
     private void sendConfirmationSms(AppointmentBooking booking) {
         try {
-            requireMessagingService().sendSms(booking.getPatient(), formatMessage(
+            requireMessagingService().sendSms(booking.getPatient(), formatSmsMessage(
                     getTemplate(CONFIRMATION_TEMPLATE_PROPERTY, DEFAULT_CONFIRMATION_TEMPLATE), booking));
         }
         catch (RuntimeException e) {
@@ -495,7 +499,7 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
             String message = getTemplate(RESCHEDULE_TEMPLATE_PROPERTY, DEFAULT_RESCHEDULE_TEMPLATE)
                     .replace("{oldDate}", formatDate(oldDate))
                     .replace("{newDate}", formatDate(newDate));
-            requireMessagingService().sendSms(booking.getPatient(), formatMessage(message, booking));
+            requireMessagingService().sendSms(booking.getPatient(), formatSmsMessage(message, booking));
         }
         catch (RuntimeException e) {
             log.warn("Appointment rescheduled, but SMS could not be sent for booking " + booking.getId(), e);
@@ -505,6 +509,12 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
     private RBCMessagingService requireMessagingService() {
         return rbcMessagingService == null
                 ? Context.getService(RBCMessagingService.class) : rbcMessagingService;
+    }
+
+    private String formatSmsMessage(String template, AppointmentBooking booking) {
+        String message = formatMessage(template, booking);
+        Location servicePoint = booking.getSchedule() == null ? null : booking.getSchedule().getServicePoint();
+        return smsMessageFormatter.appendHospitalName(message, servicePoint);
     }
 
     protected String getTemplate(String property, String defaultTemplate) {

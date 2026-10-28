@@ -176,17 +176,17 @@
 
 	<globalProperty>
 		<property>rwandaemr.appointment.sms.confirmationTemplate</property>
-		<defaultValue>Your appointment at {servicePoint} is confirmed for {date}.</defaultValue>
+		<defaultValue>Randevu yawe muri {servicePoint} yemejwe ku wa {date}.</defaultValue>
 		<description>SMS sent when an appointment is requested. Supported placeholders: {servicePoint}, {date}</description>
 	</globalProperty>
 	<globalProperty>
 		<property>rwandaemr.appointment.sms.reminderTemplate</property>
-		<defaultValue>Reminder: your appointment at {servicePoint} is in 2 days, on {date}.</defaultValue>
+		<defaultValue>Turakwibutsa ko randevu yawe muri {servicePoint} isigaje iminsi 2, ikaba iteganyijwe ku wa {date}.</defaultValue>
 		<description>SMS sent two days before an appointment. Supported placeholders: {servicePoint}, {date}</description>
 	</globalProperty>
 	<globalProperty>
 		<property>rwandaemr.appointment.sms.rescheduleTemplate</property>
-		<defaultValue>Your appointment at {servicePoint} has changed from {oldDate} to {newDate}.</defaultValue>
+		<defaultValue>Randevu yawe muri {servicePoint} yahinduwe: yari iteganyijwe ku wa {oldDate}, yimurirwa ku wa {newDate}.</defaultValue>
 		<description>SMS sent after an appointment is rescheduled. Supported placeholders: {servicePoint}, {oldDate}, {newDate}</description>
 	</globalProperty>
 
@@ -398,9 +398,15 @@
 	</globalProperty>
 
 	<globalProperty>
+		<property>rwandaemr.paymentClearance.messageTemplate</property>
+		<defaultValue>{patientName}, turemeza ko serivisi zose wahawe mu bitaro zishyuwe. Itariki: {timestamp}</defaultValue>
+		<description>SMS sent after all patient bills are paid. Supported placeholders: {patientName}, {timestamp}</description>
+	</globalProperty>
+
+	<globalProperty>
 		<property>rwandaemr.labNotification.enabled</property>
 		<defaultValue>false</defaultValue>
-		<description>Whether sending SMS notifications for ready laboratory results is enabled</description>
+		<description>Whether patients are automatically sent an SMS after their laboratory results are completed</description>
 	</globalProperty>
 
 	<globalProperty>
@@ -447,7 +453,7 @@
 
 	<globalProperty>
 		<property>rwandaemr.labNotification.messageTemplate</property>
-		<defaultValue>Your laboratory results are ready at {facility}. Please return to the facility or contact your provider.</defaultValue>
+		<defaultValue>Ibisubizo by'ibizamini byawe bya laboratwari byabonetse kuri {facility}. Garuka ku kigo nderabuzima cyangwa uvugane n'umuganga wawe.</defaultValue>
 		<description>SMS template for lab result notifications. Supported placeholders: {facility}, {patientName}, {order}</description>
 	</globalProperty>
 

@@ -22,7 +22,7 @@ public class LabNotificationConfig {
 	public static final String DEFAULT_CODING = "0";
 	public static final String DEFAULT_DLR_LEVEL = "2";
 	public static final String DEFAULT_MESSAGE_TEMPLATE =
-			"Your laboratory results are ready at {facility}. Please return to the facility or contact your provider.";
+			"Ibisubizo by'ibizamini byawe bya laboratwari byabonetse kuri {facility}. Garuka ku kigo nderabuzima cyangwa uvugane n'umuganga wawe.";
 
 	private final SmsGatewayConfig smsGatewayConfig;
 
