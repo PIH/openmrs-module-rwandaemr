@@ -3,6 +3,7 @@ package org.openmrs.module.rwandaemr.labs;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openmrs.Concept;
+import org.openmrs.ConceptAnswer;
 import org.openmrs.Encounter;
 import org.openmrs.Obs;
 import org.openmrs.Patient;
@@ -11,11 +12,13 @@ import org.openmrs.api.APIException;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.ObsService;
 import org.openmrs.api.db.hibernate.DbSessionFactory;
-import org.openmrs.module.rwandaemr.labs.AntibiogramService.Isolate;
-import org.openmrs.module.rwandaemr.labs.AntibiogramService.Susceptibility;
+import org.openmrs.module.rwandaemr.labs.BacteriologyService.Isolate;
+import org.openmrs.module.rwandaemr.labs.BacteriologyService.Susceptibility;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -26,9 +29,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class AntibiogramServiceTest {
+public class BacteriologyServiceTest {
 
-	private AntibiogramService service;
+	private final Map<String, Concept> concepts = new HashMap<String, Concept>();
+	private BacteriologyService service;
 	private Concept ecoli;
 	private Concept ampicillin;
 	private Concept gentamicin;
@@ -37,26 +41,29 @@ public class AntibiogramServiceTest {
 
 	@BeforeEach
 	public void setUp() {
-		AntibiogramConfig config = mock(AntibiogramConfig.class);
+		BacteriologyConfig config = mock(BacteriologyConfig.class);
 		when(config.getConcept(anyString())).thenAnswer(invocation -> concept(invocation.getArgument(0)));
-		service = new AntibiogramService(mock(DbSessionFactory.class), mock(ObsService.class), mock(EncounterService.class), config);
+		service = new BacteriologyService(mock(DbSessionFactory.class), mock(ObsService.class), mock(EncounterService.class), config);
 		ecoli = concept("ecoli");
 		ampicillin = concept("ampicillin");
 		gentamicin = concept("gentamicin");
-		sensitive = concept(AntibiogramConfig.SENSITIVE);
-		resistant = concept(AntibiogramConfig.RESISTANT);
+		sensitive = concept(BacteriologyConfig.SENSITIVE);
+		resistant = concept(BacteriologyConfig.RESISTANT);
+		answers(BacteriologyConfig.ORGANISM, ecoli);
+		answers(BacteriologyConfig.ANTIBIOTIC, ampicillin, gentamicin);
+		answers(BacteriologyConfig.INTERPRETATION, sensitive, concept(BacteriologyConfig.INTERMEDIATE), resistant);
 	}
 
 	@Test
-	public void shouldReadTheOrganismsAndTheirSusceptibilityFromTheAntibiogramGroup() {
-		Obs antibiogram = obs(AntibiogramConfig.ANTIBIOGRAM, null);
-		Obs isolate = obs(AntibiogramConfig.ISOLATE, null);
-		isolate.addGroupMember(obs(AntibiogramConfig.ORGANISM, ecoli));
+	public void shouldReadTheOrganismsAndTheirSusceptibilityFromTheGroup() {
+		Obs group = obs(BacteriologyConfig.SUSCEPTIBILITY, null);
+		Obs isolate = obs(BacteriologyConfig.ISOLATE, null);
+		isolate.addGroupMember(obs(BacteriologyConfig.ORGANISM, ecoli));
 		isolate.addGroupMember(susceptibility(ampicillin, resistant));
 		isolate.addGroupMember(susceptibility(gentamicin, sensitive));
-		antibiogram.addGroupMember(isolate);
+		group.addGroupMember(isolate);
 
-		List<Isolate> isolates = service.toIsolates(antibiogram);
+		List<Isolate> isolates = service.toIsolates(group);
 
 		assertThat(isolates, hasSize(1));
 		assertThat(isolates.get(0).getOrganism(), equalTo(ecoli));
@@ -68,9 +75,9 @@ public class AntibiogramServiceTest {
 
 	@Test
 	public void shouldGiveTheCodeOfEachInterpretation() {
-		assertThat(AntibiogramConfig.getInterpretationCode(sensitive), equalTo("S"));
-		assertThat(AntibiogramConfig.getInterpretationCode(concept(AntibiogramConfig.INTERMEDIATE)), equalTo("I"));
-		assertThat(AntibiogramConfig.getInterpretationCode(resistant), equalTo("R"));
+		assertThat(BacteriologyConfig.getInterpretationCode(sensitive), equalTo("S"));
+		assertThat(BacteriologyConfig.getInterpretationCode(concept(BacteriologyConfig.INTERMEDIATE)), equalTo("I"));
+		assertThat(BacteriologyConfig.getInterpretationCode(resistant), equalTo("R"));
 	}
 
 	@Test
@@ -79,7 +86,7 @@ public class AntibiogramServiceTest {
 		Isolate isolate = new Isolate();
 		isolate.getSusceptibilities().add(new Susceptibility(ampicillin, sensitive));
 		APIException e = assertThrows(APIException.class, () ->
-				service.saveAntibiogram(order(patient), encounter(patient), Collections.singletonList(isolate)));
+				service.saveSusceptibility(order(patient), encounter(patient), Collections.singletonList(isolate)));
 		assertThat(e.getMessage(), containsString("organism"));
 	}
 
@@ -90,19 +97,30 @@ public class AntibiogramServiceTest {
 		isolate.setOrganism(ecoli);
 		isolate.getSusceptibilities().add(new Susceptibility(ampicillin, null));
 		assertThrows(APIException.class, () ->
-				service.saveAntibiogram(order(patient), encounter(patient), Collections.singletonList(isolate)));
+				service.saveSusceptibility(order(patient), encounter(patient), Collections.singletonList(isolate)));
 	}
 
 	@Test
-	public void shouldNotRecordTheAntibiogramOfAnOrderInAnotherPatientsEncounter() {
+	public void shouldNotAcceptTheSameAntibioticTwiceForAnOrganism() {
+		Patient patient = new Patient(1);
+		Isolate isolate = new Isolate();
+		isolate.setOrganism(ecoli);
+		isolate.getSusceptibilities().add(new Susceptibility(ampicillin, sensitive));
+		isolate.getSusceptibilities().add(new Susceptibility(ampicillin, resistant));
 		assertThrows(APIException.class, () ->
-				service.saveAntibiogram(order(new Patient(1)), encounter(new Patient(2)), Collections.emptyList()));
+				service.saveSusceptibility(order(patient), encounter(patient), Collections.singletonList(isolate)));
+	}
+
+	@Test
+	public void shouldNotRecordTheSusceptibilityOfAnOrderInAnotherPatientsEncounter() {
+		assertThrows(APIException.class, () ->
+				service.saveSusceptibility(order(new Patient(1)), encounter(new Patient(2)), Collections.emptyList()));
 	}
 
 	private Obs susceptibility(Concept antibiotic, Concept interpretation) {
-		Obs group = obs(AntibiogramConfig.SUSCEPTIBILITY, null);
-		group.addGroupMember(obs(AntibiogramConfig.ANTIBIOTIC, antibiotic));
-		group.addGroupMember(obs(AntibiogramConfig.INTERPRETATION, interpretation));
+		Obs group = obs(BacteriologyConfig.ANTIBIOTIC_RESULT, null);
+		group.addGroupMember(obs(BacteriologyConfig.ANTIBIOTIC, antibiotic));
+		group.addGroupMember(obs(BacteriologyConfig.INTERPRETATION, interpretation));
 		return group;
 	}
 
@@ -113,10 +131,19 @@ public class AntibiogramServiceTest {
 		return obs;
 	}
 
+	private void answers(String questionUuid, Concept... answers) {
+		Concept question = concept(questionUuid);
+		for (Concept answer : answers) {
+			question.addAnswer(new ConceptAnswer(answer));
+		}
+	}
+
 	private Concept concept(String uuid) {
-		Concept concept = new Concept();
-		concept.setUuid(uuid);
-		return concept;
+		return concepts.computeIfAbsent(uuid, u -> {
+			Concept concept = new Concept();
+			concept.setUuid(u);
+			return concept;
+		});
 	}
 
 	private TestOrder order(Patient patient) {

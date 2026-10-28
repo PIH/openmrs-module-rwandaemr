@@ -650,13 +650,4 @@
 		<description>Connect and read timeout in seconds for WHO ICD API calls.</description>
 	</globalProperty>
 
-	<globalProperty>
-		<property>rwandaemr.labs.antibiogramTests</property>
-		<defaultValue></defaultValue>
-		<description>
-			Comma-separated UUIDs or mappings of the culture tests whose results include an antibiogram: the organisms
-			isolated and their susceptibility (S/I/R) to each antibiotic tested.
-		</description>
-	</globalProperty>
-
 </module>

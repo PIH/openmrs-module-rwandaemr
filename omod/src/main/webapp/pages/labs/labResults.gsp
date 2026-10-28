@@ -11,8 +11,6 @@
     ui.includeJavascript("pihapps", "formHelper.js")
     ui.includeJavascript("pihapps", "labs/labResultFields.js")
     ui.includeCss("pihapps", "labs/labs.css")
-    ui.includeJavascript("rwandaemr", "labs/antibiogram.js")
-    ui.includeCss("rwandaemr", "labs/antibiogram.css")
 
     def validateMode = (mode == "validate")
     def title = validateMode ? "Validate lab results" : "Enter lab results"
@@ -67,6 +65,8 @@
     .lr-order:last-child { border-bottom: none; }
     .lr-order .test-name, .lr-name { font-weight: bold; }
     .lr-panel-members .test-name { font-weight: normal; padding-left: 16px; }
+    .lr-panel-members .lr-subpanel-name { color: #37474f; font-weight: bold; padding-left: 16px; }
+    .lr-panel-members .lr-subpanel .test-name { padding-left: 32px; }
     .lr-panel-members .result-row { min-height: 28px; padding: 1px 0; }
     .lr-status-cell { justify-self: end; }
     .lr-status-cell .btn { padding: 1px 8px; font-size: 0.85em; }
@@ -75,9 +75,7 @@
     .lr-reason { margin: 0 0 6px 242px; }
     .lr-note { color: #b26a00; font-size: 0.85em; margin: 0 0 4px 242px; }
     .lr-hidden { display: none; }
-    .lr-ab-row .test-name { font-weight: normal; }
-    .lr-order > .lr-ab-row .test-name, .lr-panel-members .lr-ab-row .test-name { padding-left: 16px; }
-    .lr-ab-button { padding: 1px 10px; font-size: 0.9em; }
+    .lr-bact-button { padding: 1px 10px; font-size: 0.9em; }
 
     /* Result fields: the same width for each kind of field, so that units and comments line up */
     .lr-specimen .obs-widget { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 8px; }
@@ -191,18 +189,24 @@
             "reasonTestNotPerformedQuestion:(uuid,datatype:(name),answers:(uuid,display)),collectResultComments,requireResultValidation)";
         const orderRep = "uuid,orderNumber,dateActivated,dateStopped,fulfillerStatus,fulfillerComment,accessionNumber,urgency," +
             "patient:(uuid),encounter:(uuid),fulfillerEncounter:(uuid),concept:(uuid,displayStringForLab)";
-        const obsRep = "uuid,concept:(uuid,datatype:(name)),value,valueCoded:(uuid,display),valueDatetime,valueText,valueNumeric,comment,formNamespaceAndPath,order:(uuid)";
+        const obsRep = "uuid,concept:(uuid,datatype:(name)),value,valueCoded:(uuid,display,displayStringForLab),valueDatetime,valueText,valueNumeric,comment,formNamespaceAndPath,order:(uuid)";
         const encounterRep = "uuid,encounterDatetime,encounterType:(uuid),location:(uuid,display)," +
             "encounterProviders:(provider:(uuid,display),encounterRole:(uuid,display)),obs:(" + obsRep + ",groupMembers:(" + obsRep + "))";
 
         Promise.all([
             getJson(rest + "pihapps/config?v=custom:(" + configRep + ")"),
-            // Without the antibiogram configuration the page still works, without antibiograms
-            getJson(rest + "rwandaemr/lab/antibiogram/config").catch(() => ({ tests: [] }))
-        ]).then(([config, antibiogramConfig]) => {
+            // Without the bacteriology configuration the page still works, without the bacteriology widgets
+            getJson(rest + "rwandaemr/lab/bacteriology/config").catch(xhr => ({ error: (xhr?.status ?? "") + " " + errorMessage(xhr) }))
+        ]).then(([config, bacteriologyConfig]) => {
+            if (bacteriologyConfig.error) {
+                console.error("Bacteriology configuration", bacteriologyConfig.error);
+                jq("#lr-groups").after(jq("<div>").addClass("lr-errors")
+                    .text("Antibiotic susceptibility cannot be entered: " + bacteriologyConfig.error));
+            }
             const labConfig = config.labOrderConfig;
-            const antibiogram = new RwandaAntibiogram(jq, antibiogramConfig);
-            const antibiogramsByOrder = {};  // order uuid -> isolates
+            const bacteriology = new RwandaBacteriology(jq, bacteriologyConfig);
+            const bacteriologyByOrder = {};  // order uuid -> results entered with the bacteriology widgets
+            const nestedPanels = {};  // concept uuid -> panel that is a member of an ordered panel, with its members
             const dateUtils = new PihAppsDateUtils(moment, config.dateFormat, config.dateTimeFormat);
 
             // The category of each test, so that each specimen shows a section per category
@@ -267,13 +271,6 @@
                     loads.push(getJson(rest + "encounter/" + specimen.encounterUuid + "?v=custom:(" + encounterRep + ")")
                         .then(encounter => { specimen.encounter = encounter; }));
                 });
-                const cultureOrders = group.orders.filter(o => antibiogram.isAntibiogramTest(o.concept.uuid));
-                if (cultureOrders.length > 0) {
-                    loads.push(getJson(rest + "rwandaemr/lab/antibiogram?" + jq.param({ order: cultureOrders.map(o => o.uuid) }, true))
-                        .then(result => {
-                            Object.keys(result).forEach(uuid => { antibiogramsByOrder[uuid] = RwandaAntibiogram.fromRest(result[uuid]); });
-                        }));
-                }
                 let validation = {};
                 if (validateMode) {
                     loads.push(getJson(rest + "rwandaemr/lab/resultValidation?" + jq.param({ order: group.orders.map(o => o.uuid) }, true))
@@ -281,6 +278,25 @@
                 }
 
                 return Promise.all(loads).then(() => {
+                    // Members of panels that are panels themselves, such as the wet mount of a bacteriology exam
+                    const nestedUuids = [...new Set(Object.values(orderables).flatMap(o => o.setMembers)
+                        .filter(m => m.datatype?.name === "N/A" && !bacteriology.hasOwnWidget(m.uuid)).map(m => m.uuid))];
+                    const nestedLoads = nestedUuids.map(uuid => getJson(rest + "concept/" + uuid + "?v=custom:(" + PihAppsLabResultFields.orderableRep + ")")
+                        .then(concept => {
+                            if (concept.setMembers.length > 0) {
+                                nestedPanels[uuid] = concept;
+                            }
+                        }));
+                    // The results of the bacteriology exams that are entered with their own widgets
+                    const bacteriologyOrders = group.orders.filter(o => isBacteriologyExam(orderables[o.concept.uuid]));
+                    if (bacteriologyOrders.length > 0) {
+                        nestedLoads.push(getJson(rest + "rwandaemr/lab/bacteriology?" + jq.param({ order: bacteriologyOrders.map(o => o.uuid) }, true))
+                            .then(result => {
+                                Object.keys(result).forEach(uuid => { bacteriologyByOrder[uuid] = RwandaBacteriology.fromRest(result[uuid]); });
+                            }));
+                    }
+                    return Promise.all(nestedLoads);
+                }).then(() => {
                     jq("#lr-loading").hide();
                     jq("#lr-content").append(validateMode
                         ? renderValidation(group, orderables, validation)
@@ -461,11 +477,14 @@
                         return postJson(rest + "encounterFulfillingOrders/" + form.specimen.encounterUuid, payload)
                             .then(() => saved.push(form.specimen.orders[0].accessionNumber));
                     }), Promise.resolve()).then(() => {
-                        // Then the antibiograms that were changed, each in the encounter of its specimen
-                        return blocks.filter(b => b.antibiogram && b.antibiogram.changed()).reduce((previous, b) => previous.then(() =>
-                            postJson(rest + "rwandaemr/lab/antibiogram",
-                                RwandaAntibiogram.toPayload(b.order.uuid, b.order.fulfillerEncounter.uuid, b.antibiogram.isolates()))
-                        ), Promise.resolve());
+                        // Then the bacteriology results entered with their own widgets that were changed, each in the
+                        // encounter of its specimen
+                        return blocks.filter(b => b.bacteriology.some(e => e.changed())).reduce((previous, b) => previous.then(() => {
+                            const changes = {};
+                            b.bacteriology.filter(e => e.changed()).forEach(e => { changes[e.key] = e.value(); });
+                            return postJson(rest + "rwandaemr/lab/bacteriology",
+                                RwandaBacteriology.toPayload(b.order.uuid, b.order.fulfillerEncounter.uuid, changes));
+                        }), Promise.resolve());
                     }).then(() => {
                         dirty = false;
                         emr.successMessage("Lab results saved");
@@ -498,19 +517,19 @@
                 return page;
             }
 
-            // A row with the antibiogram summary, and a button that opens the dialog to enter it
-            function createAntibiogramEditor(order) {
-                let isolates = antibiogramsByOrder[order.uuid] ?? [];
+            // A row with the summary of the antimicrobial susceptibility, and a button that opens the dialog to enter it
+            function createSusceptibilityEditor(order, member) {
+                let isolates = bacteriologyByOrder[order.uuid]?.isolates ?? [];
                 let changed = false;
-                const summary = jq("<span>").addClass("lr-ab-summary");
-                const button = jq("<button>").attr("type", "button").addClass("lr-ab-button").text("Antibiogram");
-                const row = jq("<div>").addClass("result-row lr-ab-row")
-                    .append(jq("<span>").addClass("test-name").text("Antibiogram"))
+                const summary = jq("<span>");
+                const button = jq("<button>").attr("type", "button").addClass("lr-bact-button").text("Enter");
+                const row = jq("<div>").addClass("result-row lr-bact-row").attr("data-concept-uuid", member.uuid)
+                    .append(jq("<span>").addClass("test-name").text(member.displayStringForLab))
                     .append(jq("<span>").addClass("form-field-widgets").append(button).append(summary))
                     .append(jq("<span>"));
-                const refresh = () => summary.html(antibiogram.summaryHtml(isolates));
+                const refresh = () => summary.html(bacteriology.summaryHtml(isolates));
                 button.on("click", () => {
-                    antibiogram.openEditor("Antibiogram: " + order.concept.displayStringForLab, isolates, (updated) => {
+                    bacteriology.openSusceptibilityEditor(member.displayStringForLab + ": " + order.concept.displayStringForLab, isolates, (updated) => {
                         isolates = updated;
                         changed = true;
                         dirty = true;
@@ -519,16 +538,78 @@
                 });
                 refresh();
                 return {
+                    key: "isolates",
                     row: row,
-                    isolates: () => isolates,
+                    value: () => isolates,
                     changed: () => changed,
+                    count: () => isolates.length,
                     clear: () => {
                         if (isolates.length > 0) {
                             isolates = [];
                             changed = true;
+                            refresh();
                         }
                     }
                 };
+            }
+
+            function isBacteriologyExam(orderable) {
+                return orderable.setMembers.some(m => bacteriology.hasOwnWidget(m.uuid));
+            }
+
+            // Adds, in the order of the members of the panel, the members that are not fields: the panels it contains,
+            // with a heading and their fields, and the antimicrobial susceptibility.  Returns the susceptibility editors.
+            function addMemberSections(order, orderable, results, formHelper, idPrefix) {
+                const editors = [];
+                let previousRow = null;
+                const insert = (section) => {
+                    if (previousRow) {
+                        previousRow.after(section);
+                    }
+                    else {
+                        results.prepend(section);
+                    }
+                    previousRow = section;
+                };
+                orderable.setMembers.forEach(member => {
+                    const nestedPanel = nestedPanels[member.uuid];
+                    if (nestedPanel) {
+                        const section = jq("<div>").addClass("lr-subpanel")
+                            .append(jq("<div>").addClass("lr-row").append(jq("<span>").addClass("lr-subpanel-name").text(member.displayStringForLab)));
+                        PihAppsLabResultFields.render({
+                            jq: jq,
+                            formHelper: formHelper,
+                            order: order,
+                            orderable: nestedPanel,
+                            container: section,
+                            idPrefix: idPrefix + "-" + member.uuid + "-",
+                            collectResultComments: labConfig.collectResultComments,
+                            messages: messages
+                        });
+                        section.find(".comment-toggle, .multi-value-add, .multi-value-remove").attr("tabindex", -1);
+                        insert(section);
+                        return;
+                    }
+                    const key = bacteriology.keyOf(member.uuid);
+                    if (!key) {
+                        const row = results.find('.result-row[data-concept-uuid="' + member.uuid + '"]').first();
+                        previousRow = row.length > 0 ? row : previousRow;
+                        return;
+                    }
+                    const editor = createSusceptibilityEditor(order, member);
+                    insert(editor.row);
+                    editors.push(editor);
+                });
+
+                // The susceptibility is entered once the culture has isolated an organism
+                const susceptibility = editors.find(e => e.key === "isolates");
+                if (susceptibility) {
+                    const cultureField = results.find('.result-row[data-concept-uuid="' + bacteriology.susceptibility.culture + '"] .result-value-field');
+                    const apply = () => susceptibility.row.toggle(cultureField.val() === bacteriology.susceptibility.organismIsolated || susceptibility.count() > 0);
+                    cultureField.on("change", apply);
+                    apply();
+                }
+                return editors;
             }
 
             function renderEntryOrder(order, orderable, formHelper, obsFor, idPrefix) {
@@ -552,12 +633,22 @@
                     jq(button).attr({ type: "button", tabindex: -1, "data-value": statusOptions[i].value });
                 });
 
+                // Members that are groups, such as the bacteriology findings, are not fields: their own widgets enter them
+                const isField = (member) => member.datatype?.name !== "N/A" && !bacteriology.hasOwnWidget(member.uuid);
+                const fieldsOrderable = isPanel ? Object.assign({}, orderable, { setMembers: orderable.setMembers.filter(isField) }) : orderable;
+                // The answers of the bacteriology exams are named Bact_..., with the name used in the lab as short name
+                if (isBacteriologyExam(orderable)) {
+                    fieldsOrderable.setMembers = fieldsOrderable.setMembers.map(member => Object.assign({}, member, {
+                        answers: (member.answers || []).map(a => Object.assign({}, a, { display: a.displayStringForLab ?? a.display }))
+                    }));
+                }
+
                 const results = jq("<div>").addClass("lr-results");
                 PihAppsLabResultFields.render({
                     jq: jq,
                     formHelper: formHelper,
                     order: order,
-                    orderable: orderable,
+                    orderable: fieldsOrderable,
                     container: results,
                     idPrefix: idPrefix + "-",
                     collectResultComments: labConfig.collectResultComments,
@@ -579,11 +670,7 @@
                     row.append(statusCell);
                     element.append(results);
                 }
-
-                const antibiogramEditor = antibiogram.isAntibiogramTest(order.concept.uuid) ? createAntibiogramEditor(order) : null;
-                if (antibiogramEditor) {
-                    (isPanel ? results : element).append(antibiogramEditor.row);
-                }
+                const bacteriologyEditors = isPanel ? addMemberSections(order, orderable, results, formHelper, idPrefix) : [];
 
                 if (order.fulfillerComment && order.fulfillerComment.indexOf("Returned for correction") === 0) {
                     element.append(jq("<div>").addClass("lr-note").text(order.fulfillerComment));
@@ -612,7 +699,6 @@
                 const status = () => statusWidget.val();
                 const applyStatus = () => {
                     element.toggleClass("lr-not-performed", status() === 'EXCEPTION');
-                    antibiogramEditor?.row.toggle(status() !== 'EXCEPTION');
                     reasonSection.toggle(status() === 'EXCEPTION');
                 };
                 statusWidget.on("change", () => { dirty = true; applyStatus(); });
@@ -622,16 +708,16 @@
                 return {
                     order: order,
                     element: element,
-                    antibiogram: antibiogramEditor,
+                    bacteriology: bacteriologyEditors,
                     status: status,
                     setStatus: (value) => statusCell.find(".select-buttons button[data-value='" + value + "']").click(),
                     reasonValue: () => reasonSection.find(".result-value-field").val(),
                     hasResults: () => resultFields().filter((i, e) => jq(e).is(":checkbox") ? jq(e).is(":checked") : !!jq(e).val()).length > 0
-                        || (antibiogramEditor?.isolates().length ?? 0) > 0,
+                        || bacteriologyEditors.some(e => e.count() > 0),
                     prepareForSave: (resultDate) => {
                         // Results are kept unless the test was not performed; the reason only when it was not
                         if (status() === 'EXCEPTION') {
-                            antibiogramEditor?.clear();
+                            bacteriologyEditors.forEach(e => e.clear());
                             results.find(":input").not("button").val("");
                             results.find(":checkbox").prop("checked", false);
                             resultDateField.val("");
@@ -677,7 +763,7 @@
 
                             const valueRow = (concept, nameContent) => {
                                 const values = allObs.filter(o => o.concept.uuid === concept.uuid && o.order?.uuid === order.uuid && !o.groupMembers);
-                                const valueCell = jq("<span>").addClass("lr-value").html(values.map(o => displayValue(o, concept)).join("<br>"));
+                                const valueCell = jq("<span>").addClass("lr-value").html(values.map(o => displayValue(o, concept, isBacteriologyExam(orderable))).join("<br>"));
                                 const rangeCell = jq("<span>").addClass("lr-range");
                                 if (concept.datatype.name === 'Numeric' && values.length > 0) {
                                     PihAppsLabResultFields.fetchReferenceRange(jq, order, concept, (refRange) => {
@@ -695,6 +781,26 @@
                                 element.append(jq("<div>").addClass("lr-row").append(nameCell).append(jq("<span>")).append(jq("<span>")).append(enteredBy));
                                 const members = jq("<div>").addClass("lr-panel-members");
                                 tests.forEach(concept => {
+                                    const nestedPanel = nestedPanels[concept.uuid];
+                                    if (nestedPanel) {
+                                        const lines = nestedPanel.setMembers.map(m => valueRow(m, jq("<span>").addClass("test-name").text(m.displayStringForLab)))
+                                            .filter(line => line.hasValues);
+                                        if (lines.length > 0) {
+                                            const section = jq("<div>").addClass("lr-subpanel")
+                                                .append(jq("<div>").addClass("lr-row").append(jq("<span>").addClass("lr-subpanel-name").text(concept.displayStringForLab)));
+                                            lines.forEach(line => section.append(line.row));
+                                            members.append(section);
+                                        }
+                                        return;
+                                    }
+                                    const key = bacteriology.keyOf(concept.uuid);
+                                    if (key) {
+                                        const row = bacteriologyReadOnlyRow(order, concept, key);
+                                        if (row) {
+                                            members.append(row);
+                                        }
+                                        return;
+                                    }
                                     const line = valueRow(concept, jq("<span>").addClass("test-name").text(concept.displayStringForLab));
                                     if (line.hasValues) {
                                         members.append(line.row);
@@ -704,11 +810,6 @@
                             }
                             else {
                                 element.append(valueRow(tests[0], nameCell).row.append(enteredBy));
-                            }
-                            if (antibiogram.isAntibiogramTest(order.concept.uuid)) {
-                                element.append(jq("<div>").addClass("lr-row lr-ab-row")
-                                    .append(jq("<span>").addClass("test-name").text("Antibiogram"))
-                                    .append(jq("<span>").css("grid-column", "2 / -1").append(antibiogram.readOnly(antibiogramsByOrder[order.uuid]))));
                             }
                             if (info.enteredByCurrentUser) {
                                 element.append(jq("<div>").addClass("lr-note").text("You entered or changed these results, so another user must validate them."));
@@ -751,10 +852,21 @@
                 return page;
             }
 
-            function displayValue(obs, concept) {
+            // The antimicrobial susceptibility of a bacteriology exam, or null if there is none
+            function bacteriologyReadOnlyRow(order, concept, key) {
+                const values = bacteriologyByOrder[order.uuid]?.[key] ?? [];
+                if (values.length === 0) {
+                    return null;
+                }
+                return jq("<div>").addClass("lr-row")
+                    .append(jq("<span>").addClass("test-name").text(concept.displayStringForLab))
+                    .append(jq("<span>").css("grid-column", "2 / -1").append(bacteriology.susceptibilityReadOnly(values)));
+            }
+
+            function displayValue(obs, concept, shortNames) {
                 let value;
                 if (obs.valueCoded) {
-                    value = obs.valueCoded.display;
+                    value = shortNames ? (obs.valueCoded.displayStringForLab ?? obs.valueCoded.display) : obs.valueCoded.display;
                 }
                 else if (obs.valueNumeric != null) {
                     value = obs.valueNumeric + (concept.units ? " " + concept.units : "");

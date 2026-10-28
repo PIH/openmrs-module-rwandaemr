@@ -7,9 +7,10 @@ import org.openmrs.util.PrivilegeConstants;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * The validated culture results of a patient: Gram stain, culture result and antibiogram
+ * The reported bacteriology results of a patient, for the clinicians: for each exam, the wet mount, Gram stain, Indian
+ * ink and culture, and a table of the antimicrobial susceptibility of the organisms isolated
  */
-public class CultureResultsPageController {
+public class BacteriologyResultsPageController {
 
 	public void get(PageModel model, @RequestParam("patient") Patient patient) {
 		model.addAttribute("authorized", Context.hasPrivilege(PrivilegeConstants.GET_OBS));

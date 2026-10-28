@@ -46,16 +46,13 @@ public class LabResultValidationService {
 	private final DbSessionFactory dbSessionFactory;
 	private final OrderService orderService;
 	private final LabResultValidationRepository repository;
-	private final AntibiogramConfig antibiogramConfig;
 
 	public LabResultValidationService(@Autowired DbSessionFactory dbSessionFactory,
 									  @Autowired OrderService orderService,
-									  @Autowired LabResultValidationRepository repository,
-									  @Autowired AntibiogramConfig antibiogramConfig) {
+									  @Autowired LabResultValidationRepository repository) {
 		this.dbSessionFactory = dbSessionFactory;
 		this.orderService = orderService;
 		this.repository = repository;
-		this.antibiogramConfig = antibiogramConfig;
 	}
 
 	public static boolean isAwaitingValidation(Order order) {
@@ -65,8 +62,8 @@ public class LabResultValidationService {
 
 	/**
 	 * @return the users who entered, changed or removed any result of the order.  Results are the observations linked
-	 * to the order whose concept is the ordered test or one of its members, or part of its antibiogram, so specimen
-	 * details are not counted.  The user who last saved the encounter of the results counts too, as results recorded by
+	 * to the order whose concept is the ordered test or one of its members, so specimen details
+	 * are not counted.  The user who last saved the encounter of the results counts too, as results recorded by
 	 * a lab machine are created by the machine's user and only submitted by the lab technician.
 	 */
 	@Transactional(readOnly = true)
@@ -74,7 +71,6 @@ public class LabResultValidationService {
 	public Set<User> getResultEditors(Order order) {
 		Set<Concept> resultConcepts = new HashSet<Concept>();
 		addWithSetMembers(order.getConcept(), resultConcepts);
-		resultConcepts.addAll(antibiogramConfig.getAntibiogramConcepts());
 		Criteria c = dbSessionFactory.getHibernateSessionFactory().getCurrentSession().createCriteria(Obs.class);
 		c.add(eq("order", order)); // voided results too: whoever removed or replaced a value changed the results
 		Set<User> ret = new LinkedHashSet<User>();
