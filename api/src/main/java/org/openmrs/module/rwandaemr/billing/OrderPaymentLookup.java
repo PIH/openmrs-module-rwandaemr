@@ -282,6 +282,50 @@ public class OrderPaymentLookup {
 	}
 
 	/**
+	 * @return the payment of the given orders taken together, such as the tests of one request.  Tests that were not
+	 * billed are left out when others were.  The orders are paid when all their billed tests are paid, not paid when none
+	 * are, and partially paid otherwise; they were last paid when the last of them was.
+	 */
+	public static OrderPayment combine(Collection<? extends Order> orders, Map<Integer, OrderPayment> payments) {
+		int billed = 0;
+		int paid = 0;
+		int unpaid = 0;
+		Date lastPayment = null;
+		for (Order order : orders) {
+			OrderPayment payment = payments.get(order.getOrderId());
+			PaymentStatus status = payment == null ? PaymentStatus.NOT_BILLED : payment.getStatus();
+			if (status == PaymentStatus.NOT_BILLED) {
+				continue;
+			}
+			billed++;
+			if (status == PaymentStatus.PAID) {
+				paid++;
+			}
+			else if (status == PaymentStatus.NOT_PAID) {
+				unpaid++;
+			}
+			Date paymentDate = payment.getLastPaymentDate();
+			if (paymentDate != null && (lastPayment == null || paymentDate.after(lastPayment))) {
+				lastPayment = paymentDate;
+			}
+		}
+		PaymentStatus status;
+		if (billed == 0) {
+			status = PaymentStatus.NOT_BILLED;
+		}
+		else if (paid == billed) {
+			status = PaymentStatus.PAID;
+		}
+		else if (unpaid == billed) {
+			status = PaymentStatus.NOT_PAID;
+		}
+		else {
+			status = PaymentStatus.PARTIALLY_PAID;
+		}
+		return new OrderPayment(status, lastPayment);
+	}
+
+	/**
 	 * A test on a patient's bill and what has been paid for it
 	 */
 	static class BillItem {

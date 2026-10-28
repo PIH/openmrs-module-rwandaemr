@@ -372,45 +372,12 @@ public class RadiologyQueueService {
 	}
 
 	/**
-	 * Tests that were not billed are left out when others in the study were.  The study is paid when all its billed
-	 * tests are paid, not paid when none are, and partially paid otherwise.
+	 * The study's payment is that of its tests taken together, see {@link OrderPaymentLookup#combine}
 	 */
 	static void setPayment(RadiologyQueueRow row, List<TestOrder> orders, Map<Integer, OrderPayment> payments) {
-		int billed = 0;
-		int paid = 0;
-		int unpaid = 0;
-		Date lastPayment = null;
-		for (TestOrder order : orders) {
-			OrderPayment payment = payments.get(order.getOrderId());
-			PaymentStatus status = payment == null ? PaymentStatus.NOT_BILLED : payment.getStatus();
-			if (status == PaymentStatus.NOT_BILLED) {
-				continue;
-			}
-			billed++;
-			if (status == PaymentStatus.PAID) {
-				paid++;
-			}
-			else if (status == PaymentStatus.NOT_PAID) {
-				unpaid++;
-			}
-			Date paymentDate = payment.getLastPaymentDate();
-			if (paymentDate != null && (lastPayment == null || paymentDate.after(lastPayment))) {
-				lastPayment = paymentDate;
-			}
-		}
-		if (billed == 0) {
-			row.setPaymentStatus(PaymentStatus.NOT_BILLED);
-		}
-		else if (paid == billed) {
-			row.setPaymentStatus(PaymentStatus.PAID);
-		}
-		else if (unpaid == billed) {
-			row.setPaymentStatus(PaymentStatus.NOT_PAID);
-		}
-		else {
-			row.setPaymentStatus(PaymentStatus.PARTIALLY_PAID);
-		}
-		row.setTimeOfPayment(lastPayment);
+		OrderPayment payment = OrderPaymentLookup.combine(orders, payments);
+		row.setPaymentStatus(payment.getStatus());
+		row.setTimeOfPayment(payment.getLastPaymentDate());
 	}
 
 	private String getPatientIdentifier(Patient patient) {
