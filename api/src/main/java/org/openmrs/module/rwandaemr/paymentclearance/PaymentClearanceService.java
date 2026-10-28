@@ -29,7 +29,7 @@ public class PaymentClearanceService {
 
 	public static final String MESSAGE_TEMPLATE_PROPERTY = "rwandaemr.paymentClearance.messageTemplate";
 	public static final String DEFAULT_MESSAGE_TEMPLATE =
-			"{patientName}, Turemeza ko serivisi zose wahawe mubitaro zishyuwe. Itariki: {timestamp}";
+			"{patientName}, turakwemeza ko serivisi zose wahawe mu bitaro zishyuwe. Itariki: {timestamp}";
 
 	private final SmsGatewayConfig smsConfig;
 	private final IntouchSmsClient smsClient;

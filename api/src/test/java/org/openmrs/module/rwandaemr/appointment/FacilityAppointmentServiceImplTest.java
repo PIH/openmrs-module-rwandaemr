@@ -425,7 +425,7 @@ public class FacilityAppointmentServiceImplTest {
         assertSame(service.user, result.getChangedBy());
         verify(dao).saveBooking(confirmed);
         verify(messagingService).sendSms(eq(patient), argThat(message ->
-                message.contains("changed from") && message.contains(" to ")));
+                message.contains("yahinduwe") && message.contains("yimurirwa")));
     }
 
     @Test

@@ -230,8 +230,9 @@ book a future appointment for the patient associated with the form encounter:
 
 The widget first displays a service-point selector. After the user selects a
 service point and clicks **Check Availability**, it displays the open future
-schedules that still have capacity. Each date option includes the provider,
-when one is assigned, and the number of remaining places.
+schedules that still have capacity. Each option displays the date, remaining
+capacity, assigned provider, and timetable note. The Request Appointment page
+uses the same information and order.
 
 The selected schedule is validated again when the form is submitted. This
 prevents a stale page from booking a schedule that has since been closed or
@@ -304,3 +305,20 @@ signature is applied to appointment confirmation, reminder and reschedule
 messages, lab-result notifications, custom lab messages, and payment-clearance
 messages. A hospital name already present at the end of a message is not added
 again.
+
+### Laboratory-result SMS notifications
+
+When `rwandaemr.labNotification.enabled` is `true`, RwandaEMR automatically
+sends the patient an SMS after a test order containing results is successfully
+marked `COMPLETED`. If result validation is required, the SMS is sent only after
+a validator approves the results. The notification runs after the result
+transaction commits, so an SMS gateway failure cannot undo the saved result.
+
+The patient's configured telephone-number attribute and the shared
+`rwandaemr.sms.*` gateway properties must be configured. The optional
+`rwandaemr.labNotification.messageTemplate` supports `{facility}`,
+`{patientName}`, and `{order}`. Each attempt is recorded in
+`lab_notification_log`; an order with an active `QUEUED`, `DELIVRD`, or
+`ACCEPTD` notification is not sent again. The existing
+`POST /ws/rest/v1/rwandaemr/lab/notify` endpoint remains available for an
+explicit notification or retry.

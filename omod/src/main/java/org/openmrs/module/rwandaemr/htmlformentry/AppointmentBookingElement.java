@@ -159,6 +159,7 @@ public class AppointmentBookingElement implements HtmlGeneratorElement, FormSubm
                 option.put("date", new java.text.SimpleDateFormat("dd.MMM.yyyy").format(schedule.getScheduleDate()));
                 option.put("provider", schedule.getProvider() == null ? "" : schedule.getProvider().getName());
                 option.put("remaining", summary.getRemainingCapacity());
+                option.put("note", StringUtils.defaultString(schedule.getNotes()));
                 options.add(option);
             }
         }
@@ -239,7 +240,8 @@ public class AppointmentBookingElement implements HtmlGeneratorElement, FormSubm
                 "hidden.value='';dates.options.length=0;dates.add(new Option('Select available date',''));" +
                 "if(!service.value){box.style.display='none';return;}var count=0;" +
                 "schedules.forEach(function(s){if(String(s.servicePointId)===String(service.value)){" +
-                "var label=s.date+(s.provider?' - Provider: '+s.provider:'')+' - '+s.remaining+' places remaining';" +
+                "var label=s.date+' - '+s.remaining+' places remaining - Provider: '+" +
+                "(s.provider||'Not assigned')+' - Note: '+(s.note||'None');" +
                 "dates.add(new Option(label,s.id));count++;}});" +
                 "message.textContent=count?'':'No appointment dates with remaining capacity are available.';" +
                 "box.style.display='flex';});" +

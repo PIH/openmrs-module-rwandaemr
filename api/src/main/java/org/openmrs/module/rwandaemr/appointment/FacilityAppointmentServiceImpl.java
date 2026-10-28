@@ -43,11 +43,11 @@ public class FacilityAppointmentServiceImpl extends BaseOpenmrsService implement
     public static final String RESCHEDULE_TEMPLATE_PROPERTY =
             "rwandaemr.appointment.sms.rescheduleTemplate";
     private static final String DEFAULT_CONFIRMATION_TEMPLATE =
-            "Your appointment at {servicePoint} is confirmed for {date}.";
+            "Randevu yawe muri {servicePoint} yemejwe ku wa {date}.";
     private static final String DEFAULT_REMINDER_TEMPLATE =
-            "Reminder: your appointment at {servicePoint} is in 2 days, on {date}.";
+            "Turakwibutsa ko randevu yawe muri {servicePoint} isigaje iminsi 2, ikaba iteganyijwe ku wa {date}.";
     private static final String DEFAULT_RESCHEDULE_TEMPLATE =
-            "Your appointment at {servicePoint} has changed from {oldDate} to {newDate}.";
+            "Randevu yawe muri {servicePoint} yahinduwe: yari iteganyijwe ku wa {oldDate}, yimurirwa ku wa {newDate}.";
     private static final Log log = LogFactory.getLog(FacilityAppointmentServiceImpl.class);
 
     private static final List<String> CAPACITY_STATUSES = Arrays.asList(
