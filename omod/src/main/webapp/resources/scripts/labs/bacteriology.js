@@ -265,7 +265,9 @@ class RwandaBacteriology {
 function rwandaRenderSusceptibility(obs) {
     const rest = openmrsContextPath + "/ws/rest/v1/rwandaemr/lab/bacteriology";
     const getJson = (url) => new Promise((resolve, reject) => jq.getJSON(url).done(resolve).fail(reject));
-    RwandaBacteriology.configLoad = RwandaBacteriology.configLoad ?? getJson(rest + "/config");
+    // Loaded once per page; a failed load is tried again next time
+    RwandaBacteriology.configLoad = RwandaBacteriology.configLoad
+        ?? getJson(rest + "/config").catch(error => { RwandaBacteriology.configLoad = null; throw error; });
     return Promise.all([RwandaBacteriology.configLoad, getJson(rest + "?" + jq.param({ order: obs.order.uuid }))]).then(([config, results]) => {
         const isolates = RwandaBacteriology.fromRest(results[obs.order.uuid]).isolates;
         return new RwandaBacteriology(jq, config).susceptibilityTable(isolates);
@@ -286,7 +288,9 @@ function rwandaBacteriologyEditor(context) {
     const postJson = (url, payload) => new Promise((resolve, reject) => jq.ajax({
         url: url, type: "POST", contentType: "application/json; charset=utf-8", data: JSON.stringify(payload), dataType: "json"
     }).done(resolve).fail(reject));
-    RwandaBacteriology.configLoad = RwandaBacteriology.configLoad ?? getJson(rest + "/config");
+    // Loaded once per page; a failed load is tried again next time
+    RwandaBacteriology.configLoad = RwandaBacteriology.configLoad
+        ?? getJson(rest + "/config").catch(error => { RwandaBacteriology.configLoad = null; throw error; });
     return Promise.all([RwandaBacteriology.configLoad, getJson(rest + "?" + jq.param({ order: order.uuid }))]).then(([config, results]) => {
         const bacteriology = new RwandaBacteriology(jq, config);
         let isolates = RwandaBacteriology.fromRest(results[order.uuid]).isolates;

@@ -37,6 +37,7 @@ public class BacteriologyServiceTest {
 	private final Map<String, Concept> concepts = new HashMap<String, Concept>();
 	private BacteriologyService service;
 	private PihAppsService pihAppsService;
+	private DbSessionFactory dbSessionFactory;
 	private Concept ecoli;
 	private Concept ampicillin;
 	private Concept gentamicin;
@@ -50,7 +51,8 @@ public class BacteriologyServiceTest {
 		pihAppsService = mock(PihAppsService.class);
 		when(pihAppsService.getNewLabResultStatus(any())).thenReturn(Obs.Status.FINAL);
 		// No susceptibility is recorded yet: the query for the existing one finds nothing
-		service = new BacteriologyService(mock(DbSessionFactory.class, RETURNS_DEEP_STUBS), mock(ObsService.class),
+		dbSessionFactory = mock(DbSessionFactory.class, RETURNS_DEEP_STUBS);
+		service = new BacteriologyService(dbSessionFactory, mock(ObsService.class),
 				mock(EncounterService.class), config, pihAppsService);
 		ecoli = concept("ecoli");
 		ampicillin = concept("ampicillin");
@@ -135,6 +137,25 @@ public class BacteriologyServiceTest {
 		Obs group = encounter.getAllObs().iterator().next();
 		assertThat(group.getConcept().getUuid(), equalTo(BacteriologyConfig.SUSCEPTIBILITY));
 		assertAllHaveStatus(group, Obs.Status.PRELIMINARY);
+	}
+
+	@Test
+	public void shouldAmendTheSusceptibilityOfAReleasedOrder() {
+		Patient patient = new Patient(1);
+		TestOrder order = order(patient);
+		Encounter encounter = encounter(patient);
+		Obs existing = obs(BacteriologyConfig.SUSCEPTIBILITY, null);
+		when(dbSessionFactory.getHibernateSessionFactory().getCurrentSession().createCriteria(Obs.class).list())
+				.thenReturn(Collections.singletonList(existing));
+		Isolate isolate = new Isolate();
+		isolate.setOrganism(ecoli);
+		isolate.getSusceptibilities().add(new Susceptibility(gentamicin, resistant));
+
+		service.saveSusceptibility(order, encounter, Collections.singletonList(isolate));
+
+		Obs group = encounter.getAllObs().iterator().next();
+		assertThat(group.getPreviousVersion(), equalTo(existing));
+		assertAllHaveStatus(group, Obs.Status.AMENDED);
 	}
 
 	@Test

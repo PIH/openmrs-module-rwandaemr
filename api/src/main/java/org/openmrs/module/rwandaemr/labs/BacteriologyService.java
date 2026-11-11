@@ -98,7 +98,6 @@ public class BacteriologyService {
 				}
 				group.addGroupMember(isolateObs);
 			}
-			setStatus(group, pihAppsService.getNewLabResultStatus(order));
 			return group;
 		});
 	}
@@ -134,14 +133,26 @@ public class BacteriologyService {
 	}
 
 	/**
-	 * Voids the existing groups of the concept for the order, and saves the new one if any
+	 * Voids the existing groups of the concept for the order, and saves the new one if any, as a result of the order:
+	 * with the status pihapps gives its new results, or AMENDED when it replaces a released result, as an edited result
+	 * would be, with the group it replaces as its previous version
 	 */
 	private void replaceGroup(Order order, Encounter encounter, String groupConcept, GroupBuilder newGroup) {
-		for (Obs existing : getGroupObs(order, groupConcept)) {
+		List<Obs> existingGroups = getGroupObs(order, groupConcept);
+		for (Obs existing : existingGroups) {
 			voidWithMembers(existing, "Bacteriology result replaced");
 		}
 		if (newGroup != null) {
-			encounter.addObs(newGroup.build());
+			Obs group = newGroup.build();
+			Obs.Status status = pihAppsService.getNewLabResultStatus(order);
+			if (!existingGroups.isEmpty()) {
+				group.setPreviousVersion(existingGroups.get(0));
+				if (status == Obs.Status.FINAL) {
+					status = Obs.Status.AMENDED;
+				}
+			}
+			setStatus(group, status);
+			encounter.addObs(group);
 			encounterService.saveEncounter(encounter);
 		}
 	}
@@ -170,8 +181,10 @@ public class BacteriologyService {
 	}
 
 	private void voidWithMembers(Obs obs, String reason) {
-		for (Obs member : obs.getGroupMembers(false)) {
-			voidWithMembers(member, reason);
+		if (obs.getGroupMembers(false) != null) {
+			for (Obs member : obs.getGroupMembers(false)) {
+				voidWithMembers(member, reason);
+			}
 		}
 		obsService.voidObs(obs, reason);
 	}
