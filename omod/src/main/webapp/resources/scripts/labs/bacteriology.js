@@ -1,6 +1,7 @@
 /**
- * The antimicrobial susceptibility of a bacteriology exam, which the lab results page enters with its own widget: the
- * organisms isolated (up to three) and their susceptibility (S, I or R) to each antibiotic tested.
+ * The antimicrobial susceptibility of a bacteriology exam, which the pihapps lab results forms enter with this widget
+ * (see rwandaBacteriologyEditor): the organisms isolated (up to three) and their susceptibility (S, I or R) to each
+ * antibiotic tested.
  *
  * The susceptibility of an order is handled here as:
  *   { isolates: [{ organism: uuid, results: { antibioticUuid: interpretationUuid } }] }
@@ -268,5 +269,65 @@ function rwandaRenderSusceptibility(obs) {
     return Promise.all([RwandaBacteriology.configLoad, getJson(rest + "?" + jq.param({ order: obs.order.uuid }))]).then(([config, results]) => {
         const isolates = RwandaBacteriology.fromRest(results[obs.order.uuid]).isolates;
         return new RwandaBacteriology(jq, config).susceptibilityTable(isolates);
+    });
+}
+
+/**
+ * Enters the antimicrobial susceptibility of a bacteriology exam on the pihapps lab results forms: see the
+ * org.openmrs.module.pihapps.labResults.obsGroupEditors extension of the distribution, and pihapps' labResultFields.js
+ * for the context and the editor returned.  The susceptibility is entered once the culture of the exam has isolated an
+ * organism, or if it was entered already.
+ */
+function rwandaBacteriologyEditor(context) {
+    const jq = context.jq;
+    const order = context.order;
+    const rest = openmrsContextPath + "/ws/rest/v1/rwandaemr/lab/bacteriology";
+    const getJson = (url) => new Promise((resolve, reject) => jq.getJSON(url).done(resolve).fail(reject));
+    const postJson = (url, payload) => new Promise((resolve, reject) => jq.ajax({
+        url: url, type: "POST", contentType: "application/json; charset=utf-8", data: JSON.stringify(payload), dataType: "json"
+    }).done(resolve).fail(reject));
+    RwandaBacteriology.configLoad = RwandaBacteriology.configLoad ?? getJson(rest + "/config");
+    return Promise.all([RwandaBacteriology.configLoad, getJson(rest + "?" + jq.param({ order: order.uuid }))]).then(([config, results]) => {
+        const bacteriology = new RwandaBacteriology(jq, config);
+        let isolates = RwandaBacteriology.fromRest(results[order.uuid]).isolates;
+        let changed = false;
+
+        const summary = jq("<span>");
+        const button = jq("<button>").attr("type", "button").addClass("bact-enter-button").text("Enter");
+        const element = jq("<span>").addClass("bact-editor").append(button).append(" ").append(summary);
+
+        const row = context.container.find('.result-row[data-concept-uuid="' + context.concept.uuid + '"]');
+        const cultureField = context.container.find('.result-row[data-concept-uuid="' + bacteriology.susceptibility.culture + '"] .result-value-field');
+        const applyCulture = () => row.toggle(cultureField.val() === bacteriology.susceptibility.organismIsolated || isolates.length > 0);
+        const update = (updated) => {
+            isolates = updated;
+            changed = true;
+            summary.html(bacteriology.summaryHtml(isolates));
+            applyCulture();
+        };
+
+        button.on("click", () => {
+            const title = context.concept.displayStringForLab + ": " + order.concept.displayStringForLab;
+            bacteriology.openSusceptibilityEditor(title, isolates, (updated) => {
+                update(updated);
+                context.onChange();
+            });
+        });
+        cultureField.on("change", applyCulture);
+        summary.html(bacteriology.summaryHtml(isolates));
+        applyCulture();
+
+        return {
+            element: element,
+            hasValue: () => isolates.length > 0,
+            isChanged: () => changed,
+            clear: () => {
+                if (isolates.length > 0) {
+                    update([]);
+                }
+            },
+            save: (encounterUuid) => postJson(rest, RwandaBacteriology.toPayload(order.uuid, encounterUuid, { isolates: isolates }))
+                .then(() => { changed = false; })
+        };
     });
 }

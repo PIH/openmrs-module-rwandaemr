@@ -1,8 +1,6 @@
 /**
  * Rwanda additions to the pihapps Lab Order List, registered through its extension points:
  *  - org.openmrs.module.pihapps.labOrderList.orderBadges: payment status
- *  - org.openmrs.module.pihapps.labOrderList.patientGroupActions: enter results by Lab ID
- * The lab order list validates results on labResults.page through pihapps.labs.validateResultsPage.
  * Loaded on every page as a global resource, so it only defines functions.
  */
 (function() {
@@ -33,10 +31,5 @@
                 })
                 .fail(reject);
         });
-    };
-
-    window.rwandaLabEnterResults = function(patientWithOrders) {
-        window.location.href = openmrsContextPath + "/rwandaemr/labs/labResults.page?" +
-            jq.param({ patient: patientWithOrders.patient.uuid, mode: "enter" });
     };
 })();
