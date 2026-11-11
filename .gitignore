@@ -16,3 +16,5 @@ omod/node_modules
 .vscode
 
 devs
+# Written by HAPI HL7 message id generator during tests
+id_file

@@ -16,10 +16,9 @@
 	<require_modules>
 		<require_module version="${addresshierarchyVersion}">org.openmrs.module.addresshierarchy</require_module>
 		<require_module version="${appframeworkVersion}">org.openmrs.module.appframework</require_module>
+		<require_module version="${appuiVersion}">org.openmrs.module.appui</require_module>
 		<require_module version="${authenticationVersion}">org.openmrs.module.authentication</require_module>
 		<require_module version="${authenticationuiVersion}">org.openmrs.module.authenticationui</require_module>
-		<require_module version="${appuiVersion}">org.openmrs.module.appui</require_module>
-		<require_module version="${mohbillingVersion}">org.openmrs.module.mohbilling</require_module>
 		<require_module version="${calculationVersion}">org.openmrs.calculation</require_module>
 		<require_module version="${coreappsVersion}">org.openmrs.module.coreapps</require_module>
 		<require_module version="${emrapiVersion}">org.openmrs.module.emrapi</require_module>
@@ -34,10 +33,10 @@
 		<require_module version="${metadatamappingVersion}">org.openmrs.module.metadatamapping</require_module>
 		<require_module version="${metadatasharingVersion}">org.openmrs.module.metadatasharing</require_module>
 		<require_module version="${mohappointmentVersion}">org.openmrs.module.mohappointment</require_module>
-		<require_module version="${rbcmessagingVersion}">org.openmrs.module.rbcmessaging</require_module>
 		<require_module version="${mohbillingVersion}">org.openmrs.module.mohbilling</require_module>
 		<require_module version="${namephoneticsVersion}">org.openmrs.module.namephonetics</require_module>
 		<require_module version="${pihappsVersion}">org.openmrs.module.pihapps</require_module>
+		<require_module version="${rbcmessagingVersion}">org.openmrs.module.rbcmessaging</require_module>
 		<require_module version="${registrationappVersion}">org.openmrs.module.registrationapp</require_module>
 		<require_module version="${registrationcoreVersion}">org.openmrs.module.registrationcore</require_module>
 		<require_module version="${reportingVersion}">org.openmrs.module.reporting</require_module>
