@@ -10,6 +10,8 @@ import org.openmrs.api.APIException;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.ObsService;
 import org.openmrs.api.db.hibernate.DbSessionFactory;
+import org.openmrs.module.pihapps.PihAppsService;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +28,7 @@ import static org.hibernate.criterion.Restrictions.eq;
  * Reads and records the antimicrobial susceptibility of a bacteriology exam: the organisms isolated and, for each, the
  * antibiotics tested and whether the organism is sensitive, intermediate or resistant to them.  It is recorded as one obs
  * group linked to the order, in the encounter that fulfills the order.  See {@link BacteriologyConfig}.
+ * It is a result of the order: when results must be validated, it is preliminary until the order's results are.
  */
 @Component
 public class BacteriologyService {
@@ -34,15 +37,18 @@ public class BacteriologyService {
 	private final ObsService obsService;
 	private final EncounterService encounterService;
 	private final BacteriologyConfig config;
+	private final PihAppsService pihAppsService;
 
 	public BacteriologyService(@Autowired DbSessionFactory dbSessionFactory,
 							   @Autowired ObsService obsService,
 							   @Autowired EncounterService encounterService,
-							   @Autowired BacteriologyConfig config) {
+							   @Autowired BacteriologyConfig config,
+							   @Autowired @Qualifier("pihappsService") PihAppsService pihAppsService) {
 		this.dbSessionFactory = dbSessionFactory;
 		this.obsService = obsService;
 		this.encounterService = encounterService;
 		this.config = config;
+		this.pihAppsService = pihAppsService;
 	}
 
 	/**
@@ -92,6 +98,7 @@ public class BacteriologyService {
 				}
 				group.addGroupMember(isolateObs);
 			}
+			setStatus(group, pihAppsService.getNewLabResultStatus(order));
 			return group;
 		});
 	}
@@ -151,6 +158,15 @@ public class BacteriologyService {
 		c.add(eq("voided", false));
 		c.addOrder(org.hibernate.criterion.Order.desc("obsId"));
 		return c.list();
+	}
+
+	private void setStatus(Obs obs, Obs.Status status) {
+		obs.setStatus(status);
+		if (obs.getGroupMembers() != null) {
+			for (Obs member : obs.getGroupMembers()) {
+				setStatus(member, status);
+			}
+		}
 	}
 
 	private void voidWithMembers(Obs obs, String reason) {

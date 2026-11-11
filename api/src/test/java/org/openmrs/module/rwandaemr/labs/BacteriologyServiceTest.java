@@ -12,6 +12,7 @@ import org.openmrs.api.APIException;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.ObsService;
 import org.openmrs.api.db.hibernate.DbSessionFactory;
+import org.openmrs.module.pihapps.PihAppsService;
 import org.openmrs.module.rwandaemr.labs.BacteriologyService.Isolate;
 import org.openmrs.module.rwandaemr.labs.BacteriologyService.Susceptibility;
 
@@ -25,7 +26,9 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +36,7 @@ public class BacteriologyServiceTest {
 
 	private final Map<String, Concept> concepts = new HashMap<String, Concept>();
 	private BacteriologyService service;
+	private PihAppsService pihAppsService;
 	private Concept ecoli;
 	private Concept ampicillin;
 	private Concept gentamicin;
@@ -43,7 +47,11 @@ public class BacteriologyServiceTest {
 	public void setUp() {
 		BacteriologyConfig config = mock(BacteriologyConfig.class);
 		when(config.getConcept(anyString())).thenAnswer(invocation -> concept(invocation.getArgument(0)));
-		service = new BacteriologyService(mock(DbSessionFactory.class), mock(ObsService.class), mock(EncounterService.class), config);
+		pihAppsService = mock(PihAppsService.class);
+		when(pihAppsService.getNewLabResultStatus(any())).thenReturn(Obs.Status.FINAL);
+		// No susceptibility is recorded yet: the query for the existing one finds nothing
+		service = new BacteriologyService(mock(DbSessionFactory.class, RETURNS_DEEP_STUBS), mock(ObsService.class),
+				mock(EncounterService.class), config, pihAppsService);
 		ecoli = concept("ecoli");
 		ampicillin = concept("ampicillin");
 		gentamicin = concept("gentamicin");
@@ -112,9 +120,36 @@ public class BacteriologyServiceTest {
 	}
 
 	@Test
+	public void shouldGiveTheSusceptibilityTheStatusOfNewResultsOfTheOrder() {
+		Patient patient = new Patient(1);
+		TestOrder order = order(patient);
+		Encounter encounter = encounter(patient);
+		when(pihAppsService.getNewLabResultStatus(order)).thenReturn(Obs.Status.PRELIMINARY);
+		Isolate isolate = new Isolate();
+		isolate.setOrganism(ecoli);
+		isolate.getSusceptibilities().add(new Susceptibility(ampicillin, sensitive));
+
+		service.saveSusceptibility(order, encounter, Collections.singletonList(isolate));
+
+		assertThat(encounter.getAllObs(), hasSize(1));
+		Obs group = encounter.getAllObs().iterator().next();
+		assertThat(group.getConcept().getUuid(), equalTo(BacteriologyConfig.SUSCEPTIBILITY));
+		assertAllHaveStatus(group, Obs.Status.PRELIMINARY);
+	}
+
+	@Test
 	public void shouldNotRecordTheSusceptibilityOfAnOrderInAnotherPatientsEncounter() {
 		assertThrows(APIException.class, () ->
 				service.saveSusceptibility(order(new Patient(1)), encounter(new Patient(2)), Collections.emptyList()));
+	}
+
+	private void assertAllHaveStatus(Obs obs, Obs.Status status) {
+		assertThat(obs.getConcept().getUuid() + " status", obs.getStatus(), equalTo(status));
+		if (obs.getGroupMembers() != null) {
+			for (Obs member : obs.getGroupMembers()) {
+				assertAllHaveStatus(member, status);
+			}
+		}
 	}
 
 	private Obs susceptibility(Concept antibiotic, Concept interpretation) {
