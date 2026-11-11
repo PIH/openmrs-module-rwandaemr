@@ -134,8 +134,8 @@ public class BacteriologyService {
 
 	/**
 	 * Voids the existing groups of the concept for the order, and saves the new one if any, as a result of the order:
-	 * with the status pihapps gives its new results, or AMENDED when it replaces a released result, as an edited result
-	 * would be, with the group it replaces as its previous version
+	 * with the status pihapps gives its new results, or AMENDED when it replaces a result that was final, as an edited
+	 * result would be.  The group it replaces is its previous version
 	 */
 	private void replaceGroup(Order order, Encounter encounter, String groupConcept, GroupBuilder newGroup) {
 		List<Obs> existingGroups = getGroupObs(order, groupConcept);
@@ -146,8 +146,10 @@ public class BacteriologyService {
 			Obs group = newGroup.build();
 			Obs.Status status = pihAppsService.getNewLabResultStatus(order);
 			if (!existingGroups.isEmpty()) {
-				group.setPreviousVersion(existingGroups.get(0));
-				if (status == Obs.Status.FINAL) {
+				Obs replaced = existingGroups.get(0);
+				group.setPreviousVersion(replaced);
+				boolean replacedWasFinal = replaced.getStatus() == Obs.Status.FINAL || replaced.getStatus() == Obs.Status.AMENDED;
+				if (status == Obs.Status.FINAL && replacedWasFinal) {
 					status = Obs.Status.AMENDED;
 				}
 			}

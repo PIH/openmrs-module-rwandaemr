@@ -50,8 +50,10 @@ public class BacteriologyServiceTest {
 		when(config.getConcept(anyString())).thenAnswer(invocation -> concept(invocation.getArgument(0)));
 		pihAppsService = mock(PihAppsService.class);
 		when(pihAppsService.getNewLabResultStatus(any())).thenReturn(Obs.Status.FINAL);
-		// No susceptibility is recorded yet: the query for the existing one finds nothing
 		dbSessionFactory = mock(DbSessionFactory.class, RETURNS_DEEP_STUBS);
+		// No susceptibility is recorded yet, unless a test says otherwise
+		when(dbSessionFactory.getHibernateSessionFactory().getCurrentSession().createCriteria(Obs.class).list())
+				.thenReturn(Collections.emptyList());
 		service = new BacteriologyService(dbSessionFactory, mock(ObsService.class),
 				mock(EncounterService.class), config, pihAppsService);
 		ecoli = concept("ecoli");
@@ -156,6 +158,32 @@ public class BacteriologyServiceTest {
 		Obs group = encounter.getAllObs().iterator().next();
 		assertThat(group.getPreviousVersion(), equalTo(existing));
 		assertAllHaveStatus(group, Obs.Status.AMENDED);
+	}
+
+	@Test
+	public void shouldNotAmendASusceptibilityThatReplacesAPreliminaryOne() {
+		Patient patient = new Patient(1);
+		TestOrder order = order(patient);
+		Encounter encounter = encounter(patient);
+		Obs existing = obs(BacteriologyConfig.SUSCEPTIBILITY, null);
+		existing.setStatus(Obs.Status.PRELIMINARY);
+		when(dbSessionFactory.getHibernateSessionFactory().getCurrentSession().createCriteria(Obs.class).list())
+				.thenReturn(Collections.singletonList(existing));
+		Isolate isolate = new Isolate();
+		isolate.setOrganism(ecoli);
+		isolate.getSusceptibilities().add(new Susceptibility(gentamicin, resistant));
+
+		// Saved again while the results await validation, and again once the order is released
+		when(pihAppsService.getNewLabResultStatus(order)).thenReturn(Obs.Status.PRELIMINARY);
+		service.saveSusceptibility(order, encounter, Collections.singletonList(isolate));
+		assertAllHaveStatus(encounter.getAllObs().iterator().next(), Obs.Status.PRELIMINARY);
+
+		Encounter later = encounter(patient);
+		when(pihAppsService.getNewLabResultStatus(order)).thenReturn(Obs.Status.FINAL);
+		service.saveSusceptibility(order, later, Collections.singletonList(isolate));
+		Obs group = later.getAllObs().iterator().next();
+		assertThat(group.getPreviousVersion(), equalTo(existing));
+		assertAllHaveStatus(group, Obs.Status.FINAL);
 	}
 
 	@Test
