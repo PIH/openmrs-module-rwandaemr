@@ -1012,6 +1012,15 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="RWA-1089-drop-lab-result-validation" author="mseaton">
+        <preConditions onFail="HALT" onFailMessage="rwandaemr_lab_result_validation still has rows. Migrate them into pihapps_order_fulfillment_event first, then restart.">
+            <tableExists tableName="rwandaemr_lab_result_validation"/>
+            <sqlCheck expectedResult="0">select count(*) from rwandaemr_lab_result_validation</sqlCheck>
+        </preConditions>
+        <comment>Lab result validation is now recorded by pihapps as order fulfillment events</comment>
+        <dropTable tableName="rwandaemr_lab_result_validation"/>
+    </changeSet>
+
     <changeSet id="20261026-create-pathology-case" author="bniyonshuti">
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="rwandaemr_pathology_case"/></not>

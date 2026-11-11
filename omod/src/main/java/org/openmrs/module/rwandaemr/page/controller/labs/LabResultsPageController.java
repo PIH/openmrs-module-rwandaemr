@@ -2,7 +2,7 @@ package org.openmrs.module.rwandaemr.page.controller.labs;
 
 import org.openmrs.Patient;
 import org.openmrs.api.context.Context;
-import org.openmrs.module.rwandaemr.labs.LabResultValidationService;
+import org.openmrs.module.pihapps.orders.LabOrderConfig;
 import org.openmrs.ui.framework.page.PageModel;
 import org.openmrs.util.PrivilegeConstants;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,7 +22,7 @@ public class LabResultsPageController {
 					@RequestParam(value = "mode", required = false) String mode,
 					@RequestParam(value = "orderEncounter", required = false) String orderEncounter) {
 		boolean validate = MODE_VALIDATE.equals(mode);
-		boolean authorized = validate ? Context.hasPrivilege(LabResultValidationService.PRIVILEGE_VALIDATE_RESULTS)
+		boolean authorized = validate ? Context.hasPrivilege(LabOrderConfig.PRIVILEGE_VALIDATE_RESULTS)
 				: Context.hasPrivilege(PrivilegeConstants.ADD_ENCOUNTERS);
 		model.addAttribute("authorized", authorized);
 		model.addAttribute("patient", patient);
