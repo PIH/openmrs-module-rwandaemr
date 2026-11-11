@@ -1,6 +1,6 @@
 /**
  * Rwanda additions to the pihapps Lab Order List, registered through its extension points:
- *  - org.openmrs.module.pihapps.labOrderList.orderBadges: payment status, and results returned for correction
+ *  - org.openmrs.module.pihapps.labOrderList.orderBadges: payment status
  *  - org.openmrs.module.pihapps.labOrderList.patientGroupActions: enter or validate results by Lab ID
  * Loaded on every page as a global resource, so it only defines functions.
  */
@@ -32,16 +32,6 @@
                 })
                 .fail(reject);
         });
-    };
-
-    window.rwandaLabOrderReturnedBadges = function(orders) {
-        const badges = {};
-        orders.forEach(function(order) {
-            if (order.fulfillerStatus === 'IN_PROGRESS' && (order.fulfillerComment || "").indexOf("Returned for correction") === 0) {
-                badges[order.uuid] = { text: "Returned for correction", cssClass: "badge-warning", title: order.fulfillerComment };
-            }
-        });
-        return badges;
     };
 
     const openLabResults = function(patientWithOrders, mode) {

@@ -156,6 +156,7 @@
             specimenReceivedDate: '${ ui.encodeJavaScript(ui.message("pihapps.specimenReceivedDate")) }',
             resultDate: '${ ui.encodeJavaScript(ui.message("pihapps.resultDate")) }',
             reason: '${ ui.encodeJavaScript(ui.message("pihapps.reason")) }',
+            returnedForCorrection: '${ ui.encodeJavaScript(ui.message("pihapps.orderFulfillmentEventType.RESULTS_RETURNED")) }',
             labTest: '${ ui.encodeJavaScript(ui.message("pihapps.labTest")) }',
             result: '${ ui.encodeJavaScript(ui.message("pihapps.result")) }',
             normalRange: '${ ui.encodeJavaScript(ui.message("pihapps.normalRange")) }',
@@ -187,7 +188,7 @@
             "availableLabTestsByCategory:(category:(uuid,displayStringForLab),labTests:(uuid))," +
             "labIdentifierConcept:(uuid),specimenReceivedDateQuestion:(uuid),resultsDateQuestion:(uuid,datatype:(name))," +
             "reasonTestNotPerformedQuestion:(uuid,datatype:(name),answers:(uuid,display)),collectResultComments,requireResultValidation)";
-        const orderRep = "uuid,orderNumber,dateActivated,dateStopped,fulfillerStatus,fulfillerComment,accessionNumber,urgency," +
+        const orderRep = "uuid,orderNumber,dateActivated,dateStopped,fulfillerStatus,labResultValidation,accessionNumber,urgency," +
             "patient:(uuid),encounter:(uuid),fulfillerEncounter:(uuid),concept:(uuid,displayStringForLab)";
         const obsRep = "uuid,concept:(uuid,datatype:(name)),value,valueCoded:(uuid,display,displayStringForLab),valueDatetime,valueText,valueNumeric,comment,formNamespaceAndPath,order:(uuid)";
         const encounterRep = "uuid,encounterDatetime,encounterType:(uuid),location:(uuid,display)," +
@@ -208,6 +209,10 @@
             const bacteriologyByOrder = {};  // order uuid -> results entered with the bacteriology widgets
             const nestedPanels = {};  // concept uuid -> panel that is a member of an ordered panel, with its members
             const dateUtils = new PihAppsDateUtils(moment, config.dateFormat, config.dateTimeFormat);
+            const requireResultValidation = labConfig.requireResultValidation;
+            const validationEventType = (order) => (requireResultValidation && order.fulfillerStatus === 'IN_PROGRESS')
+                ? order.labResultValidation?.eventType : null;
+            const isAwaitingValidation = (order) => validationEventType(order) === 'RESULTS_SUBMITTED';
 
             // The category of each test, so that each specimen shows a section per category
             const categoryOfTest = {};
@@ -218,7 +223,8 @@
             });
             const otherCategory = { uuid: "other", displayStringForLab: "Other" };
 
-            const statuses = validateMode ? ["AWAITING_VALIDATION"] : ["IN_FULFILLMENT", "AWAITING_VALIDATION"];
+            const statuses = validateMode ? ["AWAITING_VALIDATION"]
+                : (requireResultValidation ? ["IN_FULFILLMENT", "AWAITING_VALIDATION"] : ["IN_FULFILLMENT"]);
             const orderQuery = jq.param({
                 patient: patientUuid,
                 orderType: labConfig.labTestOrderType?.uuid,
@@ -273,7 +279,7 @@
                 });
                 let validation = {};
                 if (validateMode) {
-                    loads.push(getJson(rest + "rwandaemr/lab/resultValidation?" + jq.param({ order: group.orders.map(o => o.uuid) }, true))
+                    loads.push(getJson(rest + "pihapps/labResultValidation?" + jq.param({ order: group.orders.map(o => o.uuid) }, true))
                         .then(v => { validation = v; }));
                 }
 
@@ -368,7 +374,7 @@
 
             function renderEntry(group, orderables) {
                 const page = jq("<div>");
-                if (labConfig.requireResultValidation) {
+                if (requireResultValidation) {
                     page.append(jq("<div>").addClass("lr-hint").text("Tests stay In progress, and their results are kept but not reported, " +
                         "until you mark them Completed. Completed tests are sent for validation."));
                 }
@@ -616,14 +622,15 @@
                 const element = jq("<div>").addClass("lr-order");
                 const isPanel = orderable.setMembers.length > 0;
 
-                // Results already submitted for validation open as completed; anything else starts in progress
-                const initialStatus = order.fulfillerStatus === 'EXCEPTION' ? 'EXCEPTION'
-                    : (order.fulfillerComment === PihAppsPatientUtils.RESULTS_AWAITING_VALIDATION ? 'COMPLETED' : 'IN_PROGRESS');
+                // Results awaiting validation open as completed, without "In progress": the server can't tell that
+                // choice from re-saving the specimen, so the order would stay awaiting validation
+                const awaitingValidation = isAwaitingValidation(order);
+                const initialStatus = order.fulfillerStatus === 'EXCEPTION' ? 'EXCEPTION' : (awaitingValidation ? 'COMPLETED' : 'IN_PROGRESS');
                 const statusOptions = [
                     { value: "IN_PROGRESS", display: messages.inProgress },
                     { value: "COMPLETED", display: messages.completed },
                     { value: "EXCEPTION", display: messages.notPerformed }
-                ];
+                ].filter(o => !(awaitingValidation && o.value === "IN_PROGRESS"));
                 const statusWidget = formHelper.createSelectWidget({
                     id: idPrefix + "-status", options: statusOptions, initialValue: initialStatus, includeEmptyOption: false
                 });
@@ -672,8 +679,9 @@
                 }
                 const bacteriologyEditors = isPanel ? addMemberSections(order, orderable, results, formHelper, idPrefix) : [];
 
-                if (order.fulfillerComment && order.fulfillerComment.indexOf("Returned for correction") === 0) {
-                    element.append(jq("<div>").addClass("lr-note").text(order.fulfillerComment));
+                if (validationEventType(order) === 'RESULTS_RETURNED') {
+                    element.append(jq("<div>").addClass("lr-note")
+                        .text(messages.returnedForCorrection + ": " + (order.labResultValidation.comment || "")));
                 }
 
                 const reasonQuestion = labConfig.reasonTestNotPerformedQuestion;
@@ -839,7 +847,7 @@
                         return;
                     }
                     page.find(".lr-actions button").attr("disabled", "disabled");
-                    postJson(rest + "rwandaemr/lab/resultValidation", { orders: selected, action: action, reason: reason.val() }).then(() => {
+                    postJson(rest + "pihapps/labResultValidation", { orders: selected, action: action, comment: reason.val() }).then(() => {
                         emr.successMessage(action === "VALIDATE" ? "Results validated" : "Results returned for correction");
                         window.location.reload();
                     }).catch(xhr => {
