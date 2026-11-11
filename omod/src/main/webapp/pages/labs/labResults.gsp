@@ -847,7 +847,7 @@
                         return;
                     }
                     page.find(".lr-actions button").attr("disabled", "disabled");
-                    postJson(rest + "pihapps/labResultValidation", { orders: selected, action: action, comment: reason.val() }).then(() => {
+                    postJson(rest + "pihapps/labResultValidation", { orders: selected, action: action, comment: action === "RETURN" ? reason.val() : null }).then(() => {
                         emr.successMessage(action === "VALIDATE" ? "Results validated" : "Results returned for correction");
                         window.location.reload();
                     }).catch(xhr => {
