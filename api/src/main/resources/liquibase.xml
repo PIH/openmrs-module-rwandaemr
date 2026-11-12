@@ -1015,19 +1015,21 @@
     <!--
         RWA-1089: lab result validation moved to pihapps, which records it as order fulfillment events.  The validation
         recorded by the earlier rwandaemr implementation (20261008-create-lab-result-validation) is migrated, then its
-        table dropped.  These replace an earlier changeset that only dropped the table, and halted if it had rows.
+        table dropped.  These replace earlier changesets that dropped the table, halting if it had rows, and a first
+        version of the migration.
     -->
-    <changeSet id="RWA-1089-migrate-lab-result-validation" author="mseaton" dbms="mysql">
+    <changeSet id="RWA-1089-migrate-lab-result-validation-to-events" author="mseaton" dbms="mysql,mariadb">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="rwandaemr_lab_result_validation"/>
             <tableExists tableName="pihapps_order_fulfillment_event"/>
         </preConditions>
         <comment>
-            Migrates lab result validation to pihapps_order_fulfillment_event: each validation or return becomes the
-            matching event, by the same user at the same time; each order still awaiting validation (in progress, with
-            the fulfiller comment "Results awaiting validation") gets a RESULTS_SUBMITTED event, by the daemon user so
-            that no real user is excluded from validating it; and the results of orders awaiting validation or returned
-            for correction become PRELIMINARY, as pihapps keeps results until they are validated
+            Migrates lab result validation to pihapps_order_fulfillment_event.  Each validation or return becomes the
+            matching event, by the same user at the same time.  When validation is on (pihapps.labs.requireResultValidation),
+            each order still awaiting validation (in progress, with the fulfiller comment "Results awaiting validation")
+            gets a RESULTS_SUBMITTED event, by whoever last entered a result of the order (so that they cannot validate
+            it), and the results of orders awaiting validation or returned for correction become PRELIMINARY, as
+            pihapps keeps results until they are validated.  With validation off, those results stay as they are.
         </comment>
         <sql>
             insert into pihapps_order_fulfillment_event (order_id, event_type, comment, event_datetime, creator, date_created, voided, uuid)
@@ -1042,46 +1044,53 @@
         <sql>
             insert into pihapps_order_fulfillment_event (order_id, event_type, comment, event_datetime, creator, date_created, voided, uuid)
             select o.order_id, 'RESULTS_SUBMITTED', null, now(),
-                   (select user_id from users where uuid = 'A4F30A1B-5EB9-11DF-A648-37A07F9C90FB'), now(), 0, uuid()
+                   coalesce((select r.creator from obs r where r.order_id = o.order_id and r.voided = 0
+                             order by r.date_created desc, r.obs_id desc limit 1),
+                            (select u.user_id from users u where u.uuid = 'A4F30A1B-5EB9-11DF-A648-37A07F9C90FB')),
+                   now(), 0, uuid()
             from orders o
-            where o.fulfiller_status = 'IN_PROGRESS' and o.fulfiller_comment = 'Results awaiting validation';
+            where o.fulfiller_status = 'IN_PROGRESS' and o.fulfiller_comment = 'Results awaiting validation'
+              and exists (select 1 from global_property gp where gp.property = 'pihapps.labs.requireResultValidation' and lower(trim(gp.property_value)) = 'true');
         </sql>
+        <!-- Results: obs linked to the order whose concept is the ordered concept, or a member of it or of a member set -->
         <sql>
             update obs r
                 join orders o on o.order_id = r.order_id
-                left join concept_set cs on cs.concept_set = o.concept_id and cs.concept_id = r.concept_id
+                left join concept_set cs1 on cs1.concept_set = o.concept_id and cs1.concept_id = r.concept_id
+                left join concept_set cs_member on cs_member.concept_set = o.concept_id
+                left join concept_set cs2 on cs2.concept_set = cs_member.concept_id and cs2.concept_id = r.concept_id
             set r.status = 'PRELIMINARY'
             where r.voided = 0
-              and (r.concept_id = o.concept_id or cs.concept_id is not null)
-              and o.fulfiller_status = 'IN_PROGRESS'
-              and (o.fulfiller_comment = 'Results awaiting validation' or o.fulfiller_comment like 'Returned for correction%');
+              and (r.concept_id = o.concept_id or cs1.concept_id is not null or cs2.concept_id is not null)
+              and o.fulfiller_status = 'IN_PROGRESS' and (o.fulfiller_comment = 'Results awaiting validation' or o.fulfiller_comment like 'Returned for correction%')
+              and exists (select 1 from global_property gp where gp.property = 'pihapps.labs.requireResultValidation' and lower(trim(gp.property_value)) = 'true');
         </sql>
         <!-- The members of those results' obs groups, a level at a time -->
         <sql>
             update obs m join obs g on g.obs_id = m.obs_group_id join orders o on o.order_id = g.order_id
             set m.status = 'PRELIMINARY'
-            where m.voided = 0 and g.status = 'PRELIMINARY' and o.fulfiller_status = 'IN_PROGRESS'
-              and (o.fulfiller_comment = 'Results awaiting validation' or o.fulfiller_comment like 'Returned for correction%');
+            where m.voided = 0 and g.status = 'PRELIMINARY' and o.fulfiller_status = 'IN_PROGRESS' and (o.fulfiller_comment = 'Results awaiting validation' or o.fulfiller_comment like 'Returned for correction%')
+              and exists (select 1 from global_property gp where gp.property = 'pihapps.labs.requireResultValidation' and lower(trim(gp.property_value)) = 'true');
         </sql>
         <sql>
             update obs m join obs g on g.obs_id = m.obs_group_id join orders o on o.order_id = g.order_id
             set m.status = 'PRELIMINARY'
-            where m.voided = 0 and g.status = 'PRELIMINARY' and o.fulfiller_status = 'IN_PROGRESS'
-              and (o.fulfiller_comment = 'Results awaiting validation' or o.fulfiller_comment like 'Returned for correction%');
+            where m.voided = 0 and g.status = 'PRELIMINARY' and o.fulfiller_status = 'IN_PROGRESS' and (o.fulfiller_comment = 'Results awaiting validation' or o.fulfiller_comment like 'Returned for correction%')
+              and exists (select 1 from global_property gp where gp.property = 'pihapps.labs.requireResultValidation' and lower(trim(gp.property_value)) = 'true');
         </sql>
         <sql>
             update obs m join obs g on g.obs_id = m.obs_group_id join orders o on o.order_id = g.order_id
             set m.status = 'PRELIMINARY'
-            where m.voided = 0 and g.status = 'PRELIMINARY' and o.fulfiller_status = 'IN_PROGRESS'
-              and (o.fulfiller_comment = 'Results awaiting validation' or o.fulfiller_comment like 'Returned for correction%');
+            where m.voided = 0 and g.status = 'PRELIMINARY' and o.fulfiller_status = 'IN_PROGRESS' and (o.fulfiller_comment = 'Results awaiting validation' or o.fulfiller_comment like 'Returned for correction%')
+              and exists (select 1 from global_property gp where gp.property = 'pihapps.labs.requireResultValidation' and lower(trim(gp.property_value)) = 'true');
         </sql>
     </changeSet>
 
-    <changeSet id="RWA-1089-drop-migrated-lab-result-validation" author="mseaton">
+    <changeSet id="RWA-1089-drop-lab-result-validation-table" author="mseaton" dbms="mysql,mariadb">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="rwandaemr_lab_result_validation"/>
         </preConditions>
-        <comment>Drops the table migrated by RWA-1089-migrate-lab-result-validation</comment>
+        <comment>Drops the table migrated by RWA-1089-migrate-lab-result-validation-to-events</comment>
         <dropTable tableName="rwandaemr_lab_result_validation"/>
     </changeSet>
 
