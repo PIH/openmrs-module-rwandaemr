@@ -5,6 +5,7 @@
  *
  * The susceptibility of an order is handled here as:
  *   { isolates: [{ organism: uuid, results: { antibioticUuid: interpretationUuid } }] }
+ * and recorded as one obs group: susceptibility > isolate > (organism, antibiotic result > (antibiotic, interpretation)).
  * config is the response of GET /ws/rest/v1/rwandaemr/lab/bacteriology/config
  */
 class RwandaBacteriology {
@@ -50,17 +51,47 @@ class RwandaBacteriology {
     }
 
     /**
-     * @return the payload of POST /ws/rest/v1/rwandaemr/lab/bacteriology, with the results by key that were changed
+     * @return the isolates of the susceptibility obs group, as pihapps gives it to editors and renderers (members at
+     * every level), or none
      */
-    static toPayload(orderUuid, encounterUuid, changes) {
-        const payload = { order: orderUuid, encounter: encounterUuid };
-        if (changes.isolates) {
-            payload.isolates = changes.isolates.map(i => ({
-                organism: i.organism,
-                results: Object.keys(i.results).map(antibiotic => ({ antibiotic: antibiotic, interpretation: i.results[antibiotic] }))
-            }));
+    fromObsGroup(group) {
+        const c = this.susceptibility;
+        const members = (obs, conceptUuid) => (obs?.groupMembers || []).filter(m => m.concept?.uuid === conceptUuid);
+        const coded = (obs) => obs?.valueCoded?.uuid ?? obs?.value?.uuid ?? null;
+        return members(group, c.isolate).map(isolateObs => {
+            const results = {};
+            members(isolateObs, c.antibioticResult).forEach(resultObs => {
+                const antibiotic = coded(members(resultObs, c.antibiotic)[0]);
+                const interpretation = coded(members(resultObs, c.interpretation)[0]);
+                if (antibiotic && interpretation) {
+                    results[antibiotic] = interpretation;
+                }
+            });
+            return { organism: coded(members(isolateObs, c.organism)[0]), results: results };
+        }).filter(i => i.organism);
+    }
+
+    /**
+     * @return the susceptibility obs group of the isolates, as the obs resource accepts it, or null if there are none
+     */
+    toObsGroup(isolates) {
+        const c = this.susceptibility;
+        if (!isolates || isolates.length === 0) {
+            return null;
         }
-        return payload;
+        return {
+            concept: c.uuid,
+            groupMembers: isolates.map(i => ({
+                concept: c.isolate,
+                groupMembers: [{ concept: c.organism, valueCoded: i.organism }].concat(Object.keys(i.results).map(antibiotic => ({
+                    concept: c.antibioticResult,
+                    groupMembers: [
+                        { concept: c.antibiotic, valueCoded: antibiotic },
+                        { concept: c.interpretation, valueCoded: i.results[antibiotic] }
+                    ]
+                })))
+            }))
+        };
     }
 
     escape(text) {
@@ -258,42 +289,40 @@ class RwandaBacteriology {
 }
 
 /**
- * Renders the antimicrobial susceptibility of a bacteriology exam on the pihapps patient lab results page, as a table:
- * see the org.openmrs.module.pihapps.patientLabResults.obsGroupRenderers extension of the distribution.
- * obs is the antimicrobial susceptibility obs group, with its order.
+ * The configuration of the susceptibility, loaded once per page; a failed load is tried again next time
  */
-function rwandaRenderSusceptibility(obs) {
-    const rest = openmrsContextPath + "/ws/rest/v1/rwandaemr/lab/bacteriology";
-    const getJson = (url) => new Promise((resolve, reject) => jq.getJSON(url).done(resolve).fail(reject));
-    // Loaded once per page; a failed load is tried again next time
-    RwandaBacteriology.configLoad = RwandaBacteriology.configLoad
-        ?? getJson(rest + "/config").catch(error => { RwandaBacteriology.configLoad = null; throw error; });
-    return Promise.all([RwandaBacteriology.configLoad, getJson(rest + "?" + jq.param({ order: obs.order.uuid }))]).then(([config, results]) => {
-        const isolates = RwandaBacteriology.fromRest(results[obs.order.uuid]).isolates;
-        return new RwandaBacteriology(jq, config).susceptibilityTable(isolates);
+RwandaBacteriology.loadConfig = function(jq) {
+    RwandaBacteriology.configLoad = RwandaBacteriology.configLoad ?? new Promise((resolve, reject) =>
+        jq.getJSON(openmrsContextPath + "/ws/rest/v1/rwandaemr/lab/bacteriology/config").done(resolve).fail(reject))
+        .catch(error => { RwandaBacteriology.configLoad = null; throw error; });
+    return RwandaBacteriology.configLoad;
+};
+
+/**
+ * Renders the antimicrobial susceptibility of a bacteriology exam as a table, on the pihapps patient lab results page
+ * and when validating results: see the org.openmrs.module.pihapps.patientLabResults.obsGroupRenderers extension of the
+ * distribution.  obsGroup is the susceptibility obs group, with its members at every level.
+ */
+function rwandaRenderSusceptibility(obsGroup) {
+    return RwandaBacteriology.loadConfig(jq).then(config => {
+        const bacteriology = new RwandaBacteriology(jq, config);
+        return bacteriology.susceptibilityTable(bacteriology.fromObsGroup(obsGroup));
     });
 }
 
 /**
  * Enters the antimicrobial susceptibility of a bacteriology exam on the pihapps lab results forms: see the
  * org.openmrs.module.pihapps.labResults.obsGroupEditors extension of the distribution, and pihapps' labResultFields.js
- * for the context and the editor returned.  The susceptibility is entered once the culture of the exam has isolated an
- * organism, or if it was entered already.
+ * for the context and the editor returned.  The forms save the obs group the editor gives with the order's other
+ * results.  The susceptibility is entered once the culture of the exam has isolated an organism, or if it was entered
+ * already.
  */
 function rwandaBacteriologyEditor(context) {
     const jq = context.jq;
     const order = context.order;
-    const rest = openmrsContextPath + "/ws/rest/v1/rwandaemr/lab/bacteriology";
-    const getJson = (url) => new Promise((resolve, reject) => jq.getJSON(url).done(resolve).fail(reject));
-    const postJson = (url, payload) => new Promise((resolve, reject) => jq.ajax({
-        url: url, type: "POST", contentType: "application/json; charset=utf-8", data: JSON.stringify(payload), dataType: "json"
-    }).done(resolve).fail(reject));
-    // Loaded once per page; a failed load is tried again next time
-    RwandaBacteriology.configLoad = RwandaBacteriology.configLoad
-        ?? getJson(rest + "/config").catch(error => { RwandaBacteriology.configLoad = null; throw error; });
-    return Promise.all([RwandaBacteriology.configLoad, getJson(rest + "?" + jq.param({ order: order.uuid }))]).then(([config, results]) => {
+    return RwandaBacteriology.loadConfig(jq).then(config => {
         const bacteriology = new RwandaBacteriology(jq, config);
-        let isolates = RwandaBacteriology.fromRest(results[order.uuid]).isolates;
+        let isolates = context.obsGroup ? bacteriology.fromObsGroup(context.obsGroup) : [];
         let changed = false;
 
         const summary = jq("<span>");
@@ -330,8 +359,7 @@ function rwandaBacteriologyEditor(context) {
                     update([]);
                 }
             },
-            save: (encounterUuid) => postJson(rest, RwandaBacteriology.toPayload(order.uuid, encounterUuid, { isolates: isolates }))
-                .then(() => { changed = false; })
+            getObs: () => bacteriology.toObsGroup(isolates)
         };
     });
 }

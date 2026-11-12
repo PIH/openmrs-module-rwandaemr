@@ -1,16 +1,12 @@
 package org.openmrs.module.rwandaemr.rest;
 
-import lombok.Data;
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.Concept;
 import org.openmrs.ConceptAnswer;
 import org.openmrs.ConceptName;
-import org.openmrs.Encounter;
 import org.openmrs.Order;
 import org.openmrs.api.APIAuthenticationException;
-import org.openmrs.api.APIException;
 import org.openmrs.api.ConceptService;
-import org.openmrs.api.EncounterService;
 import org.openmrs.api.OrderService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.rwandaemr.labs.BacteriologyConfig;
@@ -20,11 +16,7 @@ import org.openmrs.module.rwandaemr.labs.BacteriologyService.Susceptibility;
 import org.openmrs.module.webservices.rest.SimpleObject;
 import org.openmrs.util.PrivilegeConstants;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -35,7 +27,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The antimicrobial susceptibility of bacteriology exams, which the lab results page enters with its own widget
+ * The antimicrobial susceptibility of bacteriology exams: its concepts, for the widget the pihapps lab results forms enter
+ * it with (bacteriology.js), and the susceptibility of orders, for printing results
  */
 @Controller
 public class BacteriologyRestController {
@@ -45,9 +38,6 @@ public class BacteriologyRestController {
 
 	@Autowired
 	OrderService orderService;
-
-	@Autowired
-	EncounterService encounterService;
 
 	@Autowired
 	ConceptService conceptService;
@@ -65,6 +55,11 @@ public class BacteriologyRestController {
 		}
 		SimpleObject susceptibility = ref(concept(BacteriologyConfig.SUSCEPTIBILITY));
 		susceptibility.put("culture", BacteriologyConfig.CULTURE);
+		susceptibility.put("isolate", BacteriologyConfig.ISOLATE);
+		susceptibility.put("organism", BacteriologyConfig.ORGANISM);
+		susceptibility.put("antibioticResult", BacteriologyConfig.ANTIBIOTIC_RESULT);
+		susceptibility.put("antibiotic", BacteriologyConfig.ANTIBIOTIC);
+		susceptibility.put("interpretation", BacteriologyConfig.INTERPRETATION);
 		susceptibility.put("organismIsolated", BacteriologyConfig.ORGANISM_ISOLATED);
 		susceptibility.put("organisms", refs(answers(BacteriologyConfig.ORGANISM)));
 		susceptibility.put("antibiotics", refs(answers(BacteriologyConfig.ANTIBIOTIC)));
@@ -100,46 +95,6 @@ public class BacteriologyRestController {
 			ret.put(orderUuid, new SimpleObject().add("isolates", isolates));
 		}
 		return ret;
-	}
-
-	/**
-	 * Replaces the isolates, if given, in the encounter that fulfills the order
-	 */
-	@RequestMapping(value = "/rest/v1/rwandaemr/lab/bacteriology", method = RequestMethod.POST,
-			consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-	@ResponseBody
-	public ResponseEntity<?> saveResults(@RequestBody ResultsRequest request) {
-		try {
-			requirePrivilege(PrivilegeConstants.ADD_OBS);
-			requirePrivilege(PrivilegeConstants.EDIT_OBS);
-			Order order = orderService.getOrderByUuid(request.getOrder());
-			Encounter encounter = encounterService.getEncounterByUuid(request.getEncounter());
-			if (order == null || encounter == null) {
-				return ResponseEntity.badRequest().body(error("Order or encounter not found"));
-			}
-			if (request.getIsolates() != null) {
-				List<Isolate> isolates = new ArrayList<Isolate>();
-				for (IsolateRequest isolateRequest : request.getIsolates()) {
-					Isolate isolate = new Isolate();
-					isolate.setOrganism(concept(isolateRequest.getOrganism()));
-					if (isolateRequest.getResults() != null) {
-						for (SusceptibilityRequest result : isolateRequest.getResults()) {
-							isolate.getSusceptibilities().add(new Susceptibility(concept(result.getAntibiotic()),
-									concept(result.getInterpretation())));
-						}
-					}
-					isolates.add(isolate);
-				}
-				bacteriologyService.saveSusceptibility(order, encounter, isolates);
-			}
-			return ResponseEntity.ok(new SimpleObject().add("success", true));
-		}
-		catch (APIAuthenticationException e) {
-			return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error(e.getMessage()));
-		}
-		catch (APIException e) {
-			return ResponseEntity.badRequest().body(error(e.getMessage()));
-		}
 	}
 
 	private List<Concept> answers(String questionUuid) {
@@ -206,28 +161,5 @@ public class BacteriologyRestController {
 		if (!Context.hasPrivilege(privilege)) {
 			throw new APIAuthenticationException("Privilege required: " + privilege);
 		}
-	}
-
-	private SimpleObject error(String message) {
-		return new SimpleObject().add("success", false).add("message", message);
-	}
-
-	@Data
-	public static class ResultsRequest {
-		private String order;
-		private String encounter;
-		private List<IsolateRequest> isolates;
-	}
-
-	@Data
-	public static class IsolateRequest {
-		private String organism;
-		private List<SusceptibilityRequest> results;
-	}
-
-	@Data
-	public static class SusceptibilityRequest {
-		private String antibiotic;
-		private String interpretation;
 	}
 }

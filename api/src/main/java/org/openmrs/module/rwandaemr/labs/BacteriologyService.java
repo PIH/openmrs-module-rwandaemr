@@ -2,53 +2,35 @@ package org.openmrs.module.rwandaemr.labs;
 
 import org.hibernate.Criteria;
 import org.openmrs.Concept;
-import org.openmrs.ConceptAnswer;
-import org.openmrs.Encounter;
 import org.openmrs.Obs;
 import org.openmrs.Order;
-import org.openmrs.api.APIException;
-import org.openmrs.api.EncounterService;
-import org.openmrs.api.ObsService;
 import org.openmrs.api.db.hibernate.DbSessionFactory;
-import org.openmrs.module.pihapps.PihAppsService;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import static org.hibernate.criterion.Restrictions.eq;
 
 /**
- * Reads and records the antimicrobial susceptibility of a bacteriology exam: the organisms isolated and, for each, the
- * antibiotics tested and whether the organism is sensitive, intermediate or resistant to them.  It is recorded as one obs
- * group linked to the order, in the encounter that fulfills the order.  See {@link BacteriologyConfig}.
- * It is a result of the order: when results must be validated, it is preliminary until the order's results are.
+ * Reads the antimicrobial susceptibility of a bacteriology exam: the organisms isolated and, for each, the antibiotics
+ * tested and whether the organism is sensitive, intermediate or resistant to them.  It is recorded as one obs group
+ * linked to the order, in the encounter that fulfills the order, by the pihapps lab results forms (see
+ * rwandaBacteriologyEditor in bacteriology.js), so that it is saved and validated with the order's other results.
+ * See {@link BacteriologyConfig}.
  */
 @Component
 public class BacteriologyService {
 
 	private final DbSessionFactory dbSessionFactory;
-	private final ObsService obsService;
-	private final EncounterService encounterService;
 	private final BacteriologyConfig config;
-	private final PihAppsService pihAppsService;
 
-	public BacteriologyService(@Autowired DbSessionFactory dbSessionFactory,
-							   @Autowired ObsService obsService,
-							   @Autowired EncounterService encounterService,
-							   @Autowired BacteriologyConfig config,
-							   @Autowired @Qualifier("pihappsService") PihAppsService pihAppsService) {
+	public BacteriologyService(@Autowired DbSessionFactory dbSessionFactory, @Autowired BacteriologyConfig config) {
 		this.dbSessionFactory = dbSessionFactory;
-		this.obsService = obsService;
-		this.encounterService = encounterService;
 		this.config = config;
-		this.pihAppsService = pihAppsService;
 	}
 
 	/**
@@ -58,48 +40,6 @@ public class BacteriologyService {
 	public List<Isolate> getSusceptibility(Order order) {
 		List<Obs> groups = getGroupObs(order, BacteriologyConfig.SUSCEPTIBILITY);
 		return groups.isEmpty() ? Collections.<Isolate>emptyList() : toIsolates(groups.get(0));
-	}
-
-	/**
-	 * Replaces the antimicrobial susceptibility of the order with the given isolates.  An empty list removes it.
-	 */
-	@Transactional
-	public void saveSusceptibility(Order order, Encounter encounter, List<Isolate> isolates) {
-		checkSamePatient(order, encounter);
-		Concept organismQuestion = required(BacteriologyConfig.ORGANISM);
-		Concept antibioticQuestion = required(BacteriologyConfig.ANTIBIOTIC);
-		Concept interpretationQuestion = required(BacteriologyConfig.INTERPRETATION);
-		Set<Concept> organisms = new HashSet<Concept>();
-		for (Isolate isolate : isolates) {
-			requireAnswer(organismQuestion, isolate.getOrganism(), "Each isolate needs the organism isolated");
-			if (!organisms.add(isolate.getOrganism())) {
-				throw new APIException("The same organism is entered twice: " + name(isolate.getOrganism()));
-			}
-			Set<Concept> antibiotics = new HashSet<Concept>();
-			for (Susceptibility susceptibility : isolate.getSusceptibilities()) {
-				requireAnswer(antibioticQuestion, susceptibility.getAntibiotic(), "Each result needs the antibiotic tested");
-				requireAnswer(interpretationQuestion, susceptibility.getInterpretation(),
-						"Each antibiotic tested needs its result: sensitive, intermediate or resistant");
-				if (!antibiotics.add(susceptibility.getAntibiotic())) {
-					throw new APIException(name(susceptibility.getAntibiotic()) + " is entered twice for " + name(isolate.getOrganism()));
-				}
-			}
-		}
-		replaceGroup(order, encounter, BacteriologyConfig.SUSCEPTIBILITY, isolates.isEmpty() ? null : () -> {
-			Obs group = newObs(required(BacteriologyConfig.SUSCEPTIBILITY), encounter, order);
-			for (Isolate isolate : isolates) {
-				Obs isolateObs = newObs(required(BacteriologyConfig.ISOLATE), encounter, order);
-				isolateObs.addGroupMember(coded(organismQuestion, isolate.getOrganism(), encounter, order));
-				for (Susceptibility susceptibility : isolate.getSusceptibilities()) {
-					Obs result = newObs(required(BacteriologyConfig.ANTIBIOTIC_RESULT), encounter, order);
-					result.addGroupMember(coded(antibioticQuestion, susceptibility.getAntibiotic(), encounter, order));
-					result.addGroupMember(coded(interpretationQuestion, susceptibility.getInterpretation(), encounter, order));
-					isolateObs.addGroupMember(result);
-				}
-				group.addGroupMember(isolateObs);
-			}
-			return group;
-		});
 	}
 
 	List<Isolate> toIsolates(Obs group) {
@@ -132,33 +72,6 @@ public class BacteriologyService {
 		return ret;
 	}
 
-	/**
-	 * Voids the existing groups of the concept for the order, and saves the new one if any, as a result of the order:
-	 * with the status pihapps gives its new results, or AMENDED when it replaces a result that was final, as an edited
-	 * result would be.  The group it replaces is its previous version
-	 */
-	private void replaceGroup(Order order, Encounter encounter, String groupConcept, GroupBuilder newGroup) {
-		List<Obs> existingGroups = getGroupObs(order, groupConcept);
-		for (Obs existing : existingGroups) {
-			voidWithMembers(existing, "Bacteriology result replaced");
-		}
-		if (newGroup != null) {
-			Obs group = newGroup.build();
-			Obs.Status status = pihAppsService.getNewLabResultStatus(order);
-			if (!existingGroups.isEmpty()) {
-				Obs replaced = existingGroups.get(0);
-				group.setPreviousVersion(replaced);
-				boolean replacedWasFinal = replaced.getStatus() == Obs.Status.FINAL || replaced.getStatus() == Obs.Status.AMENDED;
-				if (status == Obs.Status.FINAL && replacedWasFinal) {
-					status = Obs.Status.AMENDED;
-				}
-			}
-			setStatus(group, status);
-			encounter.addObs(group);
-			encounterService.saveEncounter(encounter);
-		}
-	}
-
 	@SuppressWarnings("unchecked")
 	private List<Obs> getGroupObs(Order order, String conceptUuid) {
 		Concept concept = config.getConcept(conceptUuid);
@@ -171,75 +84,6 @@ public class BacteriologyService {
 		c.add(eq("voided", false));
 		c.addOrder(org.hibernate.criterion.Order.desc("obsId"));
 		return c.list();
-	}
-
-	private void setStatus(Obs obs, Obs.Status status) {
-		obs.setStatus(status);
-		if (obs.getGroupMembers() != null) {
-			for (Obs member : obs.getGroupMembers()) {
-				setStatus(member, status);
-			}
-		}
-	}
-
-	private void voidWithMembers(Obs obs, String reason) {
-		if (obs.getGroupMembers(false) != null) {
-			for (Obs member : obs.getGroupMembers(false)) {
-				voidWithMembers(member, reason);
-			}
-		}
-		obsService.voidObs(obs, reason);
-	}
-
-	private void checkSamePatient(Order order, Encounter encounter) {
-		if (!encounter.getPatient().equals(order.getPatient())) {
-			throw new APIException("The encounter and the order are not for the same patient");
-		}
-	}
-
-	private void requireAnswer(Concept question, Concept answer, String message) {
-		if (answer == null) {
-			throw new APIException(message);
-		}
-		for (ConceptAnswer conceptAnswer : question.getAnswers(false)) {
-			if (answer.equals(conceptAnswer.getAnswerConcept())) {
-				return;
-			}
-		}
-		throw new APIException(message);
-	}
-
-	private Obs coded(Concept question, Concept value, Encounter encounter, Order order) {
-		Obs obs = newObs(question, encounter, order);
-		obs.setValueCoded(value);
-		return obs;
-	}
-
-	private Obs newObs(Concept concept, Encounter encounter, Order order) {
-		Obs obs = new Obs();
-		obs.setPerson(encounter.getPatient());
-		obs.setEncounter(encounter);
-		obs.setObsDatetime(encounter.getEncounterDatetime());
-		obs.setLocation(encounter.getLocation());
-		obs.setOrder(order);
-		obs.setConcept(concept);
-		return obs;
-	}
-
-	private Concept required(String uuid) {
-		Concept concept = config.getConcept(uuid);
-		if (concept == null) {
-			throw new APIException("The bacteriology concept " + uuid + " is missing: load concepts/bacteriology.csv");
-		}
-		return concept;
-	}
-
-	private static String name(Concept concept) {
-		return concept == null ? "" : concept.getDisplayString();
-	}
-
-	private interface GroupBuilder {
-		Obs build();
 	}
 
 	/**
