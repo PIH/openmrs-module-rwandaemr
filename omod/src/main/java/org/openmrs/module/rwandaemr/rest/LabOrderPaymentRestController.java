@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Payment status of lab orders, for the lab order list and the lab results page
+ * Payment status of lab orders, for the badges of the lab order list
  */
 @Controller
 public class LabOrderPaymentRestController {

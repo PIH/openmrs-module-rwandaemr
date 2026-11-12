@@ -6,6 +6,7 @@ import org.openmrs.ConceptAnswer;
 import org.openmrs.ConceptName;
 import org.openmrs.Order;
 import org.openmrs.api.APIAuthenticationException;
+import org.openmrs.api.APIException;
 import org.openmrs.api.ConceptService;
 import org.openmrs.api.OrderService;
 import org.openmrs.api.context.Context;
@@ -16,7 +17,10 @@ import org.openmrs.module.rwandaemr.labs.BacteriologyService.Susceptibility;
 import org.openmrs.module.webservices.rest.SimpleObject;
 import org.openmrs.util.PrivilegeConstants;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -32,6 +36,9 @@ import java.util.Locale;
  */
 @Controller
 public class BacteriologyRestController {
+
+	private static final String[] MESSAGE_KEYS = { "enter", "notEntered", "noResults", "antibiotic", "germ", "searchAntibiotics",
+			"onlyWithResult", "sensitive", "intermediate", "resistant", "sameOrganismTwice", "done", "cancel", "cultureNotIsolated" };
 
 	@Autowired
 	BacteriologyService bacteriologyService;
@@ -65,11 +72,18 @@ public class BacteriologyRestController {
 		susceptibility.put("antibiotics", refs(answers(BacteriologyConfig.ANTIBIOTIC)));
 		susceptibility.put("interpretations", interpretations);
 
-		return new SimpleObject().add("susceptibility", susceptibility);
+		// The text of the widget, in the user's locale
+		SimpleObject messages = new SimpleObject();
+		for (String key : MESSAGE_KEYS) {
+			String code = "rwandaemr.bacteriology." + key;
+			messages.put(code, Context.getMessageSourceService().getMessage(code));
+		}
+		return new SimpleObject().add("susceptibility", susceptibility).add("messages", messages);
 	}
 
 	/**
-	 * @return for each order, by uuid, the isolates
+	 * @return for each order, by uuid, the isolates, whatever the status of its results: callers that show them to
+	 * clinicians restrict themselves to completed orders, as the print page does
 	 */
 	@RequestMapping(value = "/rest/v1/rwandaemr/lab/bacteriology", method = RequestMethod.GET)
 	@ResponseBody
@@ -161,5 +175,21 @@ public class BacteriologyRestController {
 		if (!Context.hasPrivilege(privilege)) {
 			throw new APIAuthenticationException("Privilege required: " + privilege);
 		}
+	}
+
+	@ExceptionHandler(APIAuthenticationException.class)
+	@ResponseBody
+	public ResponseEntity<?> handleAuthenticationException(APIAuthenticationException e) {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error(e.getMessage()));
+	}
+
+	@ExceptionHandler({ APIException.class, IllegalArgumentException.class })
+	@ResponseBody
+	public ResponseEntity<?> handleBadRequest(RuntimeException e) {
+		return ResponseEntity.badRequest().body(error(e.getMessage()));
+	}
+
+	private SimpleObject error(String message) {
+		return new SimpleObject().add("success", false).add("message", message);
 	}
 }
