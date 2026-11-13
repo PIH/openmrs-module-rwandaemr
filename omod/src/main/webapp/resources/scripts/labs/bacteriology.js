@@ -307,7 +307,7 @@ RwandaBacteriology.loadConfig = function(jq) {
 
 /**
  * Renders the antimicrobial susceptibility of a bacteriology exam as a table, on the pihapps patient lab results page
- * and when validating results: see the org.openmrs.module.pihapps.patientLabResults.resultRenderers extension of the
+ * and when validating results: see the org.openmrs.module.pihapps.labResults.resultRenderers extension of the
  * distribution.  obsGroup is the susceptibility obs group, with its members at every level.
  */
 function rwandaRenderSusceptibility(obsGroup) {
