@@ -307,7 +307,7 @@ RwandaBacteriology.loadConfig = function(jq) {
 
 /**
  * Renders the antimicrobial susceptibility of a bacteriology exam as a table, on the pihapps patient lab results page
- * and when validating results: see the org.openmrs.module.pihapps.patientLabResults.obsGroupRenderers extension of the
+ * and when validating results: see the org.openmrs.module.pihapps.patientLabResults.resultRenderers extension of the
  * distribution.  obsGroup is the susceptibility obs group, with its members at every level.
  */
 function rwandaRenderSusceptibility(obsGroup) {
@@ -319,7 +319,7 @@ function rwandaRenderSusceptibility(obsGroup) {
 
 /**
  * Enters the antimicrobial susceptibility of a bacteriology exam on the pihapps lab results forms: see the
- * org.openmrs.module.pihapps.labResults.obsGroupEditors extension of the distribution, and pihapps' labResultFields.js
+ * org.openmrs.module.pihapps.labResults.resultEditors extension of the distribution, and pihapps' labResultFields.js
  * for the context and the editor returned.  The forms save the obs group the editor gives with the order's other
  * results.  The susceptibility is entered once the culture of the exam has isolated an organism, or if it was entered
  * already.
@@ -329,7 +329,7 @@ function rwandaBacteriologyEditor(context) {
     const order = context.order;
     return RwandaBacteriology.loadConfig(jq).then(config => {
         const bacteriology = new RwandaBacteriology(jq, config);
-        const initial = context.obsGroup ? bacteriology.fromObsGroup(context.obsGroup) : [];
+        const initial = context.obs ? bacteriology.fromObsGroup(context.obs) : [];
         let isolates = initial;
 
         const summary = jq("<span>");
