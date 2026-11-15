@@ -1,5 +1,8 @@
 /* Antimicrobial susceptibility of the bacteriology exams: see scripts/labs/bacteriology.js */
 
+/* Antimicrobial susceptibility on the pihapps lab results forms */
+.bact-enter-button { padding: 1px 10px; font-size: 0.9em; }
+
 /* Antimicrobial susceptibility entry dialog */
 .bact-overlay { position: fixed; inset: 0; background: rgba(38, 50, 56, 0.45); z-index: 2000; display: flex; align-items: center; justify-content: center; }
 .bact-dialog { background: #fff; border-radius: 6px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25); width: min(860px, 96vw); max-height: 92vh;
@@ -29,13 +32,6 @@
 /* Summary and read only view */
 .bact-none { color: #90a4ae; }
 .bact-summary-isolate { margin-left: 8px; color: #37474f; }
-.bact-view-isolate { margin: 2px 0 6px; }
-.bact-view-organism { font-weight: bold; font-style: italic; }
-.bact-view-line { padding-left: 12px; }
-.bact-view-label { font-weight: bold; }
-.bact-view-S .bact-view-label { color: #2e7d32; }
-.bact-view-I .bact-view-label { color: #e65100; }
-.bact-view-R .bact-view-label { color: #c62828; }
 
 /* Table of the susceptibility for the clinicians: an antibiotic per row, an organism per column */
 .bact-table { border-collapse: collapse; margin: 4px 0; }
@@ -45,3 +41,5 @@
 .bact-table td.bact-table-result { text-align: center; font-weight: bold; }
 .bact-legend { color: #607d8b; font-size: 0.85em; }
 .bact-legend span { font-weight: bold; }
+
+.bact-warning { color: #b26a00; font-size: 0.85em; }

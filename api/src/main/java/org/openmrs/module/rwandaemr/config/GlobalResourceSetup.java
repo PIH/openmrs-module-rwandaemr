@@ -23,8 +23,8 @@ public class GlobalResourceSetup implements Setup {
     public static final String RWANDAEMR_HIDE_RHIP_RECEPTION_VISIT_ATTRIBUTE_SCRIPT =
             "scripts/hideRhipReceptionVisitAttribute.js";
     public static final String RWANDAEMR_LAB_ORDER_LIST_SCRIPT = "scripts/labs/labOrderListRwanda.js";
-    // The bacteriology widgets, used by the lab pages of this module and, for the antimicrobial susceptibility, by the
-    // pihapps patient lab results page
+    // The antimicrobial susceptibility of the bacteriology exams: entered on the pihapps lab results forms, and shown on
+    // the pihapps patient lab results page and this module's bacteriology results page
     public static final String RWANDAEMR_BACTERIOLOGY_SCRIPT = "scripts/labs/bacteriology.js";
     public static final String RWANDAEMR_BACTERIOLOGY_STYLE = "styles/labs/bacteriology.css";
 
