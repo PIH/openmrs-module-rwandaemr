@@ -1,9 +1,11 @@
 /**
- * The antimicrobial susceptibility of a bacteriology exam, which the lab results page enters with its own widget: the
- * organisms isolated (up to three) and their susceptibility (S, I or R) to each antibiotic tested.
+ * The antimicrobial susceptibility of a bacteriology exam, which the pihapps lab results forms enter with this widget
+ * (see rwandaBacteriologyEditor): the organisms isolated (up to three) and their susceptibility (S, I or R) to each
+ * antibiotic tested.
  *
  * The susceptibility of an order is handled here as:
  *   { isolates: [{ organism: uuid, results: { antibioticUuid: interpretationUuid } }] }
+ * and recorded as one obs group: susceptibility > isolate > (organism, antibiotic result > (antibiotic, interpretation)).
  * config is the response of GET /ws/rest/v1/rwandaemr/lab/bacteriology/config
  */
 class RwandaBacteriology {
@@ -22,17 +24,29 @@ class RwandaBacteriology {
         this.codes = {};
         this.organisms.concat(this.antibiotics).concat(this.interpretations).forEach(c => { this.displays[c.uuid] = c.display; });
         this.interpretations.forEach(c => { this.codes[c.uuid] = c.code; });
+        this.messages = this.config.messages || {};
     }
 
     /**
-     * @return the key of the results entered with a widget of this script for the member concept of an exam, or null
+     * @return the translated message of the key (the config endpoint gives them), with {0}... replaced by args
      */
-    keyOf(conceptUuid) {
-        return conceptUuid && this.susceptibility.uuid === conceptUuid ? "isolates" : null;
+    t(key, ...args) {
+        return (this.messages[key] ?? key).replace(/[{]([0-9]+)[}]/g, (match, i) => args[i] ?? match);
     }
 
+    /**
+     * @return whether the member concept of an exam is the susceptibility, which this script shows and enters
+     */
     hasOwnWidget(conceptUuid) {
-        return this.keyOf(conceptUuid) !== null;
+        return !!conceptUuid && this.susceptibility.uuid === conceptUuid;
+    }
+
+    /**
+     * @return whether two lists of isolates record the same susceptibility, whatever their order
+     */
+    static sameIsolates(a, b) {
+        const key = (isolates) => JSON.stringify((isolates || []).map(i => [i.organism, Object.keys(i.results).sort().map(k => [k, i.results[k]])]).sort());
+        return key(a) === key(b);
     }
 
     /**
@@ -49,17 +63,58 @@ class RwandaBacteriology {
     }
 
     /**
-     * @return the payload of POST /ws/rest/v1/rwandaemr/lab/bacteriology, with the results by key that were changed
+     * @return the isolates of the susceptibility obs group, as pihapps gives it to editors and renderers (members at
+     * every level), or none
      */
-    static toPayload(orderUuid, encounterUuid, changes) {
-        const payload = { order: orderUuid, encounter: encounterUuid };
-        if (changes.isolates) {
-            payload.isolates = changes.isolates.map(i => ({
-                organism: i.organism,
-                results: Object.keys(i.results).map(antibiotic => ({ antibiotic: antibiotic, interpretation: i.results[antibiotic] }))
-            }));
+    fromObsGroup(group) {
+        const c = this.susceptibility;
+        const members = (obs, conceptUuid) => (obs?.groupMembers || []).filter(m => m.concept?.uuid === conceptUuid);
+        const coded = (obs) => obs?.valueCoded?.uuid ?? obs?.value?.uuid ?? null;
+        // Answers that the configuration no longer lists are kept, named as recorded, so that editing the
+        // susceptibility does not drop them
+        const known = (obs, list) => {
+            const uuid = coded(obs);
+            if (uuid && !list.some(c => c.uuid === uuid)) {
+                const display = obs.valueCoded?.display ?? obs.value?.display ?? uuid;
+                list.push({ uuid: uuid, display: display });
+                this.displays[uuid] = display;
+            }
+            return uuid;
+        };
+        return members(group, c.isolate).map(isolateObs => {
+            const results = {};
+            members(isolateObs, c.antibioticResult).forEach(resultObs => {
+                const antibiotic = known(members(resultObs, c.antibiotic)[0], this.antibiotics);
+                const interpretation = coded(members(resultObs, c.interpretation)[0]);
+                if (antibiotic && interpretation) {
+                    results[antibiotic] = interpretation;
+                }
+            });
+            return { organism: known(members(isolateObs, c.organism)[0], this.organisms), results: results };
+        }).filter(i => i.organism);
+    }
+
+    /**
+     * @return the susceptibility obs group of the isolates, as the obs resource accepts it, or null if there are none
+     */
+    toObsGroup(isolates) {
+        const c = this.susceptibility;
+        if (!isolates || isolates.length === 0) {
+            return null;
         }
-        return payload;
+        return {
+            concept: c.uuid,
+            groupMembers: isolates.map(i => ({
+                concept: c.isolate,
+                groupMembers: [{ concept: c.organism, valueCoded: i.organism }].concat(Object.keys(i.results).map(antibiotic => ({
+                    concept: c.antibioticResult,
+                    groupMembers: [
+                        { concept: c.antibiotic, valueCoded: antibiotic },
+                        { concept: c.interpretation, valueCoded: i.results[antibiotic] }
+                    ]
+                })))
+            }))
+        };
     }
 
     escape(text) {
@@ -71,7 +126,7 @@ class RwandaBacteriology {
      */
     summaryHtml(isolates) {
         if (!isolates || isolates.length === 0) {
-            return '<span class="bact-none">Not entered</span>';
+            return '<span class="bact-none">' + this.escape(this.t("rwandaemr.bacteriology.notEntered")) + '</span>';
         }
         return isolates.map(i => {
             const counts = { S: 0, I: 0, R: 0 };
@@ -82,41 +137,17 @@ class RwandaBacteriology {
     }
 
     /**
-     * @return a read only view: for each organism, the antibiotics it is sensitive, intermediate and resistant to
-     */
-    susceptibilityReadOnly(isolates) {
-        const jq = this.jq;
-        const view = jq("<div>").addClass("bact-view");
-        if (!isolates || isolates.length === 0) {
-            return view.append(jq("<span>").addClass("bact-none").text("No susceptibility results"));
-        }
-        const labels = { S: "Sensitive", I: "Intermediate", R: "Resistant" };
-        isolates.forEach(i => {
-            const isolate = jq("<div>").addClass("bact-view-isolate");
-            isolate.append(jq("<div>").addClass("bact-view-organism").text(this.displays[i.organism] ?? ""));
-            ["S", "I", "R"].forEach(code => {
-                const names = Object.keys(i.results).filter(a => this.codes[i.results[a]] === code)
-                    .map(a => this.displays[a] ?? "").sort((a, b) => a.localeCompare(b));
-                if (names.length > 0) {
-                    isolate.append(jq("<div>").addClass("bact-view-line bact-view-" + code)
-                        .append(jq("<span>").addClass("bact-view-label").text(labels[code] + ": "))
-                        .append(jq("<span>").text(names.join(", "))));
-                }
-            });
-            view.append(isolate);
-        });
-        return view;
-    }
-
-    /**
      * @return a table of the antibiotics tested, one column per organism with S, I or R, for the clinicians
      */
     susceptibilityTable(isolates) {
         const jq = this.jq;
-        const labels = { S: "Sensitive", I: "Intermediate", R: "Resistant" };
+        const labels = this.interpretationLabels();
+        if (!isolates || isolates.length === 0) {
+            return jq("<span>").addClass("bact-none").text(this.t("rwandaemr.bacteriology.noResults"));
+        }
         const antibiotics = [...new Set(isolates.flatMap(i => Object.keys(i.results)))]
             .sort((a, b) => (this.displays[a] ?? "").localeCompare(this.displays[b] ?? ""));
-        const head = jq("<tr>").append(jq("<th>").text("Antibiotic"));
+        const head = jq("<tr>").append(jq("<th>").text(this.t("rwandaemr.bacteriology.antibiotic")));
         isolates.forEach(i => head.append(jq("<th>").addClass("bact-table-organism").text(this.displays[i.organism] ?? "")));
         const body = jq("<tbody>");
         antibiotics.forEach(antibiotic => {
@@ -128,9 +159,17 @@ class RwandaBacteriology {
             body.append(row);
         });
         const table = jq("<table>").addClass("bact-table").append(jq("<thead>").append(head)).append(body);
-        const legend = jq("<div>").addClass("bact-legend").html('<span class="bact-code-S">S</span> Sensitive · '
-            + '<span class="bact-code-I">I</span> Intermediate · <span class="bact-code-R">R</span> Resistant');
+        const legend = jq("<div>").addClass("bact-legend").html(["S", "I", "R"]
+            .map(code => '<span class="bact-code-' + code + '">' + code + '</span> ' + this.escape(labels[code])).join(" · "));
         return jq("<div>").append(table).append(legend);
+    }
+
+    interpretationLabels() {
+        return {
+            S: this.t("rwandaemr.bacteriology.sensitive"),
+            I: this.t("rwandaemr.bacteriology.intermediate"),
+            R: this.t("rwandaemr.bacteriology.resistant")
+        };
     }
 
     /**
@@ -151,20 +190,20 @@ class RwandaBacteriology {
             this.organisms.forEach(o => select.append(jq("<option>").attr("value", o.uuid).text(o.display)));
             select.val(isolates[g]?.organism ?? "");
             organismSelects.push(select);
-            germs.append(jq("<label>").text("Germ " + (g + 1) + " ").append(select));
+            germs.append(jq("<label>").text(this.t("rwandaemr.bacteriology.germ", g + 1) + " ").append(select));
         }
         dialog.append(germs);
 
-        const search = jq("<input>").attr({ type: "search", placeholder: "Search antibiotics" }).addClass("bact-search");
+        const search = jq("<input>").attr({ type: "search", placeholder: this.t("rwandaemr.bacteriology.searchAntibiotics") }).addClass("bact-search");
         const testedOnly = jq("<input>").attr("type", "checkbox");
         dialog.append(jq("<div>").addClass("bact-tools").append(search)
-            .append(jq("<label>").append(testedOnly).append(" Only antibiotics with a result")));
+            .append(jq("<label>").append(testedOnly).append(" ").append(document.createTextNode(this.t("rwandaemr.bacteriology.onlyWithResult")))));
 
         const table = jq("<table>").addClass("bact-grid");
-        const head1 = jq("<tr>").append(jq("<th>").attr("rowspan", 2).text("Antibiotic"));
+        const head1 = jq("<tr>").append(jq("<th>").attr("rowspan", 2).text(this.t("rwandaemr.bacteriology.antibiotic")));
         const head2 = jq("<tr>");
         for (let g = 0; g < max; g++) {
-            head1.append(jq("<th>").addClass("bact-germ-head").attr({ colspan: this.interpretations.length, "data-germ": g }).text("Germ " + (g + 1)));
+            head1.append(jq("<th>").addClass("bact-germ-head").attr({ colspan: this.interpretations.length, "data-germ": g }).text(this.t("rwandaemr.bacteriology.germ", g + 1)));
             this.interpretations.forEach(i => head2.append(jq("<th>").addClass("bact-code bact-code-" + i.code).attr("title", i.display).text(i.code)));
         }
         table.append(jq("<thead>").append(head1).append(head2));
@@ -190,15 +229,15 @@ class RwandaBacteriology {
         dialog.append(jq("<div>").addClass("bact-grid-wrapper").append(table));
 
         const errors = jq("<div>").addClass("bact-errors");
-        const cancel = jq("<button>").attr("type", "button").text("Cancel");
-        const done = jq("<button>").attr("type", "button").addClass("confirm").text("Done");
+        const cancel = jq("<button>").attr("type", "button").text(this.t("rwandaemr.bacteriology.cancel"));
+        const done = jq("<button>").attr("type", "button").addClass("confirm").text(this.t("rwandaemr.bacteriology.done"));
         dialog.append(errors).append(jq("<div>").addClass("bact-actions").append(cancel).append(done));
 
         // A germ's results can only be entered once its organism is chosen
         const applyGermState = () => {
             organismSelects.forEach((select, g) => {
                 table.find("input[data-germ='" + g + "']").prop("disabled", !select.val());
-                table.find(".bact-germ-head[data-germ='" + g + "']").text(select.val() ? select.find("option:selected").text() : "Germ " + (g + 1));
+                table.find(".bact-germ-head[data-germ='" + g + "']").text(select.val() ? select.find("option:selected").text() : this.t("rwandaemr.bacteriology.germ", g + 1));
             });
         };
         organismSelects.forEach(select => select.on("change", applyGermState));
@@ -234,7 +273,7 @@ class RwandaBacteriology {
         done.on("click", () => {
             const chosen = organismSelects.map(s => s.val()).filter(v => v);
             if (new Set(chosen).size !== chosen.length) {
-                errors.empty().append(jq("<div>").text("The same organism is chosen for two germs"));
+                errors.empty().append(jq("<div>").text(this.t("rwandaemr.bacteriology.sameOrganismTwice")));
                 return;
             }
             const updated = [];
@@ -257,16 +296,83 @@ class RwandaBacteriology {
 }
 
 /**
- * Renders the antimicrobial susceptibility of a bacteriology exam on the pihapps patient lab results page, as a table:
- * see the org.openmrs.module.pihapps.patientLabResults.obsGroupRenderers extension of the distribution.
- * obs is the antimicrobial susceptibility obs group, with its order.
+ * The configuration of the susceptibility, loaded once per page; a failed load is tried again next time
  */
-function rwandaRenderSusceptibility(obs) {
-    const rest = openmrsContextPath + "/ws/rest/v1/rwandaemr/lab/bacteriology";
-    const getJson = (url) => new Promise((resolve, reject) => jq.getJSON(url).done(resolve).fail(reject));
-    RwandaBacteriology.configLoad = RwandaBacteriology.configLoad ?? getJson(rest + "/config");
-    return Promise.all([RwandaBacteriology.configLoad, getJson(rest + "?" + jq.param({ order: obs.order.uuid }))]).then(([config, results]) => {
-        const isolates = RwandaBacteriology.fromRest(results[obs.order.uuid]).isolates;
-        return new RwandaBacteriology(jq, config).susceptibilityTable(isolates);
+RwandaBacteriology.loadConfig = function(jq) {
+    RwandaBacteriology.configLoad = RwandaBacteriology.configLoad ?? new Promise((resolve, reject) =>
+        jq.getJSON(openmrsContextPath + "/ws/rest/v1/rwandaemr/lab/bacteriology/config").done(resolve).fail(reject))
+        .catch(error => { RwandaBacteriology.configLoad = null; throw error; });
+    return RwandaBacteriology.configLoad;
+};
+
+/**
+ * Renders the antimicrobial susceptibility of a bacteriology exam as a table, on the pihapps patient lab results page
+ * and when validating results: see the org.openmrs.module.pihapps.labResults.resultRenderers extension of the
+ * distribution.  obsGroup is the susceptibility obs group, with its members at every level.
+ */
+function rwandaRenderSusceptibility(obsGroup) {
+    return RwandaBacteriology.loadConfig(jq).then(config => {
+        const bacteriology = new RwandaBacteriology(jq, config);
+        return bacteriology.susceptibilityTable(bacteriology.fromObsGroup(obsGroup));
+    });
+}
+
+/**
+ * Enters the antimicrobial susceptibility of a bacteriology exam on the pihapps lab results forms: see the
+ * org.openmrs.module.pihapps.labResults.resultEditors extension of the distribution, and pihapps' labResultFields.js
+ * for the context and the editor returned.  The forms save the obs group the editor gives with the order's other
+ * results.  The susceptibility is entered once the culture of the exam has isolated an organism, or if it was entered
+ * already.
+ */
+function rwandaBacteriologyEditor(context) {
+    const jq = context.jq;
+    const order = context.order;
+    return RwandaBacteriology.loadConfig(jq).then(config => {
+        const bacteriology = new RwandaBacteriology(jq, config);
+        const initial = context.obs ? bacteriology.fromObsGroup(context.obs) : [];
+        let isolates = initial;
+
+        const summary = jq("<span>");
+        const button = jq("<button>").attr("type", "button").addClass("bact-enter-button").text(bacteriology.t("rwandaemr.bacteriology.enter"));
+        const warning = jq("<div>").addClass("bact-warning").text(bacteriology.t("rwandaemr.bacteriology.cultureNotIsolated")).hide();
+        const element = jq("<span>").addClass("bact-editor").append(button).append(" ").append(summary).append(warning);
+
+        const row = context.container.find('.result-row[data-concept-uuid="' + context.concept.uuid + '"]');
+        const cultureField = context.container.find('.result-row[data-concept-uuid="' + bacteriology.susceptibility.culture + '"] .result-value-field');
+        // Shown once the culture isolated an organism, or if a susceptibility is entered, then with a warning when the
+        // culture says otherwise
+        const applyCulture = () => {
+            const isolated = cultureField.val() === bacteriology.susceptibility.organismIsolated;
+            row.toggle(isolated || isolates.length > 0);
+            warning.toggle(!isolated && isolates.length > 0 && cultureField.length > 0);
+        };
+        const update = (updated) => {
+            isolates = updated;
+            summary.html(bacteriology.summaryHtml(isolates));
+            applyCulture();
+        };
+
+        button.on("click", () => {
+            const title = context.concept.displayStringForLab + ": " + order.concept.displayStringForLab;
+            bacteriology.openSusceptibilityEditor(title, isolates, (updated) => {
+                update(updated);
+                context.onChange();
+            });
+        });
+        cultureField.on("change", applyCulture);
+        summary.html(bacteriology.summaryHtml(isolates));
+        applyCulture();
+
+        return {
+            element: element,
+            hasValue: () => isolates.length > 0,
+            isChanged: () => !RwandaBacteriology.sameIsolates(initial, isolates),
+            clear: () => {
+                if (isolates.length > 0) {
+                    update([]);
+                }
+            },
+            getObs: () => bacteriology.toObsGroup(isolates)
+        };
     });
 }

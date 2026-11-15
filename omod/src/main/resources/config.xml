@@ -68,6 +68,10 @@
 		<lang>en</lang>
 		<file>messages.properties</file>
 	</messages>
+	<messages>
+		<lang>fr</lang>
+		<file>messages_fr.properties</file>
+	</messages>
 
 	<privilege>
 		<name>Task: rwandaemr.radiologyorders</name>
@@ -107,11 +111,6 @@
 	<privilege>
 		<name>Task: rwandaemr.pathology.signOut</name>
 		<description>Enter the pathologist's part of pathology reports and sign them out</description>
-	</privilege>
-
-	<privilege>
-		<name>Task: rwandaemr.labs.validateResults</name>
-		<description>Validate lab results entered by another user, or return them to the lab for correction</description>
 	</privilege>
 
 	<privilege>

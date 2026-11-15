@@ -14,6 +14,8 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.rwandaemr.RwandaEmrConfig;
 import org.openmrs.module.rwandaemr.RwandaEmrService;
 import org.openmrs.module.rwandaemr.sms.SmsMessageFormatter;
+import org.openmrs.module.pihapps.orders.LabOrderConfig;
+import org.openmrs.module.rwandaemr.labs.LabResultValidation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +24,8 @@ import java.util.List;
 
 @Component
 public class LabNotificationService {
+
+	public static final String REQUIRE_RESULT_VALIDATION = LabOrderConfig.GP_REQUIRE_RESULT_VALIDATION;
 
 	protected final Log log = LogFactory.getLog(getClass());
 
@@ -97,9 +101,12 @@ public class LabNotificationService {
 		return updated;
 	}
 
-	private boolean isResultReady(Order order) {
+	boolean isResultReady(Order order) {
 		if (Order.FulfillerStatus.COMPLETED.equals(order.getFulfillerStatus())) {
 			return true;
+		}
+		if (LabResultValidation.isOn()) {
+			return false;  // Results are not released until validated, which completes the order
 		}
 		List<Obs> resultObs = rwandaEmrService.getObsByOrder(order);
 		return resultObs != null && !resultObs.isEmpty();
