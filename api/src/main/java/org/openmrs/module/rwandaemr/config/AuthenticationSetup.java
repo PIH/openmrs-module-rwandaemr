@@ -11,10 +11,13 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 
+import static org.openmrs.module.authentication.AuthenticationConfig.PASSWORD_CHANGE_URL;
+import static org.openmrs.module.authentication.AuthenticationConfig.PASSWORD_CHANGE_WHITE_LIST;
 import static org.openmrs.module.authentication.AuthenticationConfig.SCHEME;
 import static org.openmrs.module.authentication.AuthenticationConfig.SCHEME_CONFIG_PREFIX_TEMPLATE;
 import static org.openmrs.module.authentication.AuthenticationConfig.SCHEME_ID;
 import static org.openmrs.module.authentication.AuthenticationConfig.SCHEME_TYPE_TEMPLATE;
+import static org.openmrs.module.authentication.AuthenticationConfig.SUPPORT_FORCED_PASSWORD_CHANGE;
 import static org.openmrs.module.authentication.AuthenticationConfig.WHITE_LIST;
 
 @Component
@@ -87,6 +90,14 @@ public class AuthenticationSetup implements Setup {
             p.put("rememberMeEnabled", "true");
             addScheme(TWO_FACTOR, className, p);
         }
+
+        // Force password change is handled by the authentication module, redirecting to the authenticationui page.
+        // The legacyui ForcePasswordChangeFilter is disabled in RwandaEmrActivator, as it cannot forward to this page.
+        AuthenticationConfig.setProperty(SUPPORT_FORCED_PASSWORD_CHANGE, "true");
+        AuthenticationConfig.setProperty(PASSWORD_CHANGE_URL, "/authenticationui/account/changePassword.page");
+        // pihapps' RequireLoginLocationFilter and TermsAndConditionsFilter redirect to their own pages without exempting
+        // the change password page, so those pages must be reachable before the password is changed (as in pihcore).
+        AuthenticationConfig.setProperty(PASSWORD_CHANGE_WHITE_LIST, "/pihapps/loginLocation.page,/pihapps/account/termsAndConditions.page");
 
         log.info("Authentication Schemes Configured");
         Properties p = AuthenticationConfig.getConfig();
