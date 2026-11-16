@@ -95,9 +95,9 @@ public class AuthenticationSetup implements Setup {
         // The legacyui ForcePasswordChangeFilter is disabled in RwandaEmrActivator, as it cannot forward to this page.
         AuthenticationConfig.setProperty(SUPPORT_FORCED_PASSWORD_CHANGE, "true");
         AuthenticationConfig.setProperty(PASSWORD_CHANGE_URL, "/authenticationui/account/changePassword.page");
-        // pihapps' RequireLoginLocationFilter sends users without a session location to its login location page, and
-        // doesn't exempt the change password page, so that page must be reachable before the password is changed.
-        AuthenticationConfig.setProperty(PASSWORD_CHANGE_WHITE_LIST, "/pihapps/loginLocation.page");
+        // pihapps' RequireLoginLocationFilter and TermsAndConditionsFilter redirect to their own pages without exempting
+        // the change password page, so those pages must be reachable before the password is changed (as in pihcore).
+        AuthenticationConfig.setProperty(PASSWORD_CHANGE_WHITE_LIST, "/pihapps/loginLocation.page,/pihapps/account/termsAndConditions.page");
 
         log.info("Authentication Schemes Configured");
         Properties p = AuthenticationConfig.getConfig();
