@@ -40,6 +40,7 @@ import org.openmrs.module.rwandaemr.appointment.task.AppointmentReminderTask;
 import org.openmrs.scheduler.SchedulerService;
 import org.openmrs.scheduler.TaskDefinition;
 import org.openmrs.module.rwandaemr.web.HieQueueMonitorService;
+import org.openmrs.module.web.filter.ForcePasswordChangeFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,6 +88,8 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 			log.warn("{} - initializing", setupComponent.getClass().getSimpleName());
 			setupComponent.initialize();
 		}
+		// Forced password changes are handled by the authentication module, see AuthenticationSetup
+		ForcePasswordChangeFilter.setEnabled(false);
 		RwandaEmrTimerTask.setEnabled(true);
 		configureAppointmentReminderTask();
 		log.warn("Rwanda EMR configuration complete");
