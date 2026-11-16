@@ -1,0 +1,548 @@
+<htmlform
+        htmlformUuid="c958cb7d-3d09-4a79-9899-4814b362f041"
+        formUuid="0de0f0bc-2f34-48d4-8ae2-13d175defebd"
+        formName="WHO LCG Postpartum and Postnatal Followup Newborn"
+        formDescription="parto_postpartum_newborn"
+        formVersion="1.0"
+        formEncounterType="d0d3777d-a40e-4e5d-a116-0163aab5fd6c"
+        formPublished="true"
+        formRetired="false"
+>
+    <div style="display:none"><labourEpisodeIdObs/></div>
+
+                          
+    
+    
+    
+    
+    
+    <!-- WHO LABOUR CARE GUIDE - RWANDA ADAPTATION : POST-NATAL FOLLOW-UP FOR NEWBORN
+       One encounter = one row (Date &amp; Time, HR, T, Respiration, Umbilicus,
+       Breastfeeding, Observation &amp; Treatment, Provider Name &amp; Signature) -->
+                          
+    
+    
+    
+    
+    
+    <macros>
+    headerColor = #0F6E56
+    fontOnHeaderColor = white
+  </macros>
+                          
+    
+    
+    
+    
+    
+    <style>
+    .formTitle {
+      text-align: center;
+      font-size: 1.4em;
+      font-weight: bold;
+      color: $headerColor;
+      margin-bottom: 0.8em;
+      letter-spacing: 0.02em;
+    }
+    .section {
+      border: 1px solid $headerColor;
+      border-radius: 6px;
+      padding: 0;
+      text-align: left;
+      margin-bottom: 1em;
+      overflow: hidden;
+    }
+    .sectionHeader {
+      background-color: $headerColor;
+      color: $fontOnHeaderColor;
+      display: block;
+      padding: 6px 10px;
+      font-weight: bold;
+      letter-spacing: 0.02em;
+    }
+    .section table { width: 100%; border-collapse: collapse; }
+    .section table.baseline-aligned td { vertical-align: middle; padding: 6px 10px; }
+    .section table.baseline-aligned tr { border-top: 1px solid #e2e3f2; }
+    .section table.baseline-aligned tr:first-child { border-top: none; }
+    th.subheader { background-color: $headerColor; color: white; }
+    .lblcolor{ background: #eef7f4; width: 320px; font-size: 0.92em; }
+    .legend { font-size: 0.85em; border-top: 1px solid #999; margin-top: 1em; padding-top: 4px; color: #444; }
+    .unit { font-size: 0.85em; color: #666; margin-left: 4px; }
+    .section input[type="radio"] {
+      margin: 0 4px 0 14px;
+      vertical-align: middle;
+      transform: scale(1.15);
+    }
+    .section input[type="radio"]:first-of-type { margin-left: 0; }
+    .section label { cursor: pointer; padding: 2px 2px; }
+    .submitWrapper {
+      display: flex;
+      justify-content: center;
+      margin-top: 1.2em;
+    }
+  </style>
+                          
+    
+    
+    
+    
+    
+    <div class="formTitle">POST-NATAL FOLLOW-UP FOR NEWBORN FORM</div>
+                          
+    
+    
+    
+    
+    
+    <section headerCode=" ">
+                                                    
+        
+        
+        
+        
+        
+        <table border="1" cellpadding="6" cellspacing="0" style="border-color:#ccc;" width="100%">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                  Date:
+          
+                    
+                    
+                    
+                    
+                    
+                    <encounterDate default="now" id="encdateId" showTime="true"/>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        Health Facility: 
+                    
+                    
+                    
+                    
+                    
+                    <encounterLocation default="UserProperty:defaultLocation"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        Provider: 
+                    
+                    
+                    
+                    
+                    
+                    <encounterProvider/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="Detail Information">
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Date &amp; Time</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs conceptId="0bc46a19-fe56-4c3a-9d2a-13f1786163a9"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">HR</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="57c934dd-a086-4e73-a9b8-3b9c1abef1b1" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">bpm</span>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">T°</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="3ce939d2-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">°C</span>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Respiration</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="226c9283-7de0-4c80-945f-cbfceea18ab8" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">/min</span>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Umbilicus</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs conceptId="f49fa661-191f-4507-8328-7e3a3a0444af" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Breastfeeding</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs conceptId="3cd4860e-26fe-102b-80cb-0017a47871b2" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Observation &amp; Treatment</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="30" conceptId="6602a73b-b8d3-40bc-bae8-f00ff3b9cceb" rows="2"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <div class="submitWrapper">
+                                                    
+        
+        
+        
+        
+        
+        <submit/>
+                                                  
+    
+    
+    
+    
+    
+    </div>
+                        
+
+
+
+
+
+</htmlform>

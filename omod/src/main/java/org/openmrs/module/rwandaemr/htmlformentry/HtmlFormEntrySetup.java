@@ -35,6 +35,14 @@ public class HtmlFormEntrySetup implements Setup {
 
     public static final String INSURANCE_POLICY_OBS_TAG = "insurancePolicyObs";
 
+    public static final String ICD11_DIAGNOSES_TAG = "icd11Diagnoses";
+
+    public static final String ANESTHESIA_CASE_ID_OBS_TAG = "anesthesiaCaseIdObs";
+
+    public static final String LABOUR_EPISODE_ID_OBS_TAG = "labourEpisodeIdObs";
+
+    public static final String APPOINTMENT_BOOKING_TAG = "appointmentBooking";
+
     public static final String FORM_ENGINE_RESOURCE_NAME = "formEngine";
 
     public static final String FORM_ENGINE_RESOURCE_VALUE = "htmlformentry";
@@ -51,6 +59,21 @@ public class HtmlFormEntrySetup implements Setup {
         tagHandler.setUiUtils(uiUtils);
         htmlFormEntryService.addHandler(INSURANCE_POLICY_OBS_TAG, tagHandler);
         log.warn("Registered " + INSURANCE_POLICY_OBS_TAG + " tag with htmlformentry");
+
+        Icd11DiagnosesTagHandler icd11DiagnosesTagHandler = new Icd11DiagnosesTagHandler();
+        icd11DiagnosesTagHandler.setUiUtils(uiUtils);
+        htmlFormEntryService.addHandler(ICD11_DIAGNOSES_TAG, icd11DiagnosesTagHandler);
+        log.warn("Registered " + ICD11_DIAGNOSES_TAG + " tag with htmlformentry");
+
+        htmlFormEntryService.addHandler(ANESTHESIA_CASE_ID_OBS_TAG, new AnesthesiaCaseIdObsTagHandler());
+        log.warn("Registered " + ANESTHESIA_CASE_ID_OBS_TAG + " tag with htmlformentry");
+
+        htmlFormEntryService.addHandler(LABOUR_EPISODE_ID_OBS_TAG, new LabourEpisodeIdObsTagHandler());
+        log.warn("Registered " + LABOUR_EPISODE_ID_OBS_TAG + " tag with htmlformentry");
+
+        AppointmentBookingTagHandler appointmentBookingTagHandler = new AppointmentBookingTagHandler();
+        htmlFormEntryService.addHandler(APPOINTMENT_BOOKING_TAG, appointmentBookingTagHandler);
+        log.warn("Registered " + APPOINTMENT_BOOKING_TAG + " tag with htmlformentry");
 
         // Add form engine resources
         int numResourcesSaved = 0;

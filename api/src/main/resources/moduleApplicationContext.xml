@@ -32,4 +32,149 @@
 		</property>
 	</bean>
 
+	<bean id="icd11Dao" class="org.openmrs.module.rwandaemr.icd11.dao.HibernateIcd11Dao">
+		<property name="sessionFactory"><ref bean="dbSessionFactory"/></property>
+	</bean>
+
+	<bean id="icd11ApiClient" class="org.openmrs.module.rwandaemr.icd11.Icd11ApiClient">
+		<property name="config"><ref bean="icd11Config"/></property>
+	</bean>
+
+	<bean id="icd11Service" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+		<property name="transactionManager"><ref bean="transactionManager"/></property>
+		<property name="target">
+			<bean class="org.openmrs.module.rwandaemr.icd11.Icd11ServiceImpl">
+				<property name="config"><ref bean="icd11Config"/></property>
+				<property name="apiClient"><ref bean="icd11ApiClient"/></property>
+				<property name="dao"><ref bean="icd11Dao"/></property>
+			</bean>
+		</property>
+		<property name="preInterceptors">
+			<ref bean="serviceInterceptors"/>
+		</property>
+		<property name="transactionAttributeSource">
+			<bean class="org.springframework.transaction.annotation.AnnotationTransactionAttributeSource"/>
+		</property>
+	</bean>
+
+	<bean parent="serviceContext">
+		<property name="moduleService">
+			<list merge="true">
+				<value>org.openmrs.module.rwandaemr.icd11.Icd11Service</value>
+				<ref bean="icd11Service"/>
+			</list>
+		</property>
+	</bean>
+
+	<bean id="queueDao" class="org.openmrs.module.rwandaemr.queue.dao.HibernateQueueDao">
+		<property name="sessionFactory"><ref bean="dbSessionFactory"/></property>
+	</bean>
+
+	<bean id="locationTagUtil" class="org.openmrs.module.rwandaemr.LocationTagUtil">
+		<constructor-arg ref="locationService"/>
+	</bean>
+
+	<bean id="queueService" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+		<property name="transactionManager"><ref bean="transactionManager"/></property>
+		<property name="target">
+			<bean class="org.openmrs.module.rwandaemr.queue.QueueServiceImpl">
+				<property name="dao"><ref bean="queueDao"/></property>
+				<property name="locationTagUtil"><ref bean="locationTagUtil"/></property>
+			</bean>
+		</property>
+		<property name="preInterceptors">
+			<ref bean="serviceInterceptors"/>
+		</property>
+		<property name="transactionAttributeSource">
+			<bean class="org.springframework.transaction.annotation.AnnotationTransactionAttributeSource"/>
+		</property>
+	</bean>
+
+	<bean parent="serviceContext">
+		<property name="moduleService">
+			<list merge="true">
+				<value>org.openmrs.module.rwandaemr.queue.QueueService</value>
+				<ref bean="queueService"/>
+			</list>
+		</property>
+	</bean>
+
+	<bean id="appointmentDao" class="org.openmrs.module.rwandaemr.appointment.dao.HibernateAppointmentDao">
+		<property name="sessionFactory"><ref bean="dbSessionFactory"/></property>
+	</bean>
+	<bean id="smsMessageFormatter" class="org.openmrs.module.rwandaemr.sms.SmsMessageFormatter"/>
+
+	<bean id="facilityAppointmentService" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+		<property name="transactionManager"><ref bean="transactionManager"/></property>
+		<property name="target">
+			<bean class="org.openmrs.module.rwandaemr.appointment.FacilityAppointmentServiceImpl">
+				<property name="dao"><ref bean="appointmentDao"/></property>
+				<property name="locationTagUtil"><ref bean="locationTagUtil"/></property>
+				<property name="providerService"><ref bean="providerService"/></property>
+				<property name="smsMessageFormatter"><ref bean="smsMessageFormatter"/></property>
+			</bean>
+		</property>
+		<property name="preInterceptors">
+			<ref bean="serviceInterceptors"/>
+		</property>
+		<property name="transactionAttributeSource">
+			<bean class="org.springframework.transaction.annotation.AnnotationTransactionAttributeSource"/>
+		</property>
+	</bean>
+
+	<bean parent="serviceContext">
+		<property name="moduleService">
+			<list merge="true">
+				<value>org.openmrs.module.rwandaemr.appointment.FacilityAppointmentService</value>
+				<ref bean="facilityAppointmentService"/>
+			</list>
+		</property>
+	</bean>
+
+	<bean id="labReportService" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+		<property name="transactionManager"><ref bean="transactionManager"/></property>
+		<property name="target">
+			<bean class="org.openmrs.module.rwandaemr.labreports.LabReportServiceImpl">
+				<property name="sessionFactory"><ref bean="dbSessionFactory"/></property>
+				<property name="labOrderConfig"><ref bean="labOrderConfig"/></property>
+			</bean>
+		</property>
+		<property name="preInterceptors">
+			<ref bean="serviceInterceptors"/>
+		</property>
+		<property name="transactionAttributeSource">
+			<bean class="org.springframework.transaction.annotation.AnnotationTransactionAttributeSource"/>
+		</property>
+	</bean>
+
+	<bean parent="serviceContext">
+		<property name="moduleService">
+			<list merge="true">
+				<value>org.openmrs.module.rwandaemr.labreports.LabReportService</value>
+				<ref bean="labReportService"/>
+			</list>
+		</property>
+	</bean>
+
+	<bean id="smsGatewayConfig" class="org.openmrs.module.rwandaemr.sms.SmsGatewayConfig"/>
+
+	<bean id="labNotificationConfig" class="org.openmrs.module.rwandaemr.labnotification.LabNotificationConfig">
+		<constructor-arg ref="smsGatewayConfig"/>
+	</bean>
+
+	<bean id="intouchSmsClient" class="org.openmrs.module.rwandaemr.labnotification.IntouchSmsClient">
+		<constructor-arg ref="smsGatewayConfig"/>
+	</bean>
+
+	<bean id="paymentClearanceLogRepository" class="org.openmrs.module.rwandaemr.paymentclearance.PaymentClearanceLogRepository">
+		<constructor-arg ref="dbSessionFactory"/>
+	</bean>
+
+	<bean id="paymentClearanceService" class="org.openmrs.module.rwandaemr.paymentclearance.PaymentClearanceService">
+		<constructor-arg ref="smsGatewayConfig"/>
+		<constructor-arg ref="intouchSmsClient"/>
+		<constructor-arg ref="paymentClearanceLogRepository"/>
+		<constructor-arg ref="smsMessageFormatter"/>
+	</bean>
+
 </beans>

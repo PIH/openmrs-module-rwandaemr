@@ -163,4 +163,32 @@ public class OrderToORMTranslatorTest extends BaseHL7TranslatorTest {
         message = orderToORMTranslator.toORM_O01(testOrder).encode();
         testField(message, "ORC", 1, equalTo("CA"));
     }
+
+    @Test
+    public void shouldCombineSeveralTestsIntoOneObrForOneStudy() throws Exception {
+        org.openmrs.Concept handXrayConcept = createConcept("X-RAY, HAND", loinc, "37001-0");
+        crConceptSet.addSetMember(handXrayConcept);
+        org.openmrs.TestOrder handXray = new org.openmrs.TestOrder();
+        handXray.setPatient(patient);
+        encounter.addOrder(handXray);
+        handXray.setDateActivated(DateUtils.addHours(encounter.getEncounterDatetime(), -1));
+        handXray.setClinicalHistory("Fall on outstretched hand");
+        handXray.setUrgency(Order.Urgency.STAT);
+        handXray.setOrderer(orderingProvider);
+        handXray.setCareSetting(inpatient);
+        FieldUtils.writeField(handXray, "orderNumber", "ORD-764592", true);
+        handXray.setConcept(handXrayConcept);
+
+        ORM_O01 orm = orderToORMTranslator.toORM_O01(java.util.Arrays.asList(testOrder, handXray), "ORD-764591", "NW");
+        String message = orm.encode().replace("MSH|", "MSH||");
+
+        assertThat(orm.getORDERReps(), equalTo(1));
+        testField(message, "OBR", 2, equalTo("ORD-764591"));
+        testField(message, "OBR", 4, equalTo("36657-5-Combine^X-RAY, FOOT_X-RAY, HAND"));
+        testField(message, "OBR", 5, equalTo("STAT"));
+        testField(message, "OBR", 24, equalTo("CR"));
+        testField(message, "OBR", 36, equalTo(ymdhms.format(handXray.getDateActivated())));
+        testField(message, "PID", 13, equalTo("^^Twisted ankle; Fall on outstretched hand"));
+        testField(message, "ORC", 1, equalTo("NW"));
+    }
 }

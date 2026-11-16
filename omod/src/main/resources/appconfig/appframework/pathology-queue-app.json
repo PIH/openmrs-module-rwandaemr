@@ -1,0 +1,20 @@
+[
+  {
+    "id": "rwandaemr.pathologyQueue",
+    "description": "Pathology requests, with where each is in the lab and payment status",
+    "label": "Pathology Queue",
+    "order": 120,
+    "extensions": [
+      {
+        "id": "rwandaemr.pathologyQueue.homepageLink",
+        "extensionPointId": "org.openmrs.referenceapplication.homepageLink",
+        "type": "link",
+        "label": "Pathology Queue",
+        "url": "rwandaemr/pathology/pathologyQueue.page",
+        "icon": "icon-beaker",
+        "order": 120,
+        "requiredPrivilege": "Task: rwandaemr.pathologyQueue"
+      }
+    ]
+  }
+]

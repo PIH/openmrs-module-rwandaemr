@@ -17,6 +17,7 @@ import lombok.Setter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hibernate.LockOptions;
+import org.openmrs.module.rwandaemr.labs.LabResultValidation;
 import org.hibernate.Session;
 import org.hibernate.query.NativeQuery;
 import org.openmrs.Encounter;
@@ -137,8 +138,15 @@ public class RwandaEmrServiceImpl extends BaseOpenmrsService implements RwandaEm
 			Integer orderId = (Integer) queryResult;
 			log.debug("Marking order as completed: " + orderId);
 			Order order = orderDAO.getOrder(orderId);
-			order.setFulfillerStatus(Order.FulfillerStatus.COMPLETED);
-			order.setFulfillerComment("Auto-updated to completed");
+			// With validation required, lab results are not released here: the lab submits them for validation
+			if (LabResultValidation.isRequired(order)) {
+				order.setFulfillerStatus(Order.FulfillerStatus.IN_PROGRESS);
+				order.setFulfillerComment("Auto-updated to in progress");
+			}
+			else {
+				order.setFulfillerStatus(Order.FulfillerStatus.COMPLETED);
+				order.setFulfillerComment("Auto-updated to completed");
+			}
 			orderDAO.saveOrder(order);
 			numUpdated[0]++;
 			if (numUpdated[0] % 10 == 0) {

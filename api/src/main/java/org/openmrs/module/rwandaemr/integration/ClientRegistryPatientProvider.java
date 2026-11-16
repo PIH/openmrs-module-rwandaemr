@@ -66,6 +66,7 @@ public class ClientRegistryPatientProvider {
 		try (CloseableHttpClient httpClient = HttpUtils.getHieClient()) {
 			String url = integrationConfig.getHieEndpointUrl("/clientregistry/Patient", "identifier", identifier);
 			HttpGet httpGet = new HttpGet(url);
+			httpGet.setHeader("Accept", HttpUtils.FHIR_JSON_CONTENT_TYPE);
 			log.debug("Attempting to find patient " + identifier + " from client registry");
 			try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
 				int statusCode = response.getStatusLine().getStatusCode();
@@ -151,7 +152,8 @@ public class ClientRegistryPatientProvider {
 			HttpPost httpPost = new HttpPost(integrationConfig.getHieEndpointUrl(endpoint));
 			log.debug("POSTING " + endpoint + ": " + postBody);
 			httpPost.setEntity(new StringEntity(postBody));
-			httpPost.setHeader("Content-Type", "application/json");
+			httpPost.setHeader("Content-Type", HttpUtils.FHIR_JSON_CONTENT_TYPE);
+			httpPost.setHeader("Accept", HttpUtils.FHIR_JSON_CONTENT_TYPE);
 			try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
 				int statusCode = response.getStatusLine().getStatusCode();
 				HttpEntity entity = response.getEntity();

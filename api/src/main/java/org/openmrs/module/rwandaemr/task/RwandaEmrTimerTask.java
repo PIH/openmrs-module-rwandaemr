@@ -1,10 +1,13 @@
 package org.openmrs.module.rwandaemr.task;
 
+import org.openmrs.api.context.Context;
 import org.openmrs.api.context.Daemon;
 import org.openmrs.module.DaemonToken;
+import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.TimerTask;
 
 /**
@@ -22,7 +25,7 @@ public class RwandaEmrTimerTask extends TimerTask {
     private static boolean enabled = false;
     public static void setEnabled(boolean enabled) {
         RwandaEmrTimerTask.enabled = enabled;
-        log.warn("RwandaEmrTimerTask enabled");
+        log.warn("RwandaEmrTimerTask enabled set to {}", enabled);
     }
     public static boolean isEnabled() {
         return enabled;
@@ -35,22 +38,58 @@ public class RwandaEmrTimerTask extends TimerTask {
     }
 
     /**
+     * Check if this is an HIE-related task that requires HIE to be enabled
+     */
+    private boolean isHieRelatedTask() {
+        String className = taskClass.getSimpleName();
+        return className.equals("UpdateShrEncounterTask") ||
+               className.equals("UpdateShrObsTask") ||
+               className.equals("UpdateClientRegistryTask");
+    }
+
+    /**
      * @see TimerTask#run()
      */
     @Override
     public final void run() {
         if (daemonToken != null && enabled) {
             try {
-                log.debug("Running task: " + taskClass.getSimpleName());
-                Runnable taskInstance = taskClass.newInstance();
-                Daemon.runInDaemonThread(taskInstance, daemonToken);
+                final String taskName = taskClass.getSimpleName();
+                Daemon.runInDaemonThread(() -> {
+                    try {
+                        final long startedAt = System.currentTimeMillis();
+                        Context.openSession();
+                        try {
+                            // Keep HIE pre-check, but execute it where user context/session are available.
+                            if (isHieRelatedTask()) {
+                                List<IntegrationConfig> configs = Context.getRegisteredComponents(IntegrationConfig.class);
+                                if (configs == null || configs.isEmpty() || !configs.get(0).isHieEnabled()) {
+                                    log.warn("Skipping HIE task {} - HIE is not enabled or IntegrationConfig is unavailable (configs null/empty={})",
+                                            taskName, (configs == null || configs.isEmpty()));
+                                    return;
+                                }
+                            }
+
+                            log.info("Starting scheduled task: {}", taskName);
+                            Runnable taskInstance = taskClass.getDeclaredConstructor().newInstance();
+                            taskInstance.run();
+                            long durationMs = System.currentTimeMillis() - startedAt;
+                            log.info("Completed scheduled task: {} in {} ms", taskName, durationMs);
+                        } finally {
+                            Context.closeSession();
+                        }
+                    } catch (Exception e) {
+                        log.error("An error occurred while running scheduled task {}", taskName, e);
+                    }
+                }, daemonToken);
             }
             catch (Exception e) {
                 log.error("An error occurred while running scheduled task " + taskClass.getSimpleName(), e);
             }
         }
         else {
-            log.debug("Not running scheduled task. DaemonToken = " + daemonToken + "; enabled = " + enabled);
+            log.warn("Not running scheduled task {}. daemonTokenPresent={}, enabled={}",
+                    taskClass.getSimpleName(), daemonToken != null, enabled);
         }
     }
 }

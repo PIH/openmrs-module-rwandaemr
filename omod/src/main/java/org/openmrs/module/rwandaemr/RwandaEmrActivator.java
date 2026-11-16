@@ -28,24 +28,35 @@ import org.openmrs.module.rwandaemr.config.ProviderCleanup;
 import org.openmrs.module.rwandaemr.config.ReportSetup;
 import org.openmrs.module.rwandaemr.config.ServerSetup;
 import org.openmrs.module.rwandaemr.config.Setup;
-import org.openmrs.module.rwandaemr.event.PatientEventListener;
+import org.openmrs.module.rwandaemr.event.CreateInsurancePatientListener;
 import org.openmrs.module.rwandaemr.htmlformentry.HtmlFormEntrySetup;
+import org.openmrs.module.rwandaemr.integration.UpdateShrEncounterListener;
+import org.openmrs.module.rwandaemr.integration.UpdateShrObsListener;
 import org.openmrs.module.rwandaemr.radiology.HL7ListenerSetup;
 import org.openmrs.module.rwandaemr.radiology.ORUR01MessageListener;
 import org.openmrs.module.rwandaemr.radiology.RadiologyOrderEventListener;
 import org.openmrs.module.rwandaemr.task.RwandaEmrTimerTask;
+import org.openmrs.module.rwandaemr.appointment.task.AppointmentReminderTask;
+import org.openmrs.scheduler.SchedulerService;
+import org.openmrs.scheduler.TaskDefinition;
+import org.openmrs.module.rwandaemr.web.HieQueueMonitorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 
 /**
  * This class contains the logic that is run every time this module is either started or stopped.
  */
 public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTokenAware {
+
+	private static final String APPOINTMENT_REMINDER_TASK_NAME = "Rwanda EMR appointment SMS reminders";
+	private static final long ONE_DAY_SECONDS = 24L * 60L * 60L;
 	
 	protected Logger log = LoggerFactory.getLogger(getClass());
 
@@ -77,7 +88,47 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 			setupComponent.initialize();
 		}
 		RwandaEmrTimerTask.setEnabled(true);
+		configureAppointmentReminderTask();
 		log.warn("Rwanda EMR configuration complete");
+	}
+
+	private void configureAppointmentReminderTask() {
+		try {
+			SchedulerService schedulerService = Context.getSchedulerService();
+			TaskDefinition task = schedulerService.getTaskByName(APPOINTMENT_REMINDER_TASK_NAME);
+			boolean newTask = task == null;
+			if (task == null) {
+				task = new TaskDefinition();
+				task.setName(APPOINTMENT_REMINDER_TASK_NAME);
+			}
+			task.setDescription("Runs daily at 06:30 and sends reminders for appointments two days later");
+			task.setTaskClass(AppointmentReminderTask.class.getName());
+			task.setStartTime(nextReminderRunTime());
+			task.setRepeatInterval(ONE_DAY_SECONDS);
+			task.setStartOnStartup(false);
+			task.setStarted(true);
+			schedulerService.saveTaskDefinition(task);
+			if (newTask) {
+				schedulerService.scheduleIfNotRunning(task);
+			} else {
+				schedulerService.rescheduleTask(task);
+			}
+		}
+		catch (Exception e) {
+			log.error("Unable to configure appointment reminder task", e);
+		}
+	}
+
+	static Date nextReminderRunTime() {
+		Calendar runTime = Calendar.getInstance();
+		runTime.set(Calendar.HOUR_OF_DAY, 6);
+		runTime.set(Calendar.MINUTE, 30);
+		runTime.set(Calendar.SECOND, 0);
+		runTime.set(Calendar.MILLISECOND, 0);
+		if (!runTime.getTime().after(new Date())) {
+			runTime.add(Calendar.DAY_OF_MONTH, 1);
+		}
+		return runTime.getTime();
 	}
 
 	/**
@@ -103,7 +154,10 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 	@Override
 	public void setDaemonToken(DaemonToken daemonToken) {
 		RwandaEmrTimerTask.setDaemonToken(daemonToken);
-		PatientEventListener.setDaemonToken(daemonToken);
+		CreateInsurancePatientListener.setDaemonToken(daemonToken);
+		UpdateShrEncounterListener.setDaemonToken(daemonToken);
+		UpdateShrObsListener.setDaemonToken(daemonToken);
+		HieQueueMonitorService.setDaemonToken(daemonToken);
 		RadiologyOrderEventListener.setDaemonToken(daemonToken);
 		ORUR01MessageListener.setDaemonToken(daemonToken);
 	}

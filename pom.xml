@@ -3,7 +3,7 @@
 
     <groupId>org.openmrs.module</groupId>
     <artifactId>rwandaemr</artifactId>
-    <version>4.0.0-SNAPSHOT</version>
+    <version>4.1.1-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Rwanda EMR Module</name>
 
@@ -36,14 +36,14 @@
         <bedmanagementVersion>7.1.0</bedmanagementVersion>
         <calculationVersion>2.0.0</calculationVersion>
         <coreappsVersion>4.0.0-SNAPSHOT</coreappsVersion>
-        <emrapiVersion>3.5.0-SNAPSHOT</emrapiVersion>
+        <emrapiVersion>3.5.1</emrapiVersion>
         <eventVersion>4.0.0</eventVersion>
         <fhir2Version>4.0.0</fhir2Version>
         <formconceptsVersion>2.0.1</formconceptsVersion>
         <formentryappVersion>1.4.3</formentryappVersion>
         <groovyVersion>2.3.1</groovyVersion>
         <heightweighttrackerVersion>2.1.0</heightweighttrackerVersion>
-        <htmlformentryVersion>7.3.0-SNAPSHOT</htmlformentryVersion>
+        <htmlformentryVersion>7.3.0</htmlformentryVersion>
         <htmlformentryuiVersion>3.2.0</htmlformentryuiVersion>
         <htmlformflowsheetVersion>2.0.0</htmlformflowsheetVersion>
         <htmlwidgetsVersion>2.0.1</htmlwidgetsVersion>
@@ -55,7 +55,7 @@
         <metadatamappingVersion>2.0.0</metadatamappingVersion>
         <metadatasharingVersion>1.10.0</metadatasharingVersion>
         <mohappointmentVersion>2.0.1-SNAPSHOT</mohappointmentVersion>
-        <mohbillingVersion>2.2.0-SNAPSHOT</mohbillingVersion>
+        <mohbillingVersion>2.2.6-SNAPSHOT</mohbillingVersion>
         <mohdataflowmoduleVersion>0.0.5-SNAPSHOT</mohdataflowmoduleVersion>
         <mohtracVersion>2.0.0-SNAPSHOT</mohtracVersion>
         <namephoneticsVersion>1.19.0</namephoneticsVersion>
@@ -67,7 +67,7 @@
         <pihappsVersion>1.2.0-SNAPSHOT</pihappsVersion>
         <registrationappVersion>1.29.0</registrationappVersion>
         <registrationcoreVersion>1.13.0</registrationcoreVersion>
-        <reportingVersion>2.2.0-SNAPSHOT</reportingVersion>
+        <reportingVersion>2.2.0</reportingVersion>
         <reportingcompatibilityVersion>2.0.9</reportingcompatibilityVersion>
         <reportingobjectgroupVersion>2.0.2-SNAPSHOT</reportingobjectgroupVersion>
         <reportingrestVersion>2.1.0-SNAPSHOT</reportingrestVersion>
@@ -84,11 +84,11 @@
         <uiframeworkVersion>4.0.0</uiframeworkVersion>
         <uilibraryVersion>2.0.7</uilibraryVersion>
         <usagestatisticsVersion>2.1.0</usagestatisticsVersion>
-        <webservicesRestVersion>3.5.0-SNAPSHOT</webservicesRestVersion>
+        <webservicesRestVersion>3.6.0</webservicesRestVersion>
         <!-- dhisconnector-1.5.6.omod -->
         <!-- growthchart-2.2.0-SNAPSHOT.omod  -->
         <!-- muzimacore-2.5.3-SNAPSHOT.omod -->
-        <!-- rbcmessaging-1.0-SNAPSHOT -->
+        <rbcmessagingVersion>1.1.0-SNAPSHOT</rbcmessagingVersion>
         <lombokVersion>1.18.42</lombokVersion>
 
         <pihMavenPluginVersion>1.6.0</pihMavenPluginVersion>

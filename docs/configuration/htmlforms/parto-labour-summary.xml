@@ -1,0 +1,780 @@
+<htmlform
+        htmlformUuid="3765901c-492d-4dcb-b8b5-b2b3cf967e23"
+        formUuid="c9955720-0b2b-4c4f-b361-fc29901fe1ea"
+        formName="Labour Summary Form"
+        formDescription="parto_labour_summary"
+        formVersion="1.0"
+        formEncounterType="d0d3777d-a40e-4e5d-a116-0163aab5fd6c"
+        formPublished="true"
+        formRetired="false"
+>
+    <div style="display:none"><labourEpisodeIdObs/></div>
+
+                          
+    
+    
+    
+    
+    
+    <!-- WHO LABOUR CARE GUIDE - RWANDA ADAPTATION : LABOUR SUMMARY -->
+                          
+    
+    
+    
+    
+    
+    <macros>
+    headerColor = #0F6E56
+    fontOnHeaderColor = white
+  </macros>
+                          
+    
+    
+    
+    
+    
+    <style>
+    .formTitle {
+      text-align: center;
+      font-size: 1.4em;
+      font-weight: bold;
+      color: $headerColor;
+      margin-bottom: 0.8em;
+      letter-spacing: 0.02em;
+    }
+    .section {
+      border: 1px solid $headerColor;
+      border-radius: 6px;
+      padding: 0;
+      text-align: left;
+      margin-bottom: 1em;
+      overflow: hidden;
+    }
+    .sectionHeader {
+      background-color: $headerColor;
+      color: $fontOnHeaderColor;
+      display: block;
+      padding: 6px 10px;
+      font-weight: bold;
+      letter-spacing: 0.02em;
+    }
+    .section table { width: 100%; border-collapse: collapse; }
+    .section table.baseline-aligned td { vertical-align: middle; padding: 6px 10px; }
+    .section table.baseline-aligned tr { border-top: 1px solid #e2e3f2; }
+    .section table.baseline-aligned tr:first-child { border-top: none; }
+    th.subheader { background-color: $headerColor; color: white; }
+    .lblcolor{ background: #eef7f4; width: 320px; font-size: 0.92em; }
+    .legend { font-size: 0.85em; border-top: 1px solid #999; margin-top: 1em; padding-top: 4px; color: #444; }
+    .unit { font-size: 0.85em; color: #666; margin-left: 4px; }
+
+    /* Make radio-style obs answers read as a horizontal row of options
+       rather than a stacked list, and give them larger, clearer touch targets. */
+    .section input[type="radio"] {
+      margin: 0 4px 0 14px;
+      vertical-align: middle;
+      transform: scale(1.15);
+    }
+    .section input[type="radio"]:first-of-type { margin-left: 0; }
+    .section label { cursor: pointer; padding: 2px 2px; }
+
+    /* Alert state applied by JS to the numeric obs inputs themselves
+       (the id attribute on each obs field is passed through to the rendered input). */
+    .alert-value {
+      border: 2px solid #c0392b !important;
+      background-color: #fdecea !important;
+      color: #a32d2d !important;
+      font-weight: bold;
+    }
+
+    .submitWrapper {
+      display: flex;
+      justify-content: center;
+      margin-top: 1.2em;
+    }
+  </style>
+                          
+    
+    
+    
+    
+    
+    <div class="formTitle">LABOUR SUMMARY FORM</div>
+                          
+    
+    
+    
+    
+    
+    <section headerCode=" ">
+                                                    
+        
+        
+        
+        
+        
+        <table border="1" cellpadding="6" cellspacing="0" style="border-color:#ccc;" width="100%">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                                Date:
+                       
+                    
+                    
+                    
+                    
+                    
+                    <encounterDate default="now" id="encdateId" showTime="true"/>
+                                                                                                                                            
+                
+                
+                
+                
+                
+                </td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        Health Facility: 
+                    
+                    
+                    
+                    
+                    
+                    <encounterLocation default="UserProperty:defaultLocation"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        Provider: 
+                    
+                    
+                    
+                    
+                    
+                    <encounterProvider/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="BIRTH DETAILS">
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Mode of childbirth</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Spontaneous vaginal birth,Cesarean birth,Vacuum-assisted birth" answerConceptIds="c2069c3d-1a82-4bf8-8546-55dd8e77dd26,88da05c7-d76c-49d1-9c20-55080d8db170,4d5a4ab4-6b3c-4152-882a-e8ea3f20e6aa" conceptId="3104238e-94f7-4d63-a59f-d2886bd7b15a" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Conducted by</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Obstetrician,Midwife,Nurse,Other" answerConceptIds="e773a478-875d-4665-a3af-2dfb82336044,6834067f-54fb-4214-87fa-4b19e79360fc,ef9880fe-3a14-4a05-aadc-e3000c721e3c,da0ed6e5-8017-44c2-a68f-23ea082b8dc4" conceptId="669638cb-ad30-4caa-bff8-6c28721129aa" style="radio"/>
+                                                                                                                                   If Other: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="20" conceptId="da0ed6e5-8017-44c2-a68f-23ea082b8dc4" rows="1"/>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="THIRD STAGE OF LABOUR">
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Uterotonics for AMTSL</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Oxytocin,Misoprostol,Carbetocin" answerConceptIds="76f30070-c91f-4211-880c-024565b69d42,7c9418db-c53f-43d8-aa7d-631053ae9f14,cb65455f-5082-46cd-aa9f-2b0212dafe6f" conceptId="334d8cd9-a467-4daa-b4c3-406c0275656c" style="radio"/>
+                                                                                                                                   Dose: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="10" conceptId="aa2e1a96-1371-494a-8ca3-879656ade4be" rows="1"/>
+                                                                                                                                   Time: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="79b9f813-6612-49a9-bc28-bf2a18c0af2d" rows="1"/>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Placenta delivery</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                  Time: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="211a882c-9b07-4dde-82f8-c7f8d90c500e" rows="1"/>
+                                                                                                                                   
+                    
+                    
+                    
+                    
+                    
+                    <obs conceptId="96f890c7-72ed-4586-9782-22a91a07bbbd" style="radio"/>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Fundus of uterus firmly contracted</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Yes,No" conceptId="2ee6a566-8b83-41a2-ae30-74f7d30fffa6" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Blood loss (alert if ≥500 mL)</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs cols="6" conceptId="93e9d507-b603-4f83-9d6b-d514fd87ab1a" id="bloodLossId" rows="1"/>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <span class="unit">mL</span>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="PERINEUM &amp; COMPLICATIONS">
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Perineum</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <obs conceptId="781be340-8a64-426d-911b-7d02ecea2036" style="radio"/>
+                                                                                                                                   Repaired by: 
+                    
+                    
+                    
+                    
+                    
+                    <obs cols="20" conceptId="00304a3e-4604-4672-a32d-c8d39d0fb447" rows="1"/>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Complications</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs answerCodes="Tight cord,Nuchal cord,Shoulder dystocia,Other" conceptId="56e6bf34-c8a2-4a54-bd8a-43e1e9d1c78f" style="radio"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <div class="legend">
+                                                    
+        
+        
+        
+        
+        
+        <b>INSTRUCTIONS:</b>
+                                                 Fields highlighted in red meet an alert threshold as you type — alert the senior
+    midwife or doctor and record findings accordingly.
+        
+        
+        
+        
+        
+        <br/>
+                                                    
+        
+        
+        
+        
+        
+        <b>Abbreviations:</b>
+                                                 AMTSL - Active Management of the Third Stage of Labour.
+  
+    
+    
+    
+    
+    
+    </div>
+                          
+    
+    
+    
+    
+    
+    <script>
+                                                  
+        
+        
+        
+        
+        
+        <![CDATA[
+    // Live alert-highlighting for numeric obs fields.
+    // The id given on each obs tag is passed through to the rendered
+    // input by HTML Form Entry, so we can hook directly into it here.
+    // This ONLY toggles a CSS class -- it never changes the submitted value,
+    // so obs are still saved against their original conceptId as normal.
+    (function () {
+      var rules = [
+        { id: 'bloodLossId', test: function (v) { return v >= 500; } }
+      ];
+
+      function wire(rule) {
+        var el = document.getElementById(rule.id);
+        if (!el) { return; }
+        var check = function () {
+          var v = parseFloat(el.value);
+          var bad = el.value !== '' &amp;&amp; !isNaN(v) &amp;&amp; rule.test(v);
+          if (bad) {
+            el.classList.add('alert-value');
+          } else {
+            el.classList.remove('alert-value');
+          }
+        };
+        el.addEventListener('input', check);
+        el.addEventListener('change', check);
+        check();
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+          rules.forEach(wire);
+        });
+      } else {
+        rules.forEach(wire);
+      }
+    })();
+  ]]>
+                                                  
+    
+    
+    
+    
+    
+    </script>
+                          
+    
+    
+    
+    
+    
+    <div class="submitWrapper">
+                                                    
+        
+        
+        
+        
+        
+        <submit/>
+                                                  
+    
+    
+    
+    
+    
+    </div>
+                        
+
+
+
+
+
+</htmlform>

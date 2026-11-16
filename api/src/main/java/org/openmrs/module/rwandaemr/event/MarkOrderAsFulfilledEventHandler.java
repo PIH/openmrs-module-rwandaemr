@@ -14,6 +14,7 @@ import org.openmrs.TestOrder;
 import org.openmrs.api.OrderService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.openmrs.module.rwandaemr.labs.LabResultValidation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -47,7 +48,13 @@ public class MarkOrderAsFulfilledEventHandler implements OpenmrsObjectEventHandl
 						if (order instanceof TestOrder && order.getOrderId() != null && order.getFulfillerStatus() == null) {
 							order = orderService.getOrder(order.getOrderId());
 							log.debug("Marking order associated with obs as fulfilled: {}", order);
-							orderService.updateOrderFulfillerStatus(order, Order.FulfillerStatus.COMPLETED, "Marked as fulfilled due to associated obs");
+							// With validation required, the results are not released here: the lab submits them for validation
+							if (LabResultValidation.isRequired(order)) {
+								orderService.updateOrderFulfillerStatus(order, Order.FulfillerStatus.IN_PROGRESS, "Marked in progress due to associated obs");
+							}
+							else {
+								orderService.updateOrderFulfillerStatus(order, Order.FulfillerStatus.COMPLETED, "Marked as fulfilled due to associated obs");
+							}
 						}
 					}
 				}
