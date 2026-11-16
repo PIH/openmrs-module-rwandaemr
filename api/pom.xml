@@ -4,13 +4,36 @@
 	<parent>
 		<groupId>org.openmrs.module</groupId>
 		<artifactId>rwandaemr</artifactId>
-		<version>4.0.0-SNAPSHOT</version>
+		<version>4.1.1-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>rwandaemr-api</artifactId>
 	<packaging>jar</packaging>
 	<name>Rwanda EMR Module API</name>
 	<description>API project for Rwanda EMR</description>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>rbcmessaging-api</artifactId>
+			<version>${rbcmessagingVersion}</version>
+			<scope>provided</scope>
+		</dependency>
+		<!-- Cleans the formatted text of radiology reports entered in OpenMRS, so they can be shown safely -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.17.2</version>
+			<scope>compile</scope>
+		</dependency>
+		<!-- Needed to mock htmlformentry FormEntrySession, which references HttpSession -->
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>javax.servlet-api</artifactId>
+			<version>4.0.1</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
 
 	<build>
 		<resources>

@@ -1,0 +1,2650 @@
+<htmlform
+        htmlformUuid="9c017cd0-3680-4596-9906-cb9daad1dfa0"
+        formUuid="e2b20dbe-6c2d-4e98-b3e3-3a4e9333ab9e"
+        formName="Parto Discharge Form"
+        formDescription="parto_discharge"
+        formVersion="1.0"
+        formEncounterType="d0d3777d-a40e-4e5d-a116-0163aab5fd6c"
+        formPublished="true"
+        formRetired="false"
+>
+    <div style="display:none"><labourEpisodeIdObs/></div>
+
+                          
+    
+    
+    
+    
+    
+    <!-- WHO LABOUR CARE GUIDE - RWANDA ADAPTATION : DISCHARGE -->
+                          
+    
+    
+    
+    
+    
+    <macros>
+    headerColor = #0F6E56
+    fontOnHeaderColor = white
+  </macros>
+                          
+    
+    
+    
+    
+    
+    <style>
+    .section {
+      border: 1px solid $headerColor;
+      border-radius: 6px;
+      padding: 0;
+      text-align: left;
+      margin-bottom: 1em;
+      overflow: hidden;
+    }
+    .sectionHeader {
+      background-color: $headerColor;
+      color: $fontOnHeaderColor;
+      display: block;
+      padding: 6px 10px;
+      font-weight: bold;
+      letter-spacing: 0.02em;
+    }
+    .section table { width: 100%; border-collapse: collapse; }
+    .section table.baseline-aligned td { vertical-align: middle; padding: 6px 10px; }
+    .section table.baseline-aligned tr { border-top: 1px solid #e2e3f2; }
+    .section table.baseline-aligned tr:first-child { border-top: none; }
+    th.subheader { background-color: $headerColor; color: white; }
+    .lblcolor{ background: #eef7f4; width: 320px; font-size: 0.92em; }
+    .legend { font-size: 0.85em; border-top: 1px solid #999; margin-top: 1em; padding-top: 4px; color: #444; }
+    .unit { font-size: 0.85em; color: #666; margin-left: 4px; }
+
+    .section input[type="radio"],
+    .section input[type="checkbox"] {
+      margin: 0 4px 0 14px;
+      vertical-align: middle;
+      transform: scale(1.15);
+    }
+    .section input[type="radio"]:first-of-type,
+    .section input[type="checkbox"]:first-of-type {
+      margin-left: 0;
+    }
+    .section label { cursor: pointer; padding: 2px 2px; }
+
+    /* Checkbox "advice/counselling" lists read better stacked than run-on */
+    .checklist td { line-height: 2.1; }
+
+    .formTitle {
+      text-align: center;
+      font-size: 1.4em;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+      color: $headerColor;
+      margin: 4px 0 16px 0;
+      text-transform: uppercase;
+    }
+
+    .submitRow {
+      text-align: center;
+      margin-top: 1.5em;
+    }
+  </style>
+                          
+    
+    
+    
+    
+    
+    <div class="formTitle">Discharge Form</div>
+                          
+    
+    
+    
+    
+    
+    <section headerCode=" ">
+                                                    
+        
+        
+        
+        
+        
+        <table border="1" cellpadding="6" cellspacing="0" style="border-color:#ccc;" width="100%">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        Date: 
+                    
+                    
+                    
+                    
+                    
+                    <encounterDate default="now" id="dischargeDate" showTime="true"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        Health Facility: 
+                    
+                    
+                    
+                    
+                    
+                    <encounterLocation default="UserProperty:defaultLocation"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        Provider: 
+                    
+                    
+                    
+                    
+                    
+                    <encounterProvider/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <section headerCode="Discharge">
+                                                    
+        
+        
+        
+        
+        
+        <section headerCode="Woman">
+                                                                        
+            
+            
+            
+            
+            
+            <obsgroup groupingConceptId="2ae89b6d-c12b-4ff0-b5e3-879320e89317">
+                                                                                                      
+                
+                
+                
+                
+                
+                <table class="baseline-aligned">
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">HIV status</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Negative,Positive" answerConceptIds="3cd28732-26fe-102b-80cb-0017a47871b2,3cd3a7a2-26fe-102b-80cb-0017a47871b2" conceptId="3ce17cec-26fe-102b-80cb-0017a47871b2" style="radio"/>
+                                                                                                                                                                                     on 
+                            
+                            
+                            
+                            
+                            
+                            <obs conceptId="092e2163-e657-4961-b554-96ce2c21d051"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Syphilis status</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Negative,Positive" answerConceptIds="3cd28732-26fe-102b-80cb-0017a47871b2,3cd3a7a2-26fe-102b-80cb-0017a47871b2" conceptId="3d5ef803-a531-4747-99e4-62f0d72bed4c" style="radio"/>
+                                                                                                                                                                                     on 
+                            
+                            
+                            
+                            
+                            
+                            <obs conceptId="e484492a-4c62-4410-a062-dbbf6d1895c5"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Haemoglobin (g/dL)</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="6" conceptId="3ccc7158-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                                                                                     on 
+                            
+                            
+                            
+                            
+                            
+                            <obs conceptId="86d31952-a2cb-4f76-bd04-c5d9cb4a0a15"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Presence of danger signs?</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" answerConceptIds="3cd6f600-26fe-102b-80cb-0017a47871b2,3cd6f86c-26fe-102b-80cb-0017a47871b2" conceptId="14e038f6-779f-4826-af20-0e12a973a4fe" style="radio"/>
+                                                                                                                                                                                     If yes, list: 
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="30" conceptId="3c2611df-27d4-4d5a-a6e5-71ded3b75f5e" rows="1"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Under treatment for a complication? Condition stabilized?</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="e65c3e51-261e-4294-a5d3-47f94164dc5f" style="radio"/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="9cf94292-eca1-4544-b678-a75d2cd86ccf" style="radio"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">T° / Pulse / Respirations / BP</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="4" conceptId="3ce939d2-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <span class="unit">°C</span>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="4" conceptId="3ce93824-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <span class="unit">bpm</span>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="4" conceptId="3ceb11f8-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <span class="unit">/min</span>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="8" conceptId="3ce934fa-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                                                                        /
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="8" conceptId="3ce93694-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <span class="unit">mmHg</span>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Conjunctival / palmar pallor</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="0e1f0062-5792-4ad8-932b-e2e5db5e76e3" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Breasts</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs cols="30" conceptId="abbbc8a7-d9d0-45a1-bef8-62b7ffee48f1" rows="1"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Uterine height / tone</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="15" conceptId="910ed264-7712-43f6-b9e6-59d8ecf05da9" rows="1"/>
+                                                                                                                                                                                     / 
+                            
+                            
+                            
+                            
+                            
+                            <obs conceptId="fb226e21-1096-44d0-a6d3-680afd6f7a8d" style="radio"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Uterine tenderness</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="cfe15491-db4b-4125-a44a-815aa1d540cd" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Voiding without difficulty? / Urinary incontinence?</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="200e5115-d928-43d1-9765-529000e0c440" style="radio"/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="166883b7-3a15-4541-bf87-1ad25af0821e" style="radio"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Bowel function normal? / Fecal incontinence?</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="63ffeb53-4480-410b-82d9-2921386fb0ad" style="radio"/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="c0e7e3ed-0c14-4629-b42d-81cf8c1b3614" style="radio"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Perineum</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs cols="30" conceptId="db424d49-a57f-40e8-bb6e-c2acf42cf1ee" rows="1"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Lochia: Colour / Odour / Amount</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="10" conceptId="4fdbcef3-018b-480e-a574-739ad781e290" rows="1"/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="10" conceptId="a9d6c09a-6b1e-48c3-8a6c-34a0245dc624" rows="1"/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="10" conceptId="5906e188-2991-40c6-bb3b-2c6651530849" rows="1"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Caesarean incision / genital tears</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs cols="10" conceptId="a1ca483e-73e6-4f91-a4c8-013794ddffef" rows="1"/>
+                                                                                                                                                                           
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="10" conceptId="a1d2a8bd-d2ba-4532-aacd-caca946721cc" rows="1"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                              
+                
+                
+                
+                
+                
+                </table>
+                                                                                                
+            
+            
+            
+            
+            
+            </obsgroup>
+                                                                              
+            
+            
+            
+            
+            
+            <section headerCode="Screening">
+                                                                                                        
+                
+                
+                
+                
+                
+                <table class="baseline-aligned">
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Screened negative for postpartum depression and anxiety,Screened positive for postpartum depression and anxiety" conceptId="2d5d45c4-d8dd-479b-8a3a-76577f7e4c14" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        Woman bonding well with her baby? 
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="8acb9a3d-c318-48c5-a254-b074d8784ba9" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Screened negative for substance use,Screened positive for substance use" conceptId="ed5d34b0-441b-4a2f-972d-6c6af5c108ab" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        Woman able and confident to care for herself? 
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="457b48c5-f089-4ba9-b123-34e3751506ad" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        Woman has a social network able to assist her in the home? 
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="e03876e8-df57-4b83-9d3d-cdc32410cf08" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                            
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="HIV catch-up negative,HIV catch-up positive" conceptId="b5985b24-dca0-4432-ae74-5f54a149358d" style="radio"/>
+                                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="RPR catch-up negative,RPR catch-up positive" conceptId="cc3857ef-7dff-4973-8ef1-d4d4e765f908" style="radio"/>
+                                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                          
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </table>
+                                                                                                      
+            
+            
+            
+            
+            
+            </section>
+                                                                              
+            
+            
+            
+            
+            
+            <section headerCode="Prevention/Treatment/Referral">
+                                                                                                        
+                
+                
+                
+                
+                
+                <table class="baseline-aligned">
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                            
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                      FP method received? 
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="610590af-ded5-40cd-81a2-8f4329e051e8" style="radio"/>
+                                                                                                                                                                                        Method: 
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="20" conceptId="2bd9654e-3913-43d8-b629-2448c767bfbc" rows="1"/>
+                                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                          
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        Iron/Folate tablets x/day: 
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="6" conceptId="991f4b07-99e9-43e6-91ae-54642cce42c9" rows="1"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                            
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                      Advice on:
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="66170440-d983-43f7-a8fa-e79d73d8663b" conceptId="18cf2829-7aab-459c-b324-36a0d0b177d5" style="checkbox"/>
+                                                                                                                                                                         Local cooling for perineal pain relief
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="f50ea84e-26c9-402b-91f4-e4537eb9f5d3" conceptId="18cf2829-7aab-459c-b324-36a0d0b177d5" style="checkbox"/>
+                                                                                                                                                                         Oral analgesia for perineal pain relief
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="f0fb1b0e-371b-4dd9-bb9d-eef144201470" conceptId="18cf2829-7aab-459c-b324-36a0d0b177d5" style="checkbox"/>
+                                                                                                                                                                         Pharmacological relief of pain due to uterine cramping/involution
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="aa036636-f2d1-45ef-b19d-bf4059217b6b" conceptId="18cf2829-7aab-459c-b324-36a0d0b177d5" style="checkbox"/>
+                                                                                                                                                                         Non-pharmacological interventions to treat postpartum breast engorgement
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="a3b35497-1224-4599-a121-3c897c7a2f45" conceptId="18cf2829-7aab-459c-b324-36a0d0b177d5" style="checkbox"/>
+                                                                                                                                                                         Non-pharmacological interventions to prevent postpartum mastitis
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="973b16eb-791a-4a6b-a50e-c5f7cfcaeba9" conceptId="18cf2829-7aab-459c-b324-36a0d0b177d5" style="checkbox"/>
+                                                                                                                                                                         Prevention of postpartum constipation
+            
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                          
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </table>
+                                                                                                      
+            
+            
+            
+            
+            
+            </section>
+                                                                              
+            
+            
+            
+            
+            
+            <section headerCode="Counselled on (Woman)">
+                                                                                                        
+                
+                
+                
+                
+                
+                <table class="baseline-aligned checklist">
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                            
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="c0165f54-659f-4ad2-b997-db91844b26c2" conceptId="487771af-dbbf-476a-a176-190179de2a45" style="checkbox"/>
+                                                                                                                                                                         Postpartum care and hygiene
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="0b9ec1eb-49ca-48dc-9aa6-63366b2104b3" conceptId="487771af-dbbf-476a-a176-190179de2a45" style="checkbox"/>
+                                                                                                                                                                         Nutrition
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="737d736e-9c1e-482a-a9af-328114cc5638" conceptId="487771af-dbbf-476a-a176-190179de2a45" style="checkbox"/>
+                                                                                                                                                                         Rest, help with care in the home
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="5fa213ba-7a0e-4cbe-a0e7-44ce1cc8804a" conceptId="487771af-dbbf-476a-a176-190179de2a45" style="checkbox"/>
+                                                                                                                                                                         Return to fertility, birth spacing and PPFP
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="0c603c96-1ed9-4ecd-8de1-2ca49b4838b5" conceptId="487771af-dbbf-476a-a176-190179de2a45" style="checkbox"/>
+                                                                                                                                                                         Resumption of sexual activity, safer sex
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="99984549-c162-4e95-b107-be9fce845500" conceptId="487771af-dbbf-476a-a176-190179de2a45" style="checkbox"/>
+                                                                                                                                                                         Lochia and involution
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="cf9cff6f-cd2d-48e7-9935-7534289aff82" conceptId="487771af-dbbf-476a-a176-190179de2a45" style="checkbox"/>
+                                                                                                                                                                         Danger signs, emergency preparedness
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="904a8277-48f2-48b2-a3d5-c18a1c3247ec" conceptId="487771af-dbbf-476a-a176-190179de2a45" style="checkbox"/>
+                                                                                                                                                                         Follow-up visits
+            
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                          
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        First PNC within 24 hrs, visit time (woman): 
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="6" conceptId="802d4de7-6632-4469-9c52-e7351bc811b1" rows="1"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </table>
+                                                                                                      
+            
+            
+            
+            
+            
+            </section>
+                                                                            
+        
+        
+        
+        
+        
+        </section>
+                                                    
+        
+        
+        
+        
+        
+        <section headerCode="Baby">
+                                                                        
+            
+            
+            
+            
+            
+            <obsgroup groupingConceptId="13b639fa-4649-499b-a2be-a00316f8309b">
+                                                                                                      
+                
+                
+                
+                
+                
+                <table class="baseline-aligned">
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Presence of danger signs?</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" answerConceptIds="3cd6f600-26fe-102b-80cb-0017a47871b2,3cd6f86c-26fe-102b-80cb-0017a47871b2" conceptId="14e038f6-779f-4826-af20-0e12a973a4fe" style="radio"/>
+                                                                                                                                                                                     If yes, list: 
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="30" conceptId="3c2611df-27d4-4d5a-a6e5-71ded3b75f5e" rows="1"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Under treatment for a complication? Condition stabilized?</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="e65c3e51-261e-4294-a5d3-47f94164dc5f" style="radio"/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="9cf94292-eca1-4544-b678-a75d2cd86ccf" style="radio"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Receiving prophylactic medications? Continue at home?</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="49685457-b20e-4489-b1ea-cb278f5f3f0f" style="radio"/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="9f1f6af0-51e6-4c04-8673-81ae61fa812e" style="radio"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">T° / HR / Respirations / Weight</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="4" conceptId="3ce939d2-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <span class="unit">°C</span>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="4" conceptId="57c934dd-a086-4e73-a9b8-3b9c1abef1b1" rows="1"/>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <span class="unit">bpm</span>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="4" conceptId="3ceb11f8-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <span class="unit">/min</span>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="6" conceptId="3ce93b62-26fe-102b-80cb-0017a47871b2" rows="1"/>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <span class="unit">kg</span>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Breastfeeding</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs conceptId="3cd4860e-26fe-102b-80cb-0017a47871b2" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Skin colour</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs conceptId="dacb742c-7045-4922-86fc-b851267b5dae" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Movement and tone</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs cols="15" conceptId="457458f6-b33b-4fb7-ab57-a29f253b44a3" rows="1"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Cord appearance</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs cols="15" conceptId="2ee4cb15-c73f-491a-9ee5-ee0645727966" rows="1"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Any abnormalities?</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="42d2029b-4cd8-4cc0-98da-1d631da10dcf" style="radio"/>
+                                                                                                                                                                                     If yes, describe: 
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="30" conceptId="a9cf27e7-2c5f-4039-9c7f-657349fb4f7d" rows="1"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td class="lblcolor">Passing urine? / Passing stool?</td>
+                                                                                                                                                          
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                    
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="40cb03dc-37b0-4f66-badc-a9e22bba9002" style="radio"/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="09cc9435-40fd-425c-a5a5-53630b281ce1" style="radio"/>
+                                                                                                                                                                                  
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                        
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                              
+                
+                
+                
+                
+                
+                </table>
+                                                                                                
+            
+            
+            
+            
+            
+            </obsgroup>
+                                                                              
+            
+            
+            
+            
+            
+            <section headerCode="Screening">
+                                                                                                        
+                
+                
+                
+                
+                
+                <table class="baseline-aligned">
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Screened negative for abnormalities of the eye,Screened positive for abnormalities of the eye" answerConceptIds="4f083700-f814-4ce9-9d0d-426c910844cb,4087e66a-b161-4319-b0a3-4879547dc177" conceptId="2d5d45c4-d8dd-479b-8a3a-76577f7e4c14" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Screened negative for hearing impairment,Screened positive for hearing impairment" answerConceptIds="d7641598-2ee9-471a-8730-41b38a768def,4cea6065-d3ce-46fa-b533-f682cf675c4e" conceptId="2d5d45c4-d8dd-479b-8a3a-76577f7e4c14" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Screened negative for hyperbilirubinaemia by TcB,Screened positive for hyperbilirubinaemia by TcB" answerConceptIds="57e76394-b299-424c-b31f-c4bb0fdd0869,0851540a-f9ff-48a1-9e8d-a5ddc2ab124a" conceptId="2d5d45c4-d8dd-479b-8a3a-76577f7e4c14" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        Mother/Parents able and confident to care for the baby? 
+                            
+                            
+                            
+                            
+                            
+                            <obs answerCodes="Yes,No" conceptId="1967bfdc-821c-4a0f-aa31-dfc620a91b60" style="radio"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </table>
+                                                                                                      
+            
+            
+            
+            
+            
+            </section>
+                                                                              
+            
+            
+            
+            
+            
+            <section headerCode="Prevention/Treatment/Referral">
+                                                                                                        
+                
+                
+                
+                
+                
+                <table class="baseline-aligned">
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        
+                            
+                            
+                            
+                            
+                            <obs cols="40" conceptId="4044b850-32da-4689-bb59-107fdacfb470" rows="3"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </table>
+                                                                                                      
+            
+            
+            
+            
+            
+            </section>
+                                                                              
+            
+            
+            
+            
+            
+            <section headerCode="Counselled on (Baby)">
+                                                                                                        
+                
+                
+                
+                
+                
+                <table class="baseline-aligned checklist">
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                            
+                        
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="0696c948-f435-46b9-8565-47eb7d84292d" conceptId="cdf67c09-aa3b-4b7e-b06f-268b5b7b581c" style="checkbox"/>
+                                                                                                                                                                         Exclusive, responsive breastfeeding
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="eb5ea87a-c490-4302-b02b-749c67e5f21f" conceptId="cdf67c09-aa3b-4b7e-b06f-268b5b7b581c" style="checkbox"/>
+                                                                                                                                                                         Hand washing, general hygiene
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="b76f83ea-b94d-4768-8beb-91e6a69c2527" conceptId="cdf67c09-aa3b-4b7e-b06f-268b5b7b581c" style="checkbox"/>
+                                                                                                                                                                         Prevention of hypo- and hyperthermia
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="68d358df-f16d-4b26-b05c-f6f34eb00048" conceptId="cdf67c09-aa3b-4b7e-b06f-268b5b7b581c" style="checkbox"/>
+                                                                                                                                                                         Supine sleeping
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="28208174-8023-44c9-8101-a1569d3526ec" conceptId="cdf67c09-aa3b-4b7e-b06f-268b5b7b581c" style="checkbox"/>
+                                                                                                                                                                         Whole body massage
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="cf9cff6f-cd2d-48e7-9935-7534289aff82" conceptId="cdf67c09-aa3b-4b7e-b06f-268b5b7b581c" style="checkbox"/>
+                                                                                                                                                                         Danger signs, emergency preparedness
+                            
+                            
+                            
+                            
+                            
+                            <br/>
+                                                                                                                                                                                      
+                            
+                            
+                            
+                            
+                            
+                            <obs answerConceptId="904a8277-48f2-48b2-a3d5-c18a1c3247ec" conceptId="cdf67c09-aa3b-4b7e-b06f-268b5b7b581c" style="checkbox"/>
+                                                                                                                                                                         Follow-up visits
+            
+                        
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                                          
+                    
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                  
+                    
+                    
+                    
+                    
+                    
+                    <tr>
+                                                                                                                                                
+                        
+                        
+                        
+                        
+                        <td>
+                                                                                                                                                                        First PNC within 24 hrs, visit time (baby): 
+                            
+                            
+                            
+                            
+                            
+                            <obs cols="6" conceptId="c2348cb1-bf27-4cd4-a289-82a69146de7e" rows="1"/>
+                                                                                                                                                                    
+                        
+                        
+                        
+                        
+                        </td>
+                                                                                                                                            
+                    
+                    
+                    
+                    
+                    </tr>
+                                                                                                                                
+                
+                
+                
+                
+                
+                </table>
+                                                                                                      
+            
+            
+            
+            
+            
+            </section>
+                                                                            
+        
+        
+        
+        
+        
+        </section>
+                                                    
+        
+        
+        
+        
+        
+        <table class="baseline-aligned">
+                                                                              
+            
+            
+            
+            
+            
+            <tr>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td class="lblcolor">Next postnatal care visit appointment date</td>
+                                                                                                        
+                
+                
+                
+                
+                
+                <td>
+                                                                                                                        
+                    
+                    
+                    
+                    
+                    <obs conceptId="45350b66-a3e2-4030-b9a1-b14aa3fea440"/>
+                                                                                                                    
+                
+                
+                
+                
+                </td>
+                                                                                                      
+            
+            
+            
+            
+            
+            </tr>
+                                                                            
+        
+        
+        
+        
+        
+        </table>
+                                                  
+    
+    
+    
+    
+    
+    </section>
+                          
+    
+    
+    
+    
+    
+    <div class="submitRow">
+                                                    
+        
+        
+        
+        
+        
+        <submit/>
+                                                  
+    
+    
+    
+    
+    
+    </div>
+                        
+
+
+
+
+
+</htmlform>

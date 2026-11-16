@@ -1,7 +1,10 @@
 package org.openmrs.module.rwandaemr.radiology;
 
+import ca.uhn.hl7v2.DefaultHapiContext;
+import ca.uhn.hl7v2.HapiContext;
 import ca.uhn.hl7v2.app.HL7Service;
-import ca.uhn.hl7v2.app.SimpleServer;
+import ca.uhn.hl7v2.validation.ValidationContext;
+import ca.uhn.hl7v2.validation.impl.ValidationContextFactory;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
@@ -25,7 +28,12 @@ public class HL7ListenerSetup implements Setup {
         if (port != null) {
             try {
                 log.info("Starting HL7 listener on port " + port);
-                hl7Service = new SimpleServer(port);
+                // Messages are not validated against HL7 field lengths: PACS returns the clinical history in PID-13, which
+                // is longer than HL7 allows there, and a message failing validation is refused before it reaches the
+                // listener, so its report would be lost.  The listener reads messages without validating them anyway.
+                HapiContext hapiContext = new DefaultHapiContext();
+                hapiContext.setValidationContext((ValidationContext) ValidationContextFactory.noValidation());
+                hl7Service = hapiContext.newServer(port, false);
                 ORUR01MessageListener oruMessageListener = Context.getRegisteredComponents(ORUR01MessageListener.class).iterator().next();
                 log.info("Listening for ORU_R01 messages enabled");
                 hl7Service.registerApplication("ORU", "R01", oruMessageListener);

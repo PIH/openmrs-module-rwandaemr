@@ -95,7 +95,7 @@ public abstract class BaseHL7TranslatorTest {
         orderService = mock(OrderService.class);
         rwandaEmrService = new MockRwandaEmrService();
         radiologyConfig = new RadiologyConfig(administrationService, conceptService, encounterService);
-        rwandaEmrConfig = new MockRwandaEmrConfig(null, null, null, null, null, null, radiologyConfig);
+        rwandaEmrConfig = new MockRwandaEmrConfig(null, null, null, null, null, null, null, radiologyConfig);
         patientToADTTranslator = new PatientToADTA08Translator(adtService, conceptService, rwandaEmrConfig);
         orderToORMTranslator = new OrderToORMO01Translator(adtService, conceptService, rwandaEmrConfig);
         oruToObsTranslator = new ORUR01ToObsTranslator(adtService, conceptService, rwandaEmrConfig, orderService, rwandaEmrService);

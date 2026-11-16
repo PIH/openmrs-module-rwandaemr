@@ -107,8 +107,12 @@ public class SearchClientRegistryFragmentController {
                 if (crPatient != null) {
                     try {
                         Patient patient = clientRegistryPatientTranslator.toPatient(crPatient);
-                        return patientResponse("rwandaemr.clientRegistry.matchFound", patient, rwandaEmrConfig, ui);
+                        String fosaId = integrationConfig.getFosaId(uiSessionContext.getSessionLocation());
+                        String photo = findPopulationRegistryPhoto(identifiersToSearch, patient, fosaId, integrationConfig, citizenProvider);
+                        return patientResponse("rwandaemr.clientRegistry.matchFound", patient, photo, rwandaEmrConfig, ui);
                     } catch (Exception e) {
+                        log.error("Failed to convert client registry patient for identifier "
+                                + identifierSystem + "=" + identifier, e);
                         return noPatientResponse("rwandaemr.clientRegistry.patientConversionError", e, ui);
                     }
                 }
@@ -124,6 +128,7 @@ public class SearchClientRegistryFragmentController {
             // Default to generating a UPID from a tempid if needed
             identifiersToSearch.put(IntegrationConfig.IDENTIFIER_SYSTEM_TEMPID, UUID.randomUUID().toString());
 
+            Exception lastPopulationRegistryError = null;
             for (String identifierSystem : identifiersToSearch.keySet()) {
                 if (identifierSystem != null) {
                     String identifier = identifiersToSearch.get(identifierSystem);
@@ -132,19 +137,26 @@ public class SearchClientRegistryFragmentController {
                         citizen = citizenProvider.getCitizen(identifierSystem, identifier, fosaId);
                     }
                     catch (Exception e) {
-                        return noPatientResponse("rwandaemr.populationRegistry.connectionError", e, ui);
+                        // Don't abort on first identifier failure; try remaining identifiers (including TEMPID).
+                        // This avoids false "connectionError" when one lookup fails but another may succeed.
+                        lastPopulationRegistryError = e;
+                        log.warn("Population registry lookup failed for "+ identifierSystem + "="+ identifier + ":" + e.getMessage());
+                        continue;
                     }
                     if (citizen != null) {
                         try {
                             Patient patient = citizenTranslator.toPatient(citizen);
                             String message = identifierSystem.equals(IntegrationConfig.IDENTIFIER_SYSTEM_TEMPID) ? "rwandaemr.populationRegistry.upidGenerated" : "rwandaemr.populationRegistry.matchFound";
-                            return patientResponse(message, patient, rwandaEmrConfig, ui);
+                            return patientResponse(message, patient, citizen.getPhoto(), rwandaEmrConfig, ui);
                         }
                         catch (Exception e) {
                             return noPatientResponse("rwandaemr.populationRegistry.patientConversionError", e, ui);
                         }
                     }
                 }
+            }
+            if (lastPopulationRegistryError != null) {
+                return noPatientResponse("rwandaemr.populationRegistry.connectionError", lastPopulationRegistryError, ui);
             }
         }
         catch (Exception e) {
@@ -158,12 +170,16 @@ public class SearchClientRegistryFragmentController {
         data.put("messageCode", message);
         data.put("message", ui.message(message));
         if (e != null) {
-            data.put("exception", e.getMessage());
+            String exceptionMessage = e.getMessage();
+            if (StringUtils.isBlank(exceptionMessage)) {
+                exceptionMessage = e.getClass().getName();
+            }
+            data.put("exception", exceptionMessage);
         }
         return new ObjectResult(data);
     }
 
-    private ObjectResult patientResponse(String message, Patient patient, RwandaEmrConfig rwandaEmrConfig, UiUtils ui) {
+    private ObjectResult patientResponse(String message, Patient patient, String photo, RwandaEmrConfig rwandaEmrConfig, UiUtils ui) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("messageCode", message);
         data.put("message", ui.message(message));
@@ -223,8 +239,84 @@ public class SearchClientRegistryFragmentController {
                 p.put("address1", pa.getAddress1());
             }
 
+            p.put("photo", normalizePhotoForBrowser(photo));
             data.put("patient", p);
         }
         return new ObjectResult(data);
+    }
+
+    private String findPopulationRegistryPhoto(Map<String, String> identifiersToSearch,
+                                               Patient patient,
+                                               String fosaId,
+                                               IntegrationConfig integrationConfig,
+                                               CitizenProvider citizenProvider) {
+        if (StringUtils.isBlank(fosaId)) {
+            log.warn("No FOSA ID configured; skipping population registry photo lookup for client registry match");
+            return null;
+        }
+
+        Map<String, String> photoIdentifiersToSearch = new LinkedHashMap<>(identifiersToSearch);
+        for (PatientIdentifier pi : patient.getIdentifiers()) {
+            String identifierSystem = integrationConfig.getIdentifierSystem(pi.getIdentifierType());
+            if (StringUtils.isNotBlank(identifierSystem) && StringUtils.isNotBlank(pi.getIdentifier())) {
+                photoIdentifiersToSearch.putIfAbsent(identifierSystem, pi.getIdentifier());
+            }
+        }
+
+        for (String identifierSystem : photoIdentifiersToSearch.keySet()) {
+            if (IntegrationConfig.IDENTIFIER_SYSTEM_TEMPID.equals(identifierSystem)) {
+                continue;
+            }
+            String identifier = photoIdentifiersToSearch.get(identifierSystem);
+            try {
+                Citizen citizen = citizenProvider.getCitizen(identifierSystem, identifier, fosaId);
+                if (citizen != null && StringUtils.isNotBlank(citizen.getPhoto())) {
+                    return citizen.getPhoto();
+                }
+            }
+            catch (Exception e) {
+                log.warn("Population registry photo lookup failed for client registry match using "
+                        + identifierSystem + "=" + identifier + ": " + e.getMessage());
+            }
+        }
+        return null;
+    }
+
+    private String normalizePhotoForBrowser(String photo) {
+        if (StringUtils.isBlank(photo)) {
+            return photo;
+        }
+        String trimmed = photo.trim();
+        String lower = trimmed.toLowerCase();
+        if (lower.startsWith("data:image/") || lower.startsWith("http://") || lower.startsWith("https://")) {
+            return trimmed;
+        }
+        String compact = trimmed.replaceAll("\\s", "");
+        if (isBase64Image(compact)) {
+            return "data:image/jpeg;base64," + compact;
+        }
+        return trimmed;
+    }
+
+    private boolean isBase64Image(String value) {
+        if (StringUtils.isBlank(value) || value.length() < 100) {
+            return false;
+        }
+        if (!value.startsWith("/9j/") && !value.startsWith("iVBOR")) {
+            return false;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            boolean valid = (c >= 'a' && c <= 'z')
+                    || (c >= 'A' && c <= 'Z')
+                    || (c >= '0' && c <= '9')
+                    || c == '+'
+                    || c == '/'
+                    || c == '=';
+            if (!valid) {
+                return false;
+            }
+        }
+        return true;
     }
 }

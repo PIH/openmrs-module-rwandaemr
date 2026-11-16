@@ -20,6 +20,7 @@ import ca.uhn.hl7v2.model.v23.segment.ORC;
 import ca.uhn.hl7v2.model.v23.segment.PID;
 import ca.uhn.hl7v2.model.v23.segment.PV1;
 import org.apache.commons.lang.BooleanUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.openmrs.CareSetting;
@@ -40,10 +41,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 
 import static org.openmrs.module.rwandaemr.radiology.HL7Utils.formatDatetime;
 import static org.openmrs.module.rwandaemr.radiology.HL7Utils.populateMshSegment;
@@ -70,16 +75,49 @@ public class OrderToORMO01Translator extends BaseHL7Translator {
     }
 
     /**
+     * The RIS takes several tests as one study when the procedure code carries this marker after the first test's code
+     */
+    public static final String COMBINED_PROCEDURE_MARKER = "-Combine";
+
+    /**
      * For the given test order, generate an ORM^001 HL7 message
      * Used for a new unscheduled order creation or order cancellation
      */
     public ORM_O01 toORM_O01(TestOrder order) throws HL7Exception {
+        String orderControl = isCancelled(order) ? "CA" : "NW";
+        return toORM_O01(Collections.singletonList(order), order.getOrderNumber(), orderControl);
+    }
+
+    /**
+     * Generate an ORM^O01 HL7 message for one study containing the given test orders, all for the same patient.
+     * The RIS only accepts one OBR segment, so several tests are combined into it the way the RIS expects:
+     * the procedure code is the first test's code followed by {@link #COMBINED_PROCEDURE_MARKER}, and the procedure name
+     * lists the names of all the tests separated by "_".  The accession number identifies the study and is sent as the
+     * placer order number, so results come back with it.  A single test is sent exactly as before.
+     * @param orderControl NW to register the study, CA to cancel it
+     */
+    public ORM_O01 toORM_O01(List<TestOrder> orders, String accessionNumber, String orderControl) throws HL7Exception {
+        if (orders == null || orders.isEmpty()) {
+            throw new IllegalArgumentException("At least one order is required to generate an ORM^O01 message");
+        }
+        TestOrder order = orders.get(0);
+        for (TestOrder o : orders) {
+            if (!o.getPatient().equals(order.getPatient())) {
+                throw new IllegalArgumentException("All orders in an ORM^O01 message must be for the same patient");
+            }
+        }
+        boolean combined = orders.size() > 1;
+
         ORM_O01 message = new ORM_O01();
         Date now = new Date();
 
-        Date scheduledDate = order.getScheduledDate();
-        if (scheduledDate == null) {
-            scheduledDate = order.getDateActivated();
+        // The study is scheduled for the earliest of the tests
+        Date scheduledDate = null;
+        for (TestOrder o : orders) {
+            Date orderDate = o.getScheduledDate() != null ? o.getScheduledDate() : o.getDateActivated();
+            if (scheduledDate == null || (orderDate != null && orderDate.before(scheduledDate))) {
+                scheduledDate = orderDate;
+            }
         }
 
         // MSH Segment
@@ -97,7 +135,8 @@ public class OrderToORMO01Translator extends BaseHL7Translator {
         // TODO: Second note, commenting these out entirely for now, as HAPI validation is enforcing a US phone number format
         //pid.getPhoneNumberHome(0).getXtn1_9999999X99999CAnyText().setValue(getPhoneNumber(patient));
         //pid.getPhoneNumberHome(0).getXtn2_TelecommunicationUseCode().setValue(""); // TODO: We don't collect this data
-        pid.getPhoneNumberHome(0).getXtn3_TelecommunicationEquipmentType().setValue(trim(order.getClinicalHistory(), 1000));
+        String clinicalHistory = combined ? joinDistinct(orders, TestOrder::getClinicalHistory, "; ") : order.getClinicalHistory();
+        pid.getPhoneNumberHome(0).getXtn3_TelecommunicationEquipmentType().setValue(trim(clinicalHistory, 1000));
         // TODO: Admission ID is supported to send to PACS.  Determine if there is a value for this in OpenMRS.
 
         // PV1 Segment
@@ -115,32 +154,61 @@ public class OrderToORMO01Translator extends BaseHL7Translator {
 
         // ORC Segment
         ORC orc = message.getORDER().getORC();
-        boolean isCancelled = BooleanUtils.isTrue(order.getVoided()) || order.getDateStopped() != null;
-        orc.getOrderControl().setValue(isCancelled ? "CA" : "NW");
+        orc.getOrderControl().setValue(orderControl);
 
         // OBR Segment
         OBR obr = message.getORDER().getORDER_DETAIL().getOBR();
         obr.getSetIDObservationRequest().setValue("1");
-        obr.getPlacerOrderNumber(0).getEntityIdentifier().setValue(order.getOrderNumber());
+        obr.getPlacerOrderNumber(0).getEntityIdentifier().setValue(accessionNumber);
         // TODO: Note, this seems like the wrong field, but it is what is in the integration docs
         obr.getFillerOrderNumber().getEntityIdentifier().setValue(getOrderLocation(order).getName());
-        obr.getUniversalServiceIdentifier().getIdentifier().setValue(getProcedureCode(order));
-        obr.getUniversalServiceIdentifier().getText().setValue(trim(order.getConcept().getFullySpecifiedName(Locale.ENGLISH).getName(), 64));
+        if (combined) {
+            obr.getUniversalServiceIdentifier().getIdentifier().setValue(getProcedureCode(order) + COMBINED_PROCEDURE_MARKER);
+            List<String> names = new ArrayList<>();
+            for (TestOrder o : orders) {
+                names.add(o.getConcept().getFullySpecifiedName(Locale.ENGLISH).getName());
+            }
+            obr.getUniversalServiceIdentifier().getText().setValue(trim(StringUtils.join(names, "_"), 200));
+        }
+        else {
+            obr.getUniversalServiceIdentifier().getIdentifier().setValue(getProcedureCode(order));
+            obr.getUniversalServiceIdentifier().getText().setValue(trim(order.getConcept().getFullySpecifiedName(Locale.ENGLISH).getName(), 64));
+        }
         String modality = getModalityCode(order);
         obr.getDiagnosticServiceSectionID().setValue(modality);
 
         // Scheduled order information
         obr.getFillerField2().setValue(modality); // This is the AE Title of the Equipment.  Sending modality in the absence of specific equipment code.
         obr.getObr36_ScheduledDateTime().getTimeOfAnEvent().setValue(formatDatetime(scheduledDate));
-        obr.getPriority().setValue(order.getUrgency() == Order.Urgency.STAT ? "STAT" : "ROUTINE");
-        String orderReason = order.getOrderReasonNonCoded();
-        if (order.getOrderReason() != null) {
-            orderReason = order.getOrderReason().getDisplayString();
+        boolean stat = false;
+        for (TestOrder o : orders) {
+            stat = stat || o.getUrgency() == Order.Urgency.STAT;
         }
+        obr.getPriority().setValue(stat ? "STAT" : "ROUTINE");
+        String orderReason = joinDistinct(orders, o -> o.getOrderReason() != null ?
+                o.getOrderReason().getDisplayString() : o.getOrderReasonNonCoded(), "; ");
         if (orderReason != null) {
             obr.getReasonForStudy(0).getText().setValue(trim(orderReason, 64));
         }
         return message;
+    }
+
+    /**
+     * @return true if the order has been voided or stopped, in which case a cancellation (CA) is sent to PACS
+     */
+    public boolean isCancelled(Order order) {
+        return BooleanUtils.isTrue(order.getVoided()) || order.getDateStopped() != null;
+    }
+
+    private String joinDistinct(List<TestOrder> orders, Function<TestOrder, String> property, String separator) {
+        Set<String> values = new LinkedHashSet<>();
+        for (TestOrder o : orders) {
+            String value = property.apply(o);
+            if (StringUtils.isNotBlank(value)) {
+                values.add(value.trim());
+            }
+        }
+        return values.isEmpty() ? null : StringUtils.join(values, separator);
     }
 
     public Location getOrderLocation(TestOrder testOrder) {
@@ -197,7 +265,7 @@ public class OrderToORMO01Translator extends BaseHL7Translator {
         return codes.get(0);
     }
 
-    private String getModalityCode(Order order) {
+    public String getModalityCode(Order order) {
         Map<Modality, Concept> modalities = rwandaEmrConfig.getRadiologyConfig().getModalityConceptSets();
         Map<Concept, Modality> orderables = rwandaEmrConfig.getRadiologyConfig().getOrderables(modalities);
         Modality radiologyModality = orderables.get(order.getConcept());

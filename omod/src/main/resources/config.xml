@@ -16,10 +16,9 @@
 	<require_modules>
 		<require_module version="${addresshierarchyVersion}">org.openmrs.module.addresshierarchy</require_module>
 		<require_module version="${appframeworkVersion}">org.openmrs.module.appframework</require_module>
+		<require_module version="${appuiVersion}">org.openmrs.module.appui</require_module>
 		<require_module version="${authenticationVersion}">org.openmrs.module.authentication</require_module>
 		<require_module version="${authenticationuiVersion}">org.openmrs.module.authenticationui</require_module>
-		<require_module version="${appuiVersion}">org.openmrs.module.appui</require_module>
-		<require_module version="${mohbillingVersion}">org.openmrs.module.mohbilling</require_module>
 		<require_module version="${calculationVersion}">org.openmrs.calculation</require_module>
 		<require_module version="${coreappsVersion}">org.openmrs.module.coreapps</require_module>
 		<require_module version="${emrapiVersion}">org.openmrs.module.emrapi</require_module>
@@ -37,6 +36,7 @@
 		<require_module version="${mohbillingVersion}">org.openmrs.module.mohbilling</require_module>
 		<require_module version="${namephoneticsVersion}">org.openmrs.module.namephonetics</require_module>
 		<require_module version="${pihappsVersion}">org.openmrs.module.pihapps</require_module>
+		<require_module version="${rbcmessagingVersion}">org.openmrs.module.rbcmessaging</require_module>
 		<require_module version="${registrationappVersion}">org.openmrs.module.registrationapp</require_module>
 		<require_module version="${registrationcoreVersion}">org.openmrs.module.registrationcore</require_module>
 		<require_module version="${reportingVersion}">org.openmrs.module.reporting</require_module>
@@ -49,9 +49,15 @@
 		<require_module version="${uiframeworkVersion}">org.openmrs.module.uiframework</require_module>
 		<require_module version="${uilibraryVersion}">org.openmrs.module.uilibrary</require_module>
 		<require_module version="${webservicesRestVersion}">org.openmrs.module.webservices.rest</require_module>
-    </require_modules>
+	</require_modules>
 
 	<activator>org.openmrs.module.rwandaemr.RwandaEmrActivator</activator>
+
+	<mappingFiles>
+		Icd11.hbm.xml
+		Queue.hbm.xml
+		RwandaEmrAppointment.hbm.xml
+	</mappingFiles>
 
 	<extension>
 		<point>org.openmrs.admin.list</point>
@@ -62,11 +68,203 @@
 		<lang>en</lang>
 		<file>messages.properties</file>
 	</messages>
+	<messages>
+		<lang>fr</lang>
+		<file>messages_fr.properties</file>
+	</messages>
 
 	<privilege>
 		<name>Task: rwandaemr.radiologyorders</name>
 		<description>Access the radiology orders page from the patient chart</description>
 	</privilege>
+
+	<privilege>
+		<name>Task: rwandaemr.radiologyReport.enter</name>
+		<description>Enter and correct radiology reports in OpenMRS, for modalities such as ultrasound that do not send reports through PACS</description>
+	</privilege>
+
+	<privilege>
+		<name>Task: rwandaemr.radiologyOrder.cancel</name>
+		<description>Cancel radiology orders that have not been done yet; the cancellation is sent to PACS</description>
+	</privilege>
+
+	<privilege>
+		<name>Task: rwandaemr.radiologyQueue</name>
+		<description>View the radiology queue of requested studies with their PACS and payment status</description>
+	</privilege>
+
+	<privilege>
+		<name>Task: rwandaemr.pathologyorders</name>
+		<description>Access the pathology orders page from the patient chart, to see and request a patient's pathology tests</description>
+	</privilege>
+
+	<privilege>
+		<name>Task: rwandaemr.pathologyQueue</name>
+		<description>View the pathology queue of requests with where each is in the lab and whether it is paid</description>
+	</privilege>
+
+	<privilege>
+		<name>Task: rwandaemr.pathology.processSpecimens</name>
+		<description>Receive or reject pathology specimens and record grossing, processing and additional stains</description>
+	</privilege>
+
+	<privilege>
+		<name>Task: rwandaemr.pathology.signOut</name>
+		<description>Enter the pathologist's part of pathology reports and sign them out</description>
+	</privilege>
+
+	<privilege>
+		<name>RwandaEMR Queue: View</name>
+		<description>View queue entries for the current login location</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: Manage</name>
+		<description>Manage queue entries</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: Call Patient</name>
+		<description>Call patients and update active service status</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: Transfer Patient</name>
+		<description>Transfer patients between login-location service points</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: Configure</name>
+		<description>Configure Service Requested concept mappings to login-location queue service points</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: Reports</name>
+		<description>View queue reports</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Queue: View All Locations</name>
+		<description>View queue entries across all login locations</description>
+	</privilege>
+
+	<privilege>
+		<name>RwandaEMR Appointments: View</name>
+		<description>View appointment schedules, capacity, and patient bookings</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Appointments: Manage Schedules</name>
+		<description>Create and update daily service-point appointment schedules</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Appointments: Book</name>
+		<description>Request and cancel patient appointments against available schedules</description>
+	</privilege>
+	<privilege>
+		<name>RwandaEMR Appointments: Manage</name>
+		<description>Confirm and update patient appointment outcomes</description>
+	</privilege>
+
+	<privilege>
+		<name>Billing RHIP Approval - View</name>
+		<description>View the RHIP approval request page</description>
+	</privilege>
+	<privilege>
+		<name>Billing RHIP Approval - Request</name>
+		<description>Submit RHIP approval requests</description>
+	</privilege>
+	<privilege>
+		<name>Billing RHIP Approval - Check Status</name>
+		<description>Check RHIP approval request status</description>
+	</privilege>
+
+	<globalProperty>
+		<property>rwandaemr.appointment.sms.confirmationTemplate</property>
+		<defaultValue>Randevu yawe muri {servicePoint} yemejwe ku wa {date}.</defaultValue>
+		<description>SMS sent when an appointment is requested. Supported placeholders: {servicePoint}, {date}</description>
+	</globalProperty>
+	<globalProperty>
+		<property>rwandaemr.appointment.sms.reminderTemplate</property>
+		<defaultValue>Turakwibutsa ko randevu yawe muri {servicePoint} isigaje iminsi 2, ikaba iteganyijwe ku wa {date}.</defaultValue>
+		<description>SMS sent two days before an appointment. Supported placeholders: {servicePoint}, {date}</description>
+	</globalProperty>
+	<globalProperty>
+		<property>rwandaemr.appointment.sms.rescheduleTemplate</property>
+		<defaultValue>Randevu yawe muri {servicePoint} yahinduwe: yari iteganyijwe ku wa {oldDate}, yimurirwa ku wa {newDate}.</defaultValue>
+		<description>SMS sent after an appointment is rescheduled. Supported placeholders: {servicePoint}, {oldDate}, {newDate}</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.radiology.creatinineConcept</property>
+		<defaultValue></defaultValue>
+		<description>
+			Lab result concept (uuid, mapping such as CIEL:790, or id) whose latest value for the patient is shown in the radiology queue for CT studies, as contrast may be given. No creatinine is shown when blank.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.radiology.imageViewerUrlTemplate</property>
+		<defaultValue></defaultValue>
+		<description>
+			Link to the PACS viewer used for studies PACS has done but sent no image link for, as PACS only sends the link with the report. {accessionNumber} is replaced by the study's accession number, for example https://pacs-host/PACSAPI/Launch_Viewer?AccessionNumber={accessionNumber}. Anything in the link, including any user name and password, can be seen by users who can open it. No link is made when blank.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.radiology.billing.ctMediaFacilityServicePriceId</property>
+		<defaultValue></defaultValue>
+		<description>
+			Facility service price id of the CD/DVD billed for each CT study, on the patient's private insurance policy (the insurance named in rwandaemr.autoCreateInsuranceType). Not billed when blank, or when the patient has no private policy with an open global bill.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.radiology.billing.ctaFacilityServicePriceIds</property>
+		<defaultValue></defaultValue>
+		<description>
+			Facility service price ids, separated by commas, each billed once for every CTA test (CT tests whose name starts with CTA), on the same insurance as the test. Not billed when blank.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>registration.serviceRequestedConcept</property>
+		<defaultValue>6702</defaultValue>
+		<description>
+			ID, UUID, or mapping reference for the coded Service Requested concept whose answers are mapped to queue service points.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.queue.laboratoryServicePoint</property>
+		<defaultValue></defaultValue>
+		<description>
+			Location UUID, ID, or name of the Laboratory login-location service point. When blank, locations named Lab or containing Laboratory are treated as Laboratory.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.queue.radiologyServicePoint</property>
+		<defaultValue></defaultValue>
+		<description>
+			Location UUID, ID, or name of the Radiology login-location service point. When blank, locations containing Radiology are treated as Radiology.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.queue.imagingServicePoint</property>
+		<defaultValue></defaultValue>
+		<description>
+			Location UUID, ID, or name of the Imaging login-location service point. When blank, locations containing Imaging are treated as Imaging.
+		</description>
+	</globalProperty>
+
+
+
+	<globalProperty>
+		<property>rwandaemr.insuranceIntegration.baseUrl</property>
+		<defaultValue></defaultValue>
+		<description>
+			Base URL for RHIP shared insurance integration API. Example:
+			https://rhip-stag.moh.gov.rw/backend. When configured, RwandaEMR derives
+			/insurance_integration/api/v2 eligibility, OTP, patient-types, patient-reception,
+			approval-required-products, approval-request, and approval status
+			endpoint URLs from this value unless the older full endpoint URL properties are configured.
+		</description>
+	</globalProperty>
 
 	<globalProperty>
 		<property>rwandaemr.labs.labIdNextSequenceValue</property>
@@ -79,6 +277,57 @@
 	</globalProperty>
 
 	<globalProperty>
+		<property>rwandaemr.pathology.orderables</property>
+		<defaultValue></defaultValue>
+		<description>
+			Concept set (uuid, mapping or id) of the pathology tests that can be ordered. Each test checked on the pathology request form becomes a pathology order.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.pathology.accessionNextSequenceValue</property>
+		<defaultValue></defaultValue>
+		<description>
+			Internal tracking value used to generate pathology accession numbers, such as PAT2026-0001. Stores the year of the last accession number and the next sequence value to use, in the format yyyy:N. Not meant to be edited manually.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.insuranceEligibility.approvalRequiredProductsUrl</property>
+		<defaultValue></defaultValue>
+		<description>
+			Full RHIP approval-required products endpoint URL. Leave blank to derive from
+			rwandaemr.insuranceIntegration.baseUrl.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.insuranceEligibility.approvalRequestUrl</property>
+		<defaultValue></defaultValue>
+		<description>
+			Full RHIP approval request endpoint URL. Leave blank to derive from
+			rwandaemr.insuranceIntegration.baseUrl.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.insuranceEligibility.approvalStatusUrl</property>
+		<defaultValue></defaultValue>
+		<description>
+			Full RHIP approval status endpoint URL. Leave blank to derive from
+			rwandaemr.insuranceIntegration.baseUrl.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.insuranceIntegration.facilityFosaId</property>
+		<defaultValue></defaultValue>
+		<description>
+			Facility FOSA ID used for RHIP approval request and approval-required product calls.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
 		<property>rwandaemr.autoExpireLabOrdersOlderThanDays</property>
 		<defaultValue>30</defaultValue>
 		<description>
@@ -86,5 +335,359 @@
 		</description>
 	</globalProperty>
 
-</module>
+	<globalProperty>
+		<property>rwandaemr.sms.enabled</property>
+		<defaultValue>false</defaultValue>
+		<description>Whether shared Rwanda EMR SMS gateway sending is enabled</description>
+	</globalProperty>
 
+	<globalProperty>
+		<property>rwandaemr.sms.username</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS gateway username</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.password</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS gateway password</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.postUrl</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS HTTP send endpoint</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.sender</property>
+		<defaultValue></defaultValue>
+		<description>Sender name shown on SMS notifications</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.coding</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS coding parameter</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.dlrUrl</property>
+		<defaultValue></defaultValue>
+		<description>Public URL where InTouch should send SMS delivery reports</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.dlrLevel</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS delivery report level, typically 2</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.connectionTimeout</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS connection timeout in milliseconds</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.sms.readTimeout</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS read timeout in milliseconds</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.paymentClearance.messageTemplate</property>
+		<defaultValue>{patientName}, turemeza ko serivisi zose wahawe mu bitaro zishyuwe. Itariki: {timestamp}</defaultValue>
+		<description>SMS sent after all patient bills are paid. Supported placeholders: {patientName}, {timestamp}</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.enabled</property>
+		<defaultValue>false</defaultValue>
+		<description>Whether patients are automatically sent an SMS after their laboratory results are completed</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.url</property>
+		<defaultValue>http://41.186.44.171:1401/send</defaultValue>
+		<description>InTouch SMS gateway URL for sending high-volume SMS messages</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.username</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS gateway username</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.password</property>
+		<defaultValue></defaultValue>
+		<description>InTouch SMS gateway password</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.sender</property>
+		<defaultValue></defaultValue>
+		<description>Sender name shown on lab result SMS notifications</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.coding</property>
+		<defaultValue>0</defaultValue>
+		<description>InTouch SMS message coding value</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.dlrUrl</property>
+		<defaultValue></defaultValue>
+		<description>Public URL that InTouch should call with delivery reports</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.intouch.dlrLevel</property>
+		<defaultValue>2</defaultValue>
+		<description>InTouch delivery report level, typically 2 for terminal delivery reports</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.messageTemplate</property>
+		<defaultValue>Ibisubizo by'ibizamini byawe bya laboratwari byabonetse kuri {facility}. Garuka ku kigo nderabuzima cyangwa uvugane n'umuganga wawe.</defaultValue>
+		<description>SMS template for lab result notifications. Supported placeholders: {facility}, {patientName}, {order}</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.registration_encounter_type_id</property>
+		<defaultValue>5</defaultValue>
+		<description>Encounter type id used to identify registration encounters for HIE consent flow</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.closeVisits.delaySeconds</property>
+		<defaultValue>150</defaultValue>
+		<description>Initial delay (seconds) before close visits task starts</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.closeVisits.periodSeconds</property>
+		<defaultValue>9000</defaultValue>
+		<description>Execution period (seconds) for close visits task</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateClientRegistry.delaySeconds</property>
+		<defaultValue>150</defaultValue>
+		<description>Initial delay (seconds) before client registry sync task starts</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateClientRegistry.periodSeconds</property>
+		<defaultValue>9000</defaultValue>
+		<description>Execution period (seconds) for client registry sync task</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateShrEncounter.delaySeconds</property>
+		<defaultValue>150</defaultValue>
+		<description>Initial delay (seconds) before SHR encounter sync task starts</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateShrEncounter.periodSeconds</property>
+		<defaultValue>9000</defaultValue>
+		<description>Execution period (seconds) for SHR encounter sync task</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateShrObs.delaySeconds</property>
+		<defaultValue>150</defaultValue>
+		<description>Initial delay (seconds) before SHR observation sync task starts</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.updateShrObs.periodSeconds</property>
+		<defaultValue>9000</defaultValue>
+		<description>Execution period (seconds) for SHR observation sync task</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.markOrders.delaySeconds</property>
+		<defaultValue>150</defaultValue>
+		<description>Initial delay (seconds) before mark orders task starts</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.task.markOrders.periodSeconds</property>
+		<defaultValue>9000</defaultValue>
+		<description>Execution period (seconds) for mark orders task</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.shrEncounterFetchTimeoutMs</property>
+		<defaultValue>30000</defaultValue>
+		<description>Socket timeout (ms) override for SHR encounter fetch operation</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.citizenFetchTimeoutMs</property>
+		<defaultValue>30000</defaultValue>
+		<description>Socket timeout (ms) override for citizen registry fetch operation</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.connectTimeoutMs</property>
+		<defaultValue>10000</defaultValue>
+		<description>Default HIE HTTP connect timeout (ms)</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.socketTimeoutMs</property>
+		<defaultValue>30000</defaultValue>
+		<description>Default HIE HTTP socket/read timeout (ms)</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.connectionRequestTimeoutMs</property>
+		<defaultValue>10000</defaultValue>
+		<description>Default HIE HTTP connection request timeout (ms)</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.queueWarnThreshold</property>
+		<defaultValue>1000</defaultValue>
+		<description>Queue depth warning threshold (number of queued files) for HIE sync queues</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.queueErrorThreshold</property>
+		<defaultValue>5000</defaultValue>
+		<description>Queue depth error threshold (number of queued files) for HIE sync queues</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.transfer_id</property>
+		<defaultValue>076b04e5-d62d-47da-83e2-0da6e7a119b4</defaultValue>
+		<description>Concept UUID for Transfer ID to be recognized by transfer processing</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.enable_cr_push</property>
+		<defaultValue>false</defaultValue>
+		<description>When true, patient create/update events are written to the client-registry-queue folder and the scheduled task may push those records to the client registry. Requires HIE credentials. Any other value disables queueing and pushing.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.enable_shr_push</property>
+		<defaultValue>false</defaultValue>
+		<description>When true, encounter and observation events are queued for SHR and the scheduled tasks may push them. Requires HIE credentials. Any other value disables SHR queueing and pushing for both encounters and observations.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.obsConceptIdToBePushed</property>
+		<defaultValue>105500,105502,3065</defaultValue>
+		<description>
+			Concept IDs to be filtered when obs is going to be pushed to HIE. The concept IDs will be mentioned by coma(,) separator.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.encounterFormIdToBePushed</property>
+		<defaultValue>132</defaultValue>
+		<description>
+			Encounters to be filtered when encounter is going to be pushed to HIE. The form IDs will be mentioned by coma(,) separator.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.hie.encounterTypeIdToBePushed</property>
+		<defaultValue>37</defaultValue>
+		<description>
+			Encounter Type IDs to be filtered when encounter is going to be pushed to HIE. The encounter IDs will be mentioned by coma(,) separator.
+		</description>
+	</globalProperty>
+	<globalProperty>
+		<property>rwandaemr.hie.oneEncounterTypeIdToBePushedWithAllObs</property>
+		<defaultValue>43</defaultValue>
+		<description>
+			On Encounter Type ID to be pushed to HIE with its related All Observations(eg: Laboratory Encounter).
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.enabled</property>
+		<defaultValue>false</defaultValue>
+		<description>Enable ICD-11 diagnosis search through the WHO ICD API.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.api.clientId</property>
+		<defaultValue></defaultValue>
+		<description>OAuth2 client ID used by the backend to access the WHO ICD API.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.api.clientSecret</property>
+		<defaultValue></defaultValue>
+		<description>OAuth2 client secret used by the backend to access the WHO ICD API.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.api.baseUrl</property>
+		<defaultValue>https://id.who.int</defaultValue>
+		<description>Base URL for the WHO ICD API.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.api.tokenUrl</property>
+		<defaultValue>https://icdaccessmanagement.who.int/connect/token</defaultValue>
+		<description>OAuth2 token endpoint for the WHO ICD API.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.api.version</property>
+		<defaultValue>v2</defaultValue>
+		<description>WHO ICD API version header value.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.api.language</property>
+		<defaultValue>en</defaultValue>
+		<description>Language requested from the WHO ICD API.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.default.linearization</property>
+		<defaultValue>mms</defaultValue>
+		<description>Default ICD-11 linearization used for diagnosis searches.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.default.releaseId</property>
+		<defaultValue>2026-01</defaultValue>
+		<description>WHO ICD-11 release ID used for diagnosis searches.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.cache.enabled</property>
+		<defaultValue>true</defaultValue>
+		<description>Cache normalized ICD-11 searches locally and use the cache when the WHO API is unavailable.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.cache.ttlHours</property>
+		<defaultValue>24</defaultValue>
+		<description>Number of hours before a locally cached ICD-11 search result is considered stale.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.search.minChars</property>
+		<defaultValue>3</defaultValue>
+		<description>Minimum query length accepted for ICD-11 searches.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.icd11.search.timeoutSeconds</property>
+		<defaultValue>10</defaultValue>
+		<description>Connect and read timeout in seconds for WHO ICD API calls.</description>
+	</globalProperty>
+
+</module>

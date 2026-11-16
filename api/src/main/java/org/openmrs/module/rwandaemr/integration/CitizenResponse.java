@@ -9,12 +9,14 @@
  */
 package org.openmrs.module.rwandaemr.integration;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 /**
  * Represents a response from the citizen endpoints in the HIE
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CitizenResponse {
     private String status;
     private Citizen data;   // If the status is "ok", this is the citizen data returned

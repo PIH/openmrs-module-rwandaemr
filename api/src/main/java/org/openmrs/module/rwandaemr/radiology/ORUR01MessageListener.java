@@ -37,8 +37,15 @@ public class ORUR01MessageListener implements Application {
     private final Log log = LogFactory.getLog(getClass());
     private final ORUR01ToObsTranslator oruToObsTranslator;
 
+    private RadiologyHl7MessageLog messageLog;
+
     public ORUR01MessageListener(@Autowired ORUR01ToObsTranslator oruToObsTranslator) {
         this.oruToObsTranslator = oruToObsTranslator;
+    }
+
+    @Autowired(required = false)
+    public void setMessageLog(RadiologyHl7MessageLog messageLog) {
+        this.messageLog = messageLog;
     }
 
     @Override
@@ -51,17 +58,37 @@ public class ORUR01MessageListener implements Application {
         log.warn("Processing ORU_R01 message");
         HL7Response hl7Response = new HL7Response();
         Daemon.runInDaemonThreadAndWait(() -> {
+            String messageText = null;
+            Exception error = null;
             try {
-                oruToObsTranslator.fromORU_R01(message.encode());
+                messageText = message.encode();
+                oruToObsTranslator.fromORU_R01(messageText);
                 hl7Response.setMessage(HL7Utils.generateAckMessage(message, null));
             }
             catch (Exception e) {
                 log.error("Unable to parse incoming ORU_RO1 message", e);
+                error = e;
                 hl7Response.setMessage(HL7Utils.generateAckMessage(message, e));
             }
+            logMessage(messageText, hl7Response.getMessage(), error);
         }, daemonToken);
         return hl7Response.getMessage();
     };
+
+    /**
+     * Keeps a copy of the message and of the answer given to PACS.  Failing to keep it never affects processing.
+     */
+    private void logMessage(String messageText, Message ack, Exception error) {
+        if (messageLog == null || messageText == null) {
+            return;
+        }
+        try {
+            messageLog.logIncoming(messageText, ack == null ? null : ack.encode(), error);
+        }
+        catch (Exception e) {
+            log.warn("Unable to keep a copy of the ORU_R01 message received from PACS", e);
+        }
+    }
 
     @Override
     public boolean canProcess(Message message) {
