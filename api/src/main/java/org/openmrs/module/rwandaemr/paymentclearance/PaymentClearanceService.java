@@ -69,6 +69,15 @@ public class PaymentClearanceService {
 		return buildResult(phoneNumber, smsResponse);
 	}
 
+	/**
+	 * @return true if a payment clearance SMS with this provider message id was found and updated
+	 */
+	public boolean recordDeliveryReport(String providerMessageId, String messageStatus, String level) {
+		String status = StringUtils.defaultIfBlank(StringUtils.trimToNull(messageStatus), "UNKNOWN");
+		return logRepository.updateDeliveryReport(StringUtils.trimToNull(providerMessageId), status,
+				StringUtils.trimToNull(level));
+	}
+
 	private boolean allPatientBillsPaid(List<Consommation> consommations) {
 		boolean hasPatientBill = false;
 		for (Consommation consommation : consommations) {

@@ -27,10 +27,12 @@ public class PaymentClearanceLogRepository {
 		NativeQuery<?> query = session.createSQLQuery(
 				"insert into payment_clearance_sms_log (" +
 						"global_bill_id, patient_id, patient_identifier, phone_number, message_content, provider_message_id, " +
-						"request_payload, response_code, response_body, status, error_message, creator, date_created" +
+						"request_payload, response_code, response_body, status, error_message, dlr_status, dlr_level, creator, " +
+						"date_created, date_changed" +
 						") values (" +
 						":globalBillId, :patientId, :patientIdentifier, :phoneNumber, :messageContent, :providerMessageId, " +
-						":requestPayload, :responseCode, :responseBody, :status, :errorMessage, :creator, :dateCreated" +
+						":requestPayload, :responseCode, :responseBody, :status, :errorMessage, :dlrStatus, :dlrLevel, :creator, " +
+						":dateCreated, :dateChanged" +
 						")"
 		);
 		query.setParameter("globalBillId", entry.getGlobalBillId());
@@ -44,9 +46,30 @@ public class PaymentClearanceLogRepository {
 		query.setParameter("responseBody", entry.getResponseBody());
 		query.setParameter("status", entry.getStatus());
 		query.setParameter("errorMessage", entry.getErrorMessage());
+		query.setParameter("dlrStatus", entry.getDlrStatus());
+		query.setParameter("dlrLevel", entry.getDlrLevel());
 		query.setParameter("creator", entry.getCreator());
 		query.setParameter("dateCreated", entry.getDateCreated());
+		query.setParameter("dateChanged", entry.getDateChanged());
 		query.executeUpdate();
+	}
+
+	@Transactional
+	public boolean updateDeliveryReport(String providerMessageId, String status, String level) {
+		if (providerMessageId == null) {
+			return false;
+		}
+		Date now = new Date();
+		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
+		NativeQuery<?> query = session.createSQLQuery(
+				"update payment_clearance_sms_log set status = :status, dlr_status = :status, dlr_level = :level, " +
+						"date_changed = :dateChanged where provider_message_id = :providerMessageId"
+		);
+		query.setParameter("status", status);
+		query.setParameter("level", level);
+		query.setParameter("dateChanged", now);
+		query.setParameter("providerMessageId", providerMessageId);
+		return query.executeUpdate() > 0;
 	}
 
 	@Transactional(readOnly = true)
