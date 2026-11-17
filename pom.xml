@@ -68,7 +68,7 @@
         <registrationappVersion>1.29.0</registrationappVersion>
         <registrationcoreVersion>1.13.0</registrationcoreVersion>
         <reportingVersion>2.2.0</reportingVersion>
-        <reportingcompatibilityVersion>3.0.0-SNAPSHOT</reportingcompatibilityVersion>
+        <reportingcompatibilityVersion>3.0.0</reportingcompatibilityVersion>
         <reportingobjectgroupVersion>2.0.2-SNAPSHOT</reportingobjectgroupVersion>
         <reportingrestVersion>2.1.0-SNAPSHOT</reportingrestVersion>
         <reportinguiVersion>1.14.0</reportinguiVersion>
