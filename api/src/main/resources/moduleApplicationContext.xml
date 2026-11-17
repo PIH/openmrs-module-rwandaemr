@@ -158,6 +158,10 @@
 
 	<bean id="smsGatewayConfig" class="org.openmrs.module.rwandaemr.sms.SmsGatewayConfig"/>
 
+	<bean id="smsLogRepository" class="org.openmrs.module.rwandaemr.sms.SmsLogRepository">
+		<constructor-arg ref="dbSessionFactory"/>
+	</bean>
+
 	<bean id="labNotificationConfig" class="org.openmrs.module.rwandaemr.labnotification.LabNotificationConfig">
 		<constructor-arg ref="smsGatewayConfig"/>
 	</bean>

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "rwandaemr.smsLogs.systemAdministration",
+    "extensionPointId": "systemAdministration.overallActions",
+    "type": "link",
+    "label": "SMS Logs",
+    "url": "rwandaemr/admin/smsLogs.page",
+    "icon": "icon-envelope",
+    "requiredPrivilege": "App: coreapps.systemAdministration",
+    "order": 101
+  }
+]

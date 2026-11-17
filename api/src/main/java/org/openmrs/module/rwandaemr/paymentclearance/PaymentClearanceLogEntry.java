@@ -15,8 +15,11 @@ public class PaymentClearanceLogEntry {
 	private String responseBody;
 	private String status;
 	private String errorMessage;
+	private String dlrStatus;
+	private String dlrLevel;
 	private Integer creator;
 	private Date dateCreated;
+	private Date dateChanged;
 
 	public Integer getGlobalBillId() {
 		return globalBillId;
@@ -120,5 +123,29 @@ public class PaymentClearanceLogEntry {
 
 	public void setDateCreated(Date dateCreated) {
 		this.dateCreated = dateCreated;
+	}
+
+	public String getDlrStatus() {
+		return dlrStatus;
+	}
+
+	public void setDlrStatus(String dlrStatus) {
+		this.dlrStatus = dlrStatus;
+	}
+
+	public String getDlrLevel() {
+		return dlrLevel;
+	}
+
+	public void setDlrLevel(String dlrLevel) {
+		this.dlrLevel = dlrLevel;
+	}
+
+	public Date getDateChanged() {
+		return dateChanged;
+	}
+
+	public void setDateChanged(Date dateChanged) {
+		this.dateChanged = dateChanged;
 	}
 }

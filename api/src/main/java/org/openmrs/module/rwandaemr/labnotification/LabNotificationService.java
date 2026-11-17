@@ -101,6 +101,16 @@ public class LabNotificationService {
 		return updated;
 	}
 
+	/**
+	 * Like recordDeliveryReport, but doesn't warn when the message id is not a lab notification
+	 * @return true if a lab notification with this provider message id was found and updated
+	 */
+	public boolean recordDeliveryReportIfPresent(String providerMessageId, String messageStatus, String level) {
+		String status = StringUtils.defaultIfBlank(StringUtils.trimToNull(messageStatus), "UNKNOWN");
+		return logRepository.updateDeliveryReport(StringUtils.trimToNull(providerMessageId), status,
+				StringUtils.trimToNull(level));
+	}
+
 	boolean isResultReady(Order order) {
 		if (Order.FulfillerStatus.COMPLETED.equals(order.getFulfillerStatus())) {
 			return true;

@@ -227,6 +227,28 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="20260904-pay-clearance-dlr-cols" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="payment_clearance_sms_log"/>
+            <not><columnExists tableName="payment_clearance_sms_log" columnName="dlr_status"/></not>
+        </preConditions>
+        <addColumn tableName="payment_clearance_sms_log">
+            <column name="dlr_status" type="varchar(50)"/>
+            <column name="dlr_level" type="varchar(10)"/>
+            <column name="date_changed" type="datetime"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20260904-pay-clearance-msg-idx" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="payment_clearance_sms_log"/>
+            <not><indexExists tableName="payment_clearance_sms_log" indexName="idx_payment_clearance_message_id"/></not>
+        </preConditions>
+        <createIndex tableName="payment_clearance_sms_log" indexName="idx_payment_clearance_message_id">
+            <column name="provider_message_id"/>
+        </createIndex>
+    </changeSet>
+
     <changeSet id="20260531-add-icd11-patient-diagnosis" author="rwandaemr">
         <preConditions onFail="MARK_RAN">
             <not><tableExists tableName="rwandaemr_icd11_patient_diagnosis"/></not>
