@@ -70,7 +70,7 @@
         <reportingVersion>2.2.0</reportingVersion>
         <reportingcompatibilityVersion>3.0.0</reportingcompatibilityVersion>
         <reportingobjectgroupVersion>2.0.2-SNAPSHOT</reportingobjectgroupVersion>
-        <reportingrestVersion>2.1.0-SNAPSHOT</reportingrestVersion>
+        <reportingrestVersion>2.1.0</reportingrestVersion>
         <reportinguiVersion>1.14.0</reportinguiVersion>
         <rowperpatientreportsVersion>2.0.0</rowperpatientreportsVersion>
         <rwandaemrVersion>${project.version}</rwandaemrVersion>
