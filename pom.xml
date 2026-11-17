@@ -80,7 +80,7 @@
         <serializationVersion>0.3.0</serializationVersion>
         <spaVersion>2.1.0</spaVersion>
         <syncVersion>3.1.0</syncVersion>
-        <uicommonsVersion>3.2.0-SNAPSHOT</uicommonsVersion>
+        <uicommonsVersion>3.2.0</uicommonsVersion>
         <uiframeworkVersion>4.0.0</uiframeworkVersion>
         <uilibraryVersion>2.0.7</uilibraryVersion>
         <usagestatisticsVersion>2.1.0</usagestatisticsVersion>
