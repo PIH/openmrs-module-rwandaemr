@@ -28,7 +28,7 @@
         <addresshierarchyVersion>2.21.0</addresshierarchyVersion>
         <adminuiVersion>2.0.0</adminuiVersion>
         <allergyuiVersion>1.8.7</allergyuiVersion>
-        <appframeworkVersion>2.20.0-SNAPSHOT</appframeworkVersion>
+        <appframeworkVersion>2.20.0</appframeworkVersion>
         <appuiVersion>1.18.0</appuiVersion>
         <attachmentsVersion>4.0.0</attachmentsVersion>
         <authenticationVersion>2.5.0</authenticationVersion>
