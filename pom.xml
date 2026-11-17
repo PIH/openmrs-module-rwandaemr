@@ -32,7 +32,7 @@
         <appuiVersion>1.18.0</appuiVersion>
         <attachmentsVersion>4.0.0</attachmentsVersion>
         <authenticationVersion>2.5.0</authenticationVersion>
-        <authenticationuiVersion>1.4.0-SNAPSHOT</authenticationuiVersion>
+        <authenticationuiVersion>1.4.0</authenticationuiVersion>
         <bedmanagementVersion>7.1.0</bedmanagementVersion>
         <calculationVersion>2.0.0</calculationVersion>
         <coreappsVersion>4.0.0-SNAPSHOT</coreappsVersion>
@@ -53,7 +53,7 @@
         <laboratorymanagementVersion>2.1.0-SNAPSHOT</laboratorymanagementVersion>
         <legacyuiVersion>2.2.0</legacyuiVersion>
         <metadatamappingVersion>2.0.0</metadatamappingVersion>
-        <metadatasharingVersion>1.11.0-SNAPSHOT</metadatasharingVersion>
+        <metadatasharingVersion>1.10.0</metadatasharingVersion>
         <mohappointmentVersion>2.0.1-SNAPSHOT</mohappointmentVersion>
         <mohbillingVersion>2.2.6-SNAPSHOT</mohbillingVersion>
         <mohdataflowmoduleVersion>0.0.5-SNAPSHOT</mohdataflowmoduleVersion>
@@ -61,7 +61,7 @@
         <namephoneticsVersion>1.19.0</namephoneticsVersion>
         <openconceptlabVersion>3.1.0</openconceptlabVersion>
         <omodExportVersion>2.1.0</omodExportVersion>
-        <orderextensionVersion>3.3.0-SNAPSHOT</orderextensionVersion>
+        <orderextensionVersion>3.3.0</orderextensionVersion>
         <owaVersion>1.15.0</owaVersion>
         <pharmacymanagementVersion>2.1.0-SNAPSHOT</pharmacymanagementVersion>
         <pihappsVersion>1.2.0-SNAPSHOT</pihappsVersion>
