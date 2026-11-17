@@ -53,7 +53,7 @@
         <laboratorymanagementVersion>2.1.0-SNAPSHOT</laboratorymanagementVersion>
         <legacyuiVersion>2.2.0</legacyuiVersion>
         <metadatamappingVersion>2.0.0</metadatamappingVersion>
-        <metadatasharingVersion>1.10.0</metadatasharingVersion>
+        <metadatasharingVersion>1.11.0-SNAPSHOT</metadatasharingVersion>
         <mohappointmentVersion>2.0.1-SNAPSHOT</mohappointmentVersion>
         <mohbillingVersion>2.2.6-SNAPSHOT</mohbillingVersion>
         <mohdataflowmoduleVersion>0.0.5-SNAPSHOT</mohdataflowmoduleVersion>
