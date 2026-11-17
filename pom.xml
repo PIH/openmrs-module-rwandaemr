@@ -35,7 +35,7 @@
         <authenticationuiVersion>1.4.0</authenticationuiVersion>
         <bedmanagementVersion>7.1.0</bedmanagementVersion>
         <calculationVersion>2.0.0</calculationVersion>
-        <coreappsVersion>4.0.0-SNAPSHOT</coreappsVersion>
+        <coreappsVersion>4.0.0</coreappsVersion>
         <emrapiVersion>3.5.1</emrapiVersion>
         <eventVersion>4.0.0</eventVersion>
         <fhir2Version>4.0.0</fhir2Version>
