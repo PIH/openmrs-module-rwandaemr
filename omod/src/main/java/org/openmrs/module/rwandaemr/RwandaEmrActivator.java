@@ -26,7 +26,6 @@ import org.openmrs.module.rwandaemr.config.InitializerSetup;
 import org.openmrs.module.rwandaemr.config.NameTemplateSetup;
 import org.openmrs.module.rwandaemr.config.ProviderCleanup;
 import org.openmrs.module.rwandaemr.config.ReportSetup;
-import org.openmrs.module.rwandaemr.config.ServerSetup;
 import org.openmrs.module.rwandaemr.config.Setup;
 import org.openmrs.module.rwandaemr.event.CreateInsurancePatientListener;
 import org.openmrs.module.rwandaemr.htmlformentry.HtmlFormEntrySetup;
@@ -67,7 +66,6 @@ public class RwandaEmrActivator extends BaseModuleActivator implements DaemonTok
 	}
 
 	public static final List<Class<? extends  Setup>> setupClasses = Arrays.asList(
-			ServerSetup.class,
 			InitializerSetup.class,
 			AuthenticationSetup.class,
 			NameTemplateSetup.class,
