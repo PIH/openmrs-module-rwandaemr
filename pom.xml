@@ -51,7 +51,7 @@
         <imbpathologyrequestVersion>1.0.0-SNAPSHOT</imbpathologyrequestVersion>
         <initializerVersion>2.12.0</initializerVersion>
         <laboratorymanagementVersion>2.1.0-SNAPSHOT</laboratorymanagementVersion>
-        <legacyuiVersion>2.2.0</legacyuiVersion>
+        <legacyuiVersion>2.3.0-SNAPSHOT</legacyuiVersion>
         <metadatamappingVersion>2.0.0</metadatamappingVersion>
         <metadatasharingVersion>1.11.0-SNAPSHOT</metadatasharingVersion>
         <mohappointmentVersion>2.0.1-SNAPSHOT</mohappointmentVersion>
@@ -61,7 +61,7 @@
         <namephoneticsVersion>1.19.0</namephoneticsVersion>
         <openconceptlabVersion>3.1.0</openconceptlabVersion>
         <omodExportVersion>2.1.0</omodExportVersion>
-        <orderextensionVersion>3.3.0</orderextensionVersion>
+        <orderextensionVersion>3.4.0-SNAPSHOT</orderextensionVersion>
         <owaVersion>1.15.0</owaVersion>
         <pharmacymanagementVersion>2.1.0-SNAPSHOT</pharmacymanagementVersion>
         <pihappsVersion>1.2.0-SNAPSHOT</pihappsVersion>
