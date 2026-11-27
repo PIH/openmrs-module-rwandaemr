@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -33,8 +34,16 @@ public class LabNotificationRestController {
     @ResponseBody
     public ResponseEntity<?> notifyPatient(@RequestBody LabNotificationRequest request) throws ResponseException {
         try {
-            LabNotificationResult result = labNotificationService.notifyPatient(request.getOrderUuid(),
-                    request.getPhoneNumber(), request.getMessage(), Boolean.TRUE.equals(request.getForce()));
+            boolean force = Boolean.TRUE.equals(request.getForce());
+            LabNotificationResult result;
+            if (request.getOrderUuids() != null && !request.getOrderUuids().isEmpty()) {
+                result = labNotificationService.notifyPatient(request.getPatientUuid(), request.getOrderUuids(),
+                        request.getPhoneNumber(), request.getMessage(), force);
+            }
+            else {
+                result = labNotificationService.notifyPatient(request.getOrderUuid(),
+                        request.getPhoneNumber(), request.getMessage(), force);
+            }
             if (!result.isSuccess()) {
                 return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(result);
             }
@@ -77,11 +86,16 @@ public class LabNotificationRestController {
         Map<String, Object> ret = new LinkedHashMap<>();
         ret.put("success", false);
         ret.put("message", message);
+        ret.put("error", message); // read by the "Notify Patient" action in labOrderListActions.js
         return ret;
     }
 
     @Data
     public static class LabNotificationRequest {
+        /** Patient-level notification (one SMS for all orders), as sent by the lab orders page */
+        private String patientUuid;
+        private List<String> orderUuids;
+        /** Single order notification */
         private String orderUuid;
         private String phoneNumber;
         private String message;

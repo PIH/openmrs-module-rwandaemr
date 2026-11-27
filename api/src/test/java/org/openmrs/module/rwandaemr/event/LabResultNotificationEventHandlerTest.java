@@ -29,6 +29,7 @@ public class LabResultNotificationEventHandlerTest {
 		notificationService = mock(LabNotificationService.class);
 		handler = new LabResultNotificationEventHandler(config, notificationService);
 		when(config.isEnabled()).thenReturn(true);
+		when(config.isAutoSendEnabled()).thenReturn(true);
 	}
 
 	@Test
