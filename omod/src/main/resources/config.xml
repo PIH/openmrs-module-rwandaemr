@@ -320,14 +320,6 @@
 	</globalProperty>
 
 	<globalProperty>
-		<property>rwandaemr.insuranceIntegration.facilityFosaId</property>
-		<defaultValue></defaultValue>
-		<description>
-			Facility FOSA ID used for RHIP approval request and approval-required product calls.
-		</description>
-	</globalProperty>
-
-	<globalProperty>
 		<property>rwandaemr.autoExpireLabOrdersOlderThanDays</property>
 		<defaultValue>30</defaultValue>
 		<description>

@@ -47,7 +47,9 @@ public class MmiPatientReceptionOrchestratorService {
 	private static final String GP_INSURANCE_NUMBER_CONCEPT = "registration.insuranceNumberConcept";
 	private static final String GP_MMI_PATIENT_TYPE_DEFAULT = "rwandaemr.insuranceReception.mmiPatientTypeDefault";
 	private static final String GP_MMI_PRESCRIPTION_REQUIRED = "rwandaemr.insuranceReception.mmiPrescriptionRequired";
-	private static final String GP_MMI_OTP_CODE = "rwandaemr.insuranceReception.mmiOtpCode";
+
+	static final String MISSING_FOSA_ID_MESSAGE = "The facility FOSA ID for RHIP is not set. Ask the system administrator "
+			+ "to set the global property " + InsuranceIntegrationConfig.FACILITY_FOSA_ID + ".";
 
 	private final InsurancePatientReceptionProvider patientReceptionProvider;
 	private final MmiPatientReceptionLogRepository logRepository;
@@ -124,15 +126,19 @@ public class MmiPatientReceptionOrchestratorService {
 			}
 
 			String patientIdentifier = insuranceCardNo;
-			String facilityFosaId = insuranceIntegrationConfig.getPatientReceptionFacilityFosaIdOverride();
+			String facilityFosaId = insuranceIntegrationConfig.getFacilityFosaId();
 			if (StringUtils.isBlank(facilityFosaId)) {
-				facilityFosaId = integrationConfig.getFosaId(encounter.getLocation());
+				return MmiPatientReceptionResult.failed(MISSING_FOSA_ID_MESSAGE);
 			}
 			String patientType = resolvePatientType(insuranceCardNo);
 			Boolean prescriptionRequired = resolvePrescriptionRequired();
+			// MMI only opens a reception with the one-time code it texted the patient after /eligibility-check
 			String otpCode = StringUtils.trimToNull(MmiPatientReceptionContextHolder.getSubmittedOtpCode());
 			if (otpCode == null) {
-				otpCode = StringUtils.trimToNull(Context.getAdministrationService().getGlobalProperty(GP_MMI_OTP_CODE));
+				log.warn("No OTP submitted for the MMI reception of visit " + visit.getVisitId());
+				return MmiPatientReceptionResult.failed("No MMI reception was opened today for insurance number "
+						+ insuranceCardNo + ". Check eligibility on the patient's insurance page to send the OTP and"
+						+ " open the reception, then save this form again.");
 			}
 
 			Map<String, Object> payload = new HashMap<>();
@@ -161,6 +167,13 @@ public class MmiPatientReceptionOrchestratorService {
 
 			String responsePayload = responseEntity != null ? mapper.writeValueAsString(responseEntity) : null;
 			String errorMessage = resolveErrorMessage(response, responseEntity);
+			String returnedReceptionNumber = responseEntity != null && responseEntity.getData() != null
+					? responseEntity.getData().getReceptionNumber() : null;
+			if (MmiPendingReception.isPendingReception(response == null ? null : response.getResponseCode(), success,
+					returnedReceptionNumber)) {
+				errorMessage = MmiPendingReception.describe(returnedReceptionNumber,
+						logRepository.getSuccessfulReception(returnedReceptionNumber));
+			}
 
 			MmiPatientReceptionLogEntry entry = new MmiPatientReceptionLogEntry();
 			entry.setPatientId(encounter.getPatient() != null ? encounter.getPatient().getPatientId() : null);

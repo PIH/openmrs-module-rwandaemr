@@ -9,6 +9,7 @@
  */
 package org.openmrs.module.rwandaemr.integration.insurance;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -87,6 +88,7 @@ public class InsurancePatientReceptionResponse {
 	@Data
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class ReceptionData {
+		@JsonAlias("visitReferenceNumber")
 		private String receptionNumber;
 		private String facilityFosaId;
 		private String bpCode;

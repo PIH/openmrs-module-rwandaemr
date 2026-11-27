@@ -398,8 +398,8 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         return label;
     }
 
-    function populateMmiPatientTypes(patientTypes) {
-        const patientTypeField = jq("#mmi-patient-type");
+    function populateMmiPatientTypes(patientTypes, fieldSelector) {
+        const patientTypeField = jq(fieldSelector || "#mmi-patient-type");
         patientTypeField.empty();
         if (patientTypes && patientTypes.length > 0) {
             patientTypes.forEach((patientType) => {
@@ -531,8 +531,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         const eligibilityRequest = {
             type: insuranceType,
             identifier: ownerCode,
-            sendOTP: true,
-            isMainInsurer: !selectedParent
+            sendOTP: true
         };
         if (selectedParent) {
             eligibilityRequest.otpTo = selectedParent.value;
@@ -719,6 +718,69 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                 });
             });
         }
+
+        jq("#mmi-change-type-button").click(function () {
+            const receptionNumber = jq(this).data("receptionNumber");
+            jq("#mmi-change-type-reception").text(receptionNumber);
+            jq("#mmi-change-type-save-button").data("receptionNumber", receptionNumber).attr("disabled", "disabled");
+            jq("#mmi-change-type-select").empty().append(jq("<option>", { value: "", text: "Loading..." }));
+            jq("#mmi-change-type-message").text("Changing the patient type changes how MMI and the patient share the bill for the rest of this visit.");
+            jq.modal(jq("#mmi-change-type-dialog"), {
+                overlayClose: true,
+                overlayId: "modal-overlay",
+                opacity: 80,
+                persist: true,
+                closeClass: "cancel",
+                position: [20, 50],
+            });
+            jq.get(openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility/mmi/patient-types", function(data) {
+                const patientTypes = data && data.responseEntity ? data.responseEntity.patientTypes : null;
+                if (!patientTypes || patientTypes.length === 0) {
+                    jq("#mmi-change-type-select").empty();
+                    jq("#mmi-change-type-message").text("MMI patient types could not be loaded. Please try again.");
+                    return;
+                }
+                populateMmiPatientTypes(patientTypes, "#mmi-change-type-select");
+                jq("#mmi-change-type-save-button").removeAttr("disabled");
+            }).fail(function() {
+                jq("#mmi-change-type-select").empty();
+                jq("#mmi-change-type-message").text("MMI patient types could not be loaded. Please try again.");
+            });
+        });
+
+        jq("#mmi-change-type-save-button").click(function () {
+            const receptionNumber = jq(this).data("receptionNumber");
+            const patientType = jq("#mmi-change-type-select").val();
+            if (!patientType) {
+                jq("#mmi-change-type-message").text("Choose the new MMI patient type.");
+                return;
+            }
+            jq(this).attr("disabled", "disabled");
+            jq("#mmi-change-type-message").text("Changing the MMI patient type...");
+            jq.ajax({
+                url: openmrsContextPath + "/ws/rest/v1/rwandaemr/insurance/eligibility/mmi/reception/change-type",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ receptionNumber: receptionNumber, patientType: patientType }),
+                success: function (data) {
+                    jq("#mmi-change-type-save-button").removeAttr("disabled");
+                    if (data && data.success) {
+                        let message = data.message || "MMI patient type changed.";
+                        if (data.coverage && data.coverage.mmiPercent !== undefined && data.coverage.patientPercent !== undefined) {
+                            message += " MMI now pays " + data.coverage.mmiPercent + "%, the patient " + data.coverage.patientPercent + "%.";
+                        }
+                        jq("#mmi-change-type-page-message").text(message);
+                        jq.modal.close();
+                    } else {
+                        jq("#mmi-change-type-message").text(data && data.message ? data.message : "Unable to change the MMI patient type.");
+                    }
+                },
+                error: function () {
+                    jq("#mmi-change-type-save-button").removeAttr("disabled");
+                    jq("#mmi-change-type-message").text("Unable to change the MMI patient type. Please try again.");
+                }
+            });
+        });
 
         jq("#mmi-otp-verify-button").click(function () {
             const otpCode = jq("#mmi-otp-code").val().trim();
@@ -1050,7 +1112,10 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     <p>
                         <label for="view-mmi-reception-number">MMI Reception Number</label>
                         <span id="view-mmi-reception-number" class="field-value">${ui.format(policyModel.mmiReceptionNumber)}</span>
+                        <input type="button" id="mmi-change-type-button" value="Change MMI patient type"
+                               data-reception-number="${ui.escapeAttribute(policyModel.mmiReceptionNumber)}" />
                     </p>
+                    <p id="mmi-change-type-page-message"></p>
                 <% } %>
             <% } %>
 
@@ -1200,6 +1265,27 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 	            <input type="text" id="mmi-otp-code" autocomplete="one-time-code" />
 	        </p>
 	        <button type="button" id="mmi-otp-verify-button">Create Reception</button>
+	        <button type="button" class="cancel">${ ui.message("coreapps.cancel") }</button>
+	    </div>
+	</div>
+	<div id="mmi-change-type-dialog" class="dialog" style="display: none; width: 400px;">
+	    <div class="dialog-header">
+	        <i class="icon-exchange"></i>
+	        <h3>
+	            Change MMI Patient Type
+	        </h3>
+	    </div>
+	    <div class="dialog-content">
+	        <p class="dialog-instructions" id="mmi-change-type-message"></p>
+	        <p>
+	            <label>MMI Reception Number</label>
+	            <span id="mmi-change-type-reception" class="field-value"></span>
+	        </p>
+	        <p>
+	            <label for="mmi-change-type-select">New MMI Patient Type</label>
+	            <select id="mmi-change-type-select"></select>
+	        </p>
+	        <button type="button" id="mmi-change-type-save-button">Change Type</button>
 	        <button type="button" class="cancel">${ ui.message("coreapps.cancel") }</button>
 	    </div>
 	</div>

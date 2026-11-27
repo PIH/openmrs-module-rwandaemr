@@ -32,9 +32,11 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Supports connections to and operations with the insurance-eligibility endpoint in the HIE
@@ -45,6 +47,10 @@ public class InsuranceEligibilityProvider {
 	protected Log log = LogFactory.getLog(getClass());
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+	static final long PATIENT_TYPES_CACHE_MILLIS = 12L * 60L * 60L * 1000L;
+
+	private final Map<String, CachedResponse> patientTypesCache = new ConcurrentHashMap<>();
 
 	private final InsuranceIntegrationConfig config;
 
@@ -69,19 +75,30 @@ public class InsuranceEligibilityProvider {
 
 	public IntegrationResponse checkEligibility(String type, String identifier, String fosaid, boolean sendOtp,
 			boolean isMainInsurer, String otpTo) {
+		Map<String, Object> parameters = buildEligibilityCheckPayload(type, identifier, fosaid, sendOtp, isMainInsurer, otpTo);
+		return postEligibilityCheck(parameters, sendOtp ? "MMI_ELIGIBILITY_OTP_REQUEST" : "ELIGIBILITY_CHECK");
+	}
+
+	/**
+	 * Builds the /eligibility-check body. For MMI, sendOTP asks MMI to text the patient a one-time code, which is
+	 * only checked later when it is sent as otpCode on /patient-reception (there is no separate OTP verification).
+	 * otpTo (parent1 or parent2) only applies to MMI child patients; isMainInsurer only applies to RAMA.
+	 */
+	public Map<String, Object> buildEligibilityCheckPayload(String type, String identifier, String fosaid, boolean sendOtp,
+			boolean isMainInsurer, String otpTo) {
 		Map<String, Object> parameters = new HashMap<>();
 		String normalizedType = normalizeInsuranceType(type);
 		parameters.put("insuranceType", normalizedType);
 		parameters.put("identifier", identifier);
 		parameters.put("fosaid", fosaid);
 		parameters.put("sendOTP", sendOtp);
-		if ("rama".equalsIgnoreCase(normalizedType) || "mmi".equalsIgnoreCase(normalizedType)) {
+		if ("rama".equalsIgnoreCase(normalizedType)) {
 			parameters.put("isMainInsurer", isMainInsurer);
 		}
 		if ("mmi".equalsIgnoreCase(normalizedType) && StringUtils.isNotBlank(otpTo)) {
 			parameters.put("otpTo", otpTo.trim());
 		}
-		return postEligibilityCheck(parameters, sendOtp ? "MMI_ELIGIBILITY_OTP_REQUEST" : "ELIGIBILITY_CHECK");
+		return parameters;
 	}
 
 	private IntegrationResponse postEligibilityCheck(Map<String, Object> parameters, String operationType) {
@@ -132,20 +149,54 @@ public class InsuranceEligibilityProvider {
 		return ret;
 	}
 
-	public IntegrationResponse verifyOtp(String type, String identifier, String otpCode, String fosaid) {
+	/**
+	 * MMI's patient types rarely change and are the same for every facility, so a successful answer is kept for
+	 * {@link #PATIENT_TYPES_CACHE_MILLIS} instead of asking RHIP each time a reception is opened.
+	 */
+	public IntegrationResponse getPatientTypes(String insuranceType, String facilityFosaId) {
+		String normalizedType = normalizeInsuranceType(insuranceType);
+		CachedResponse cached = patientTypesCache.get(normalizedType);
+		if (cached != null && System.currentTimeMillis() - cached.createdAtMillis < PATIENT_TYPES_CACHE_MILLIS) {
+			return cached.response;
+		}
 		Map<String, Object> parameters = new HashMap<>();
-		parameters.put("insuranceType", normalizeInsuranceType(type));
-		parameters.put("identifier", identifier);
-		parameters.put("otpCode", otpCode);
-		parameters.put("fosaid", fosaid);
-		return postRequest(config.getEligibilityOtpVerifyUrl(), parameters, MmiOtpVerificationResponse.class, "MMI_OTP_VERIFY");
+		parameters.put("insuranceType", normalizedType);
+		parameters.put("facility_fosa_id", facilityFosaId);
+		IntegrationResponse response = postRequest(config.getMmiPatientTypesUrl(), parameters, MmiPatientTypesResponse.class,
+				"MMI_PATIENT_TYPES");
+		if (isUsablePatientTypes(response)) {
+			patientTypesCache.put(normalizedType, new CachedResponse(response, System.currentTimeMillis()));
+		}
+		return response;
 	}
 
-	public IntegrationResponse getPatientTypes(String insuranceType, String facilityFosaId) {
+	private boolean isUsablePatientTypes(IntegrationResponse response) {
+		if (response == null || !(response.getResponseEntity() instanceof MmiPatientTypesResponse)) {
+			return false;
+		}
+		MmiPatientTypesResponse entity = (MmiPatientTypesResponse) response.getResponseEntity();
+		return entity.isSuccess() && entity.getPatientTypes() != null && !entity.getPatientTypes().isEmpty();
+	}
+
+	/**
+	 * Switches an open MMI reception to another patient type, which changes the MMI / patient cost split for the
+	 * rest of the visit. The response carries the new patientTypeNo, visitType and coverage.
+	 */
+	public IntegrationResponse changeReceptionPatientType(String insuranceType, String facilityFosaId,
+	                                                      String visitReferenceNumber, Integer patientTypeNo) {
+		return postRequest(config.getMmiReceptionChangeTypeUrl(),
+				buildChangeReceptionTypePayload(insuranceType, facilityFosaId, visitReferenceNumber, patientTypeNo),
+				JsonNode.class, "MMI_RECEPTION_CHANGE_TYPE");
+	}
+
+	public Map<String, Object> buildChangeReceptionTypePayload(String insuranceType, String facilityFosaId,
+	                                                           String visitReferenceNumber, Integer patientTypeNo) {
 		Map<String, Object> parameters = new HashMap<>();
 		parameters.put("insuranceType", normalizeInsuranceType(insuranceType));
-		parameters.put("facility_fosa_id", facilityFosaId);
-		return postRequest(config.getMmiPatientTypesUrl(), parameters, MmiPatientTypesResponse.class, "MMI_PATIENT_TYPES");
+		parameters.put("facilityFosaId", facilityFosaId);
+		parameters.put("visitReferenceNumber", visitReferenceNumber);
+		parameters.put("patientTypeNo", patientTypeNo);
+		return parameters;
 	}
 
 	public IntegrationResponse createReception(String insuranceType, String patientIdentifier, String facilityFosaId,
@@ -537,5 +588,17 @@ public class InsuranceEligibilityProvider {
 			return node.get("isGovermentSponsored").asBoolean();
 		}
 		return null;
+	}
+
+	private static final class CachedResponse {
+
+		private final IntegrationResponse response;
+
+		private final long createdAtMillis;
+
+		private CachedResponse(IntegrationResponse response, long createdAtMillis) {
+			this.response = response;
+			this.createdAtMillis = createdAtMillis;
+		}
 	}
 }

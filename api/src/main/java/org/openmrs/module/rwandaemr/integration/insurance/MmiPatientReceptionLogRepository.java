@@ -94,6 +94,60 @@ public class MmiPatientReceptionLogRepository {
 		return value == null ? null : value.toString();
 	}
 
+	/**
+	 * @return the latest successful reception log entry for this MMI reception number, or null if this EMR never
+	 * opened it. Only patientId, visitId, insuranceCardNo, facilityFosaId, patientType, receptionNumber and dateCreated
+	 * are filled in.
+	 */
+	@Transactional(readOnly = true)
+	public MmiPatientReceptionLogEntry getSuccessfulReception(String receptionNumber) {
+		if (receptionNumber == null || receptionNumber.trim().isEmpty()) {
+			return null;
+		}
+		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
+		NativeQuery<?> query = session.createSQLQuery(
+				"select patient_id, visit_id, insurance_card_no, facility_fosa_id, patient_type, reception_number, date_created " +
+						"from mmi_patient_reception_log " +
+						"where status = :status and reception_number = :receptionNumber " +
+						"order by date_created desc"
+		);
+		query.setParameter("status", "SUCCESS");
+		query.setParameter("receptionNumber", receptionNumber.trim());
+		query.setMaxResults(1);
+		Object[] row = (Object[]) query.uniqueResult();
+		if (row == null) {
+			return null;
+		}
+		MmiPatientReceptionLogEntry entry = new MmiPatientReceptionLogEntry();
+		entry.setPatientId(row[0] == null ? null : ((Number) row[0]).intValue());
+		entry.setVisitId(row[1] == null ? null : ((Number) row[1]).intValue());
+		entry.setInsuranceCardNo(row[2] == null ? null : row[2].toString());
+		entry.setFacilityFosaId(row[3] == null ? null : row[3].toString());
+		entry.setPatientType(row[4] == null ? null : row[4].toString());
+		entry.setReceptionNumber(row[5] == null ? null : row[5].toString());
+		entry.setDateCreated(row[6] instanceof Date ? (Date) row[6] : null);
+		return entry;
+	}
+
+	/**
+	 * Records the patient type MMI now uses for this reception, after /patient-reception/change-type succeeded
+	 */
+	@Transactional
+	public int updatePatientType(String receptionNumber, String patientType) {
+		if (receptionNumber == null || receptionNumber.trim().isEmpty()) {
+			return 0;
+		}
+		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
+		NativeQuery<?> query = session.createSQLQuery(
+				"update mmi_patient_reception_log set patient_type = :patientType " +
+						"where status = :status and reception_number = :receptionNumber"
+		);
+		query.setParameter("patientType", patientType);
+		query.setParameter("status", "SUCCESS");
+		query.setParameter("receptionNumber", receptionNumber.trim());
+		return query.executeUpdate();
+	}
+
 	@Transactional
 	public void saveLogEntry(MmiPatientReceptionLogEntry entry) {
 		Session session = dbSessionFactory.getHibernateSessionFactory().getCurrentSession();
