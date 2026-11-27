@@ -15,6 +15,7 @@ package org.openmrs.module.rwandaemr.radiology;
 
 import ca.uhn.hl7v2.HL7Exception;
 import ca.uhn.hl7v2.model.Message;
+import ca.uhn.hl7v2.model.v23.group.ORU_R01_ORDER_OBSERVATION;
 import ca.uhn.hl7v2.model.v23.message.ORU_R01;
 import ca.uhn.hl7v2.model.v23.segment.OBR;
 import ca.uhn.hl7v2.model.v23.segment.OBX;
@@ -81,8 +82,20 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             throw new IllegalArgumentException("Order with order number " + orderNumber + " not found");
         }
 
-        OBX obx1 = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBSERVATION(0).getOBX();
-        OBX obx2 = oruR01.getRESPONSE().getORDER_OBSERVATION().getOBSERVATION(1).getOBX();
+        // The report is sent as one TX segment per page, followed by an RP segment with the image viewer link
+        List<OBX> reportPages = new ArrayList<>();
+        OBX imageLinkObx = null;
+        ORU_R01_ORDER_OBSERVATION orderObservation = oruR01.getRESPONSE().getORDER_OBSERVATION();
+        for (int i = 0; i < orderObservation.getOBSERVATIONReps(); i++) {
+            OBX obx = orderObservation.getOBSERVATION(i).getOBX();
+            if ("RP".equals(obx.getObx2_ValueType().getValue())) {
+                imageLinkObx = imageLinkObx == null ? obx : imageLinkObx;
+            }
+            else if (i == 0 || "TX".equals(obx.getObx2_ValueType().getValue())) {
+                reportPages.add(obx);
+            }
+        }
+        OBX obx1 = reportPages.isEmpty() ? orderObservation.getOBSERVATION(0).getOBX() : reportPages.get(0);
 
         // RIS is capable of both text and PDF reports.  Code here is set up to accept text, so fail if format is not TX
         String reportFormat = obx1.getObx2_ValueType().getValue();
@@ -114,11 +127,20 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         // Study
         String dateTimeStudyPerformed = getField(hl7MessageString, "OBX", 19); // TODO: This is available in HL7 v2.5 only
         String dateTimeStudyReceivedOnPacs = obx1.getObx12_DateLastObsNormalValues().getTimeOfAnEvent().getValue();
-        String imageViewerLink = HL7Utils.getViewerUrl(obx2.getObx5_ObservationValue(0).getData().encode());
+        String imageViewerLink = imageLinkObx == null ? null
+                : HL7Utils.getViewerUrl(imageLinkObx.getObx5_ObservationValue(0).getData().encode());
 
-        // Report
-        String reportText = obx1.getObx5_ObservationValue(0).getData().encode();
-        reportText = HL7Utils.decodeReportText(reportText);
+        // Report, with its pages in the order they were sent
+        List<String> pageTexts = new ArrayList<>();
+        for (OBX page : reportPages) {
+            for (int i = 0; i < page.getObx5_ObservationValueReps(); i++) {
+                String pageText = HL7Utils.decodeReportText(page.getObx5_ObservationValue(i).getData().encode());
+                if (StringUtils.isNotBlank(pageText)) {
+                    pageTexts.add(pageText);
+                }
+            }
+        }
+        String reportText = pageTexts.isEmpty() ? null : StringUtils.join(pageTexts, System.lineSeparator());
         String reportDateStr = obx1.getObx14_DateTimeOfTheObservation().getTimeOfAnEvent().getValue();
         // Look up radiologist by id only, ignore any name passed in.
         String radiologistId = obx1.getObx16_ResponsibleObserver().getIDNumber().getValue();
@@ -230,10 +252,10 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
 
         // Add or modify existing accession number obs in radiology study obs group
         Obs accessionNumberObs = getObsFromGroup(radiologyStudyGroup, radiologyConfig.getRadiologyAccessionNumber());
-        if (accessionNumberObs == null) {
-            accessionNumberObs = createObs(encounter, order, radiologyStudyGroup, radiologyConfig.getRadiologyAccessionNumber());
+        if (accessionNumberObs == null || !order.getOrderNumber().equals(accessionNumberObs.getValueText())) {
+            accessionNumberObs = replaceObs(encounter, order, radiologyStudyGroup, accessionNumberObs, radiologyConfig.getRadiologyAccessionNumber());
+            accessionNumberObs.setValueText(order.getOrderNumber());
         }
-        accessionNumberObs.setValueText(order.getOrderNumber());
 
         // Add or modify existing procedure obs in radiology study obs group
         Obs procedureObs = getObsFromGroup(radiologyStudyGroup, radiologyConfig.getRadiologyProcedurePerformed());
@@ -241,10 +263,10 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             voidObs(procedureObs);
         }
         else {
-            if (procedureObs == null) {
-                procedureObs = createObs(encounter, order, radiologyStudyGroup, radiologyConfig.getRadiologyProcedurePerformed());
+            if (procedureObs == null || !OpenmrsUtil.nullSafeEquals(testPerformedValue, procedureObs.getValueCoded())) {
+                procedureObs = replaceObs(encounter, order, radiologyStudyGroup, procedureObs, radiologyConfig.getRadiologyProcedurePerformed());
+                procedureObs.setValueCoded(testPerformedValue);
             }
-            procedureObs.setValueCoded(testPerformedValue);
         }
 
         // Add or modify existing images available obs in radiology study obs group.  A message without a viewer link,
@@ -255,11 +277,13 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
         if (!keepExistingLink) {
             boolean hasImages = StringUtils.isNotBlank(imageViewerLink);
             Concept hasImagesValueCoded = hasImages ? conceptService.getTrueConcept() : conceptService.getFalseConcept();
-            if (hasImagesAvailableObs == null) {
-                hasImagesAvailableObs = createObs(encounter, order, radiologyStudyGroup, radiologyConfig.getRadiologyImagesAvailable());
+            String link = hasImages ? imageViewerLink : null;
+            if (hasImagesAvailableObs == null || !OpenmrsUtil.nullSafeEquals(hasImagesValueCoded, hasImagesAvailableObs.getValueCoded())
+                    || !OpenmrsUtil.nullSafeEquals(link, StringUtils.trimToNull(hasImagesAvailableObs.getComment()))) {
+                hasImagesAvailableObs = replaceObs(encounter, order, radiologyStudyGroup, hasImagesAvailableObs, radiologyConfig.getRadiologyImagesAvailable());
+                hasImagesAvailableObs.setValueCoded(hasImagesValueCoded);
+                hasImagesAvailableObs.setComment(link);
             }
-            hasImagesAvailableObs.setValueCoded(hasImagesValueCoded);
-            hasImagesAvailableObs.setComment(hasImages ? imageViewerLink : null);
         }
 
         return encounter;
@@ -311,10 +335,10 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
 
         // Add or modify existing accession number obs in radiology study obs group
         Obs accessionNumberObs = getObsFromGroup(radiologyReportGroup, radiologyConfig.getRadiologyAccessionNumber());
-        if (accessionNumberObs == null) {
-            accessionNumberObs = createObs(encounter, order, radiologyReportGroup, radiologyConfig.getRadiologyAccessionNumber());
+        if (accessionNumberObs == null || !order.getOrderNumber().equals(accessionNumberObs.getValueText())) {
+            accessionNumberObs = replaceObs(encounter, order, radiologyReportGroup, accessionNumberObs, radiologyConfig.getRadiologyAccessionNumber());
+            accessionNumberObs.setValueText(order.getOrderNumber());
         }
-        accessionNumberObs.setValueText(order.getOrderNumber());
 
         // Add or modify existing procedure obs in radiology study obs group
         Obs procedureObs = getObsFromGroup(radiologyReportGroup, radiologyConfig.getRadiologyProcedurePerformed());
@@ -322,10 +346,10 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             voidObs(procedureObs);
         }
         else {
-            if (procedureObs == null) {
-                procedureObs = createObs(encounter, order, radiologyReportGroup, radiologyConfig.getRadiologyProcedurePerformed());
+            if (procedureObs == null || !OpenmrsUtil.nullSafeEquals(testPerformedValue, procedureObs.getValueCoded())) {
+                procedureObs = replaceObs(encounter, order, radiologyReportGroup, procedureObs, radiologyConfig.getRadiologyProcedurePerformed());
+                procedureObs.setValueCoded(testPerformedValue);
             }
-            procedureObs.setValueCoded(testPerformedValue);
         }
 
         // Add or modify existing comment obs in radiology report obs group
@@ -339,10 +363,10 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             voidObs(commentsObs);
         }
         else {
-            if (commentsObs == null) {
-                commentsObs = createObs(encounter, order, radiologyReportGroup, radiologyConfig.getRadiologyReportComments());
+            if (commentsObs == null || !reportText.equals(commentsObs.getValueText())) {
+                commentsObs = replaceObs(encounter, order, radiologyReportGroup, commentsObs, radiologyConfig.getRadiologyReportComments());
+                commentsObs.setValueText(reportText);
             }
-            commentsObs.setValueText(reportText);
         }
 
         // Get status concept  I=COMPLETED, R=READ, F=FINAL, P=PRINT
@@ -360,10 +384,10 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             voidObs(statusObs);
         }
         else {
-            if (statusObs == null) {
-                statusObs = createObs(encounter, order, radiologyReportGroup, radiologyConfig.getRadiologyReportType());
+            if (statusObs == null || !OpenmrsUtil.nullSafeEquals(statusConcept, statusObs.getValueCoded())) {
+                statusObs = replaceObs(encounter, order, radiologyReportGroup, statusObs, radiologyConfig.getRadiologyReportType());
+                statusObs.setValueCoded(statusConcept);
             }
-            statusObs.setValueCoded(statusConcept);
         }
 
         return encounter;
@@ -406,6 +430,23 @@ public class ORUR01ToObsTranslator extends BaseHL7Translator {
             obs.setVoided(true);
             obs.setVoidReason("Updated value from incoming HL7");
         }
+    }
+
+    /**
+     * Saved obs cannot be edited, and an edited obs left in the session fails when it is flushed, so a changed value is
+     * recorded on a new obs that replaces the existing one, which is voided.  An obs not yet saved is changed directly.
+     * @return the obs on which to record the new value
+     */
+    private Obs replaceObs(Encounter encounter, Order order, Obs obsGroup, Obs existing, Concept question) {
+        if (existing != null && existing.getObsId() == null) {
+            return existing;
+        }
+        Obs obs = createObs(encounter, order, obsGroup, question);
+        if (existing != null) {
+            voidObs(existing);
+            obs.setPreviousVersion(existing);
+        }
+        return obs;
     }
 
     protected Obs createObs(Encounter encounter, Order order, Obs obsGroup, Concept question) {
