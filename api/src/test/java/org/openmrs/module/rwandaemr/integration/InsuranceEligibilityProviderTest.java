@@ -10,6 +10,7 @@ import org.openmrs.module.rwandaemr.integration.insurance.InsuranceIntegrationCo
 import org.openmrs.util.OpenmrsUtil;
 
 import java.io.File;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -163,6 +164,33 @@ public class InsuranceEligibilityProviderTest {
 		String identifier = "ABCDE";
 		IntegrationResponse response = provider.checkEligibility(type, identifier, fosaid);
 		assertThat(response.isEndpointAccessible(), equalTo(false));
+	}
+
+	@Test
+	public void shouldBuildMmiEligibilityPayloadThatSendsOtp() {
+		Map<String, Object> payload = provider.buildEligibilityCheckPayload("MMI", "1212222-22", "10023", true, true, null);
+		assertThat(payload.get("insuranceType"), equalTo("mmi"));
+		assertThat(payload.get("identifier"), equalTo("1212222-22"));
+		assertThat(payload.get("fosaid"), equalTo("10023"));
+		assertThat(payload.get("sendOTP"), equalTo(true));
+		assertThat(payload.containsKey("isMainInsurer"), equalTo(false));
+		assertThat(payload.containsKey("otpTo"), equalTo(false));
+	}
+
+	@Test
+	public void shouldSendOtpToChosenParentForMmiChild() {
+		Map<String, Object> payload = provider.buildEligibilityCheckPayload("mmi", "1212222-22", "10023", true, false, " parent2 ");
+		assertThat(payload.get("otpTo"), equalTo("parent2"));
+	}
+
+	@Test
+	public void shouldOnlySendIsMainInsurerForRama() {
+		Map<String, Object> rama = provider.buildEligibilityCheckPayload("RAMA", "20746004W", "10023", false, true, null);
+		assertThat(rama.get("isMainInsurer"), equalTo(true));
+		Map<String, Object> cbhi = provider.buildEligibilityCheckPayload("MUTUELLE", "1195080033589077", "10023", false, true, "parent1");
+		assertThat(cbhi.get("insuranceType"), equalTo("cbhi"));
+		assertThat(cbhi.containsKey("isMainInsurer"), equalTo(false));
+		assertThat(cbhi.containsKey("otpTo"), equalTo(false));
 	}
 
 	private boolean isConfiguredToRun() {

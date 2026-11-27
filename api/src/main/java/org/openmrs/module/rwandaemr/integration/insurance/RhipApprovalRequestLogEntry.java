@@ -50,4 +50,32 @@ public class RhipApprovalRequestLogEntry {
 	private Date dateCreated;
 	private Integer changedBy;
 	private Date dateChanged;
+
+	/**
+	 * The MMI reception the approval belongs to. MMI keeps one approval per reception, shared by all its lines.
+	 */
+	private String visitReferenceNumber;
+
+	/**
+	 * MMI's decision for this line; can be lower than requested
+	 */
+	private BigDecimal approvedQuantity;
+	private BigDecimal approvedUnitPrice;
+
+	/**
+	 * The approver's comment on this line
+	 */
+	private String decisionReason;
+
+	/**
+	 * Whether MMI has already put the approved line on a bill
+	 */
+	private Boolean billed;
+	private String decidedBy;
+	private String decidedAt;
+	private Date lastStatusCheck;
+
+	public boolean isMmi() {
+		return "mmi".equalsIgnoreCase(insuranceType == null ? null : insuranceType.trim());
+	}
 }

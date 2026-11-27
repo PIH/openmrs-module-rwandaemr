@@ -43,6 +43,13 @@ public class HtmlFormEntrySetup implements Setup {
 
     public static final String APPOINTMENT_BOOKING_TAG = "appointmentBooking";
 
+    public static final String INSURANCE_APPROVAL_CHECK_TAG = "insuranceApprovalCheck";
+
+    /**
+     * Former name of {@link #INSURANCE_APPROVAL_CHECK_TAG}, still accepted
+     */
+    public static final String MMI_APPROVAL_CHECK_TAG = "mmiApprovalCheck";
+
     public static final String FORM_ENGINE_RESOURCE_NAME = "formEngine";
 
     public static final String FORM_ENGINE_RESOURCE_VALUE = "htmlformentry";
@@ -74,6 +81,10 @@ public class HtmlFormEntrySetup implements Setup {
         AppointmentBookingTagHandler appointmentBookingTagHandler = new AppointmentBookingTagHandler();
         htmlFormEntryService.addHandler(APPOINTMENT_BOOKING_TAG, appointmentBookingTagHandler);
         log.warn("Registered " + APPOINTMENT_BOOKING_TAG + " tag with htmlformentry");
+
+        htmlFormEntryService.addHandler(INSURANCE_APPROVAL_CHECK_TAG, new InsuranceApprovalCheckTagHandler());
+        htmlFormEntryService.addHandler(MMI_APPROVAL_CHECK_TAG, new InsuranceApprovalCheckTagHandler());
+        log.warn("Registered " + INSURANCE_APPROVAL_CHECK_TAG + " (and " + MMI_APPROVAL_CHECK_TAG + ") tag with htmlformentry");
 
         // Add form engine resources
         int numResourcesSaved = 0;

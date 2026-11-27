@@ -1,5 +1,6 @@
 package org.openmrs.module.rwandaemr.rest;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -10,13 +11,13 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.rwandaemr.integration.IntegrationConfig;
 import org.openmrs.module.rwandaemr.integration.IntegrationResponse;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceEligibilityProvider;
+import org.openmrs.module.rwandaemr.integration.insurance.InsuranceIntegrationConfig;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiPatientReceptionLogEntry;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiPatientReceptionLogRepository;
-import org.openmrs.module.rwandaemr.integration.insurance.MmiOtpVerificationResponse;
+import org.openmrs.module.rwandaemr.integration.insurance.MmiPendingReception;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiReceptionData;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiReceptionResponse;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiReceptionStore;
-import org.openmrs.module.rwandaemr.session.MmiOtpSessionStore;
 import org.openmrs.module.webservices.rest.web.response.ResponseException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -49,6 +50,12 @@ public class InsuranceEligibilityRestController {
     MmiReceptionStore mmiReceptionStore;
 
     @Autowired
+    InsuranceIntegrationConfig insuranceIntegrationConfig;
+
+    private static final String MISSING_FOSA_ID_MESSAGE = "The facility FOSA ID for RHIP is not set. Ask the system "
+            + "administrator to set the global property " + InsuranceIntegrationConfig.FACILITY_FOSA_ID + ".";
+
+    @Autowired
     MmiPatientReceptionLogRepository mmiPatientReceptionLogRepository;
 
     @RequestMapping(value = "/rest/v1/rwandaemr/insurance/eligibility", method = RequestMethod.GET)
@@ -56,40 +63,15 @@ public class InsuranceEligibilityRestController {
     public Object checkInsuranceEligibility(HttpServletRequest request, HttpServletResponse response) throws ResponseException {
         String type = request.getParameter("type");
         String identifier = request.getParameter("identifier");
-        String fosaid = request.getParameter("fosaid");
-        if (StringUtils.isBlank(fosaid)) {
-            fosaid = integrationConfig.getFosaId(Context.getUserContext().getLocation());
+        String fosaid = rhipFosaId();
+        if (fosaid == null) {
+            return missingFosaIdResponse();
         }
         boolean sendOtp = Boolean.parseBoolean(request.getParameter("sendOTP"));
         boolean isMainInsurer = Boolean.parseBoolean(request.getParameter("isMainInsurer"));
         String otpTo = request.getParameter("otpTo");
         IntegrationResponse ret = insuranceEligibilityProvider.checkEligibility(type, identifier, fosaid, sendOtp,
                 isMainInsurer, otpTo);
-        return ret;
-    }
-
-    @RequestMapping(value = "/rest/v1/rwandaemr/insurance/eligibility/verify-otp", method = RequestMethod.POST)
-    @ResponseBody
-    public Object verifyInsuranceOtp(@RequestBody OtpVerificationRequest requestBody,
-                                     HttpServletRequest request) throws ResponseException {
-        String type = requestBody.getInsuranceType();
-        String identifier = requestBody.getIdentifier();
-        String otpCode = requestBody.getOtpCode();
-        String fosaid = requestBody.getFosaid();
-        log.info("MMI OTP verify requested for identifier=" + identifier);
-        if (StringUtils.isBlank(fosaid)) {
-            fosaid = integrationConfig.getFosaId(Context.getUserContext().getLocation());
-        }
-        IntegrationResponse ret = insuranceEligibilityProvider.verifyOtp(type, identifier, otpCode, fosaid);
-        if (ret != null && ret.getResponseEntity() instanceof MmiOtpVerificationResponse) {
-            MmiOtpVerificationResponse responseEntity = (MmiOtpVerificationResponse) ret.getResponseEntity();
-            log.info("MMI OTP verify result success=" + responseEntity.isSuccess());
-            if (responseEntity.isSuccess()) {
-                MmiOtpSessionStore.rememberOtp(request, requestBody.getPatientId(), identifier, otpCode);
-            }
-        } else if (ret != null && StringUtils.isNotBlank(ret.getErrorMessage())) {
-            log.warn("MMI OTP verify error=" + ret.getErrorMessage());
-        }
         return ret;
     }
 
@@ -105,8 +87,11 @@ public class InsuranceEligibilityRestController {
                 + ", patientType=" + patientType);
         Map<String, Object> response = new LinkedHashMap<>();
         try {
-            if (StringUtils.isBlank(fosaid)) {
-                fosaid = integrationConfig.getFosaId(Context.getUserContext().getLocation());
+            fosaid = rhipFosaId();
+            if (fosaid == null) {
+                response.put("success", false);
+                response.put("message", MISSING_FOSA_ID_MESSAGE);
+                return response;
             }
 
             if (StringUtils.isBlank(patientType)) {
@@ -131,18 +116,26 @@ public class InsuranceEligibilityRestController {
             IntegrationResponse receptionResponse = insuranceEligibilityProvider.createReception("MMI", identifier,
                     fosaid, patientType.trim(), otpCode, true);
             response.put("reception", receptionResponse.getResponseEntity());
-            String receptionNumber = getReceptionNumber(receptionResponse);
+            boolean success = receptionResponse.getResponseEntity() instanceof MmiReceptionResponse &&
+                    ((MmiReceptionResponse) receptionResponse.getResponseEntity()).isSuccess();
+            // On failure, data can still carry a reception number: the one MMI says is still open
+            String returnedReceptionNumber = getReceptionNumber(receptionResponse);
+            String receptionNumber = success ? returnedReceptionNumber : null;
             if (StringUtils.isNotBlank(receptionNumber) && patientId != null) {
                 mmiReceptionStore.storeReceptionNumber(Context.getAuthenticatedUser().getUserId(), patientId, receptionNumber);
             }
-            boolean success = receptionResponse.getResponseEntity() instanceof MmiReceptionResponse &&
-                    ((MmiReceptionResponse) receptionResponse.getResponseEntity()).isSuccess();
-            persistMmiReceptionLog(patientId, identifier, fosaid, patientType, receptionResponse, success);
+            String message = receptionResponse.getResponseEntity() instanceof MmiReceptionResponse ?
+                    ((MmiReceptionResponse) receptionResponse.getResponseEntity()).getMessage() :
+                    StringUtils.defaultIfEmpty(receptionResponse.getErrorMessage(), "Reception response missing");
+            if (MmiPendingReception.isPendingReception(receptionResponse.getResponseCode(), success, returnedReceptionNumber)) {
+                message = MmiPendingReception.describe(returnedReceptionNumber,
+                        mmiPatientReceptionLogRepository.getSuccessfulReception(returnedReceptionNumber));
+                response.put("pendingReceptionNumber", returnedReceptionNumber);
+            }
+            persistMmiReceptionLog(patientId, identifier, fosaid, patientType, receptionResponse, success, message);
             response.put("receptionNumber", receptionNumber);
             response.put("success", success);
-            response.put("message", receptionResponse.getResponseEntity() instanceof MmiReceptionResponse ?
-                    ((MmiReceptionResponse) receptionResponse.getResponseEntity()).getMessage() :
-                    "Reception response missing");
+            response.put("message", message);
             if (StringUtils.isNotBlank(receptionResponse.getErrorMessage())) {
                 log.warn("MMI reception error=" + receptionResponse.getErrorMessage());
             }
@@ -156,15 +149,89 @@ public class InsuranceEligibilityRestController {
         }
     }
 
+    /**
+     * Switches the patient's open MMI reception to another patient type (RHIP /patient-reception/change-type),
+     * which changes the MMI / patient cost split for the rest of the visit
+     */
+    @RequestMapping(value = "/rest/v1/rwandaemr/insurance/eligibility/mmi/reception/change-type", method = RequestMethod.POST)
+    @ResponseBody
+    public Object changeMmiReceptionPatientType(@RequestBody MmiReceptionChangeTypeRequest requestBody) throws ResponseException {
+        Map<String, Object> response = new LinkedHashMap<>();
+        String receptionNumber = StringUtils.trimToNull(requestBody.getReceptionNumber());
+        String patientType = StringUtils.trimToNull(requestBody.getPatientType());
+        if (receptionNumber == null) {
+            response.put("success", false);
+            response.put("message", "MMI reception number is required");
+            return response;
+        }
+        if (patientType == null || !StringUtils.isNumeric(patientType)) {
+            response.put("success", false);
+            response.put("message", "Choose the new MMI patient type");
+            return response;
+        }
+        try {
+            String fosaid = rhipFosaId();
+            if (fosaid == null) {
+                response.put("success", false);
+                response.put("message", MISSING_FOSA_ID_MESSAGE);
+                return response;
+            }
+            log.info("MMI reception type change requested for reception=" + receptionNumber + ", patientType=" + patientType);
+            IntegrationResponse changeResponse = insuranceEligibilityProvider.changeReceptionPatientType("MMI", fosaid,
+                    receptionNumber, Integer.valueOf(patientType));
+            JsonNode body = changeResponse.getResponseEntity() instanceof JsonNode
+                    ? (JsonNode) changeResponse.getResponseEntity() : null;
+            boolean success = body != null && body.path("success").asBoolean(false);
+            if (success) {
+                mmiPatientReceptionLogRepository.updatePatientType(receptionNumber, patientType);
+                response.put("patientTypeNo", body.path("patientTypeNo").isMissingNode() ? null : body.path("patientTypeNo").asText());
+                response.put("visitType", body.path("visitType").isMissingNode() ? null : body.path("visitType").asText());
+                response.put("coverage", body.get("coverage"));
+            }
+            String message = body != null && StringUtils.isNotBlank(body.path("message").asText(null))
+                    ? body.path("message").asText()
+                    : StringUtils.defaultIfEmpty(changeResponse.getErrorMessage(),
+                    success ? "Reception type changed" : "Unable to change the MMI patient type");
+            response.put("success", success);
+            response.put("message", message);
+            log.info("MMI reception type change result success=" + success + ", reception=" + receptionNumber);
+            return response;
+        }
+        catch (Exception e) {
+            log.error("MMI reception type change failed with exception", e);
+            response.put("success", false);
+            response.put("message", "Unable to change the MMI patient type");
+            return response;
+        }
+    }
+
     @RequestMapping(value = "/rest/v1/rwandaemr/insurance/eligibility/mmi/patient-types", method = RequestMethod.GET)
     @ResponseBody
     public Object getMmiPatientTypes(HttpServletRequest request) throws ResponseException {
-        String fosaid = request.getParameter("fosaid");
-        if (StringUtils.isBlank(fosaid)) {
-            fosaid = integrationConfig.getFosaId(Context.getUserContext().getLocation());
+        String fosaid = rhipFosaId();
+        if (fosaid == null) {
+            return missingFosaIdResponse();
         }
         IntegrationResponse response = insuranceEligibilityProvider.getPatientTypes("mmi", fosaid);
         return response;
+    }
+
+    /**
+     * @return the facility FOSA ID sent to RHIP: always the one global property shared by all RHIP calls
+     */
+    private String rhipFosaId() {
+        return insuranceIntegrationConfig.getFacilityFosaId();
+    }
+
+    private IntegrationResponse missingFosaIdResponse() {
+        IntegrationResponse ret = new IntegrationResponse();
+        ret.setEnabled(true);
+        ret.setErrorMessage(MISSING_FOSA_ID_MESSAGE);
+        Map<String, Object> entity = new LinkedHashMap<>();
+        entity.put("success", false);
+        entity.put("message", MISSING_FOSA_ID_MESSAGE);
+        ret.setResponseEntity(entity);
+        return ret;
     }
 
     private String getReceptionNumber(IntegrationResponse receptionResponse) {
@@ -177,7 +244,7 @@ public class InsuranceEligibilityRestController {
     }
 
     private void persistMmiReceptionLog(Integer patientId, String identifier, String fosaid, String patientType,
-                                        IntegrationResponse receptionResponse, boolean success) {
+                                        IntegrationResponse receptionResponse, boolean success, String failureMessage) {
         try {
             Patient patient = patientId == null ? null : Context.getPatientService().getPatient(patientId);
             Visit visit = patient == null ? null : getActiveVisit(patient);
@@ -207,7 +274,8 @@ public class InsuranceEligibilityRestController {
             entry.setReceptionNumber(data == null ? null : data.getReceptionNumber());
             entry.setBpCode(data == null ? null : data.getBpCode());
             entry.setReceptionStatus(data == null ? null : data.getStatus());
-            entry.setErrorMessage(resolveReceptionErrorMessage(receptionResponse, responseEntity));
+            entry.setErrorMessage(success ? null : StringUtils.defaultIfEmpty(failureMessage,
+                    resolveReceptionErrorMessage(receptionResponse, responseEntity)));
             entry.setCreator(Context.getAuthenticatedUser() == null ? null : Context.getAuthenticatedUser().getUserId());
             entry.setDateCreated(new Date());
             mmiPatientReceptionLogRepository.saveLogEntry(entry);
@@ -235,53 +303,17 @@ public class InsuranceEligibilityRestController {
 		return null;
 	}
 
-    public static class OtpVerificationRequest {
+    public static class MmiReceptionChangeTypeRequest {
 
-        private String insuranceType;
-        private String identifier;
-        private String otpCode;
-        private String fosaid;
-        private Integer patientId;
+        private String receptionNumber;
         private String patientType;
 
-        public String getInsuranceType() {
-            return insuranceType;
+        public String getReceptionNumber() {
+            return receptionNumber;
         }
 
-        public void setInsuranceType(String insuranceType) {
-            this.insuranceType = insuranceType;
-        }
-
-        public String getIdentifier() {
-            return identifier;
-        }
-
-        public void setIdentifier(String identifier) {
-            this.identifier = identifier;
-        }
-
-        public String getOtpCode() {
-            return otpCode;
-        }
-
-        public void setOtpCode(String otpCode) {
-            this.otpCode = otpCode;
-        }
-
-        public String getFosaid() {
-            return fosaid;
-        }
-
-        public void setFosaid(String fosaid) {
-            this.fosaid = fosaid;
-        }
-
-        public Integer getPatientId() {
-            return patientId;
-        }
-
-        public void setPatientId(Integer patientId) {
-            this.patientId = patientId;
+        public void setReceptionNumber(String receptionNumber) {
+            this.receptionNumber = receptionNumber;
         }
 
         public String getPatientType() {

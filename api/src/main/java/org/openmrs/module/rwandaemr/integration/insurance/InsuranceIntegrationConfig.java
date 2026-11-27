@@ -34,16 +34,19 @@ public class InsuranceIntegrationConfig {
 	private static final String SHARED_API_PREFIX = "/insurance_integration/api/v2";
 	public static final String SHARED_BASE_URL = "rwandaemr.insuranceIntegration.baseUrl";
 	public static final String ELIGIBILITY_CHECK_URL = ELIGIBILITY_CHECK_PREFIX + "url";
-	public static final String ELIGIBILITY_OTP_VERIFY_URL = ELIGIBILITY_CHECK_PREFIX + "otpVerifyUrl";
 	public static final String ELIGIBILITY_MMI_PATIENT_TYPES_URL = ELIGIBILITY_CHECK_PREFIX + "mmiPatientTypesUrl";
 	public static final String ELIGIBILITY_MMI_RECEPTION_URL = ELIGIBILITY_CHECK_PREFIX + "mmiReceptionUrl";
+	public static final String ELIGIBILITY_MMI_RECEPTION_CHANGE_TYPE_URL = ELIGIBILITY_CHECK_PREFIX + "mmiReceptionChangeTypeUrl";
 	public static final String ELIGIBILITY_CHECK_API_KEY = ELIGIBILITY_CHECK_PREFIX + "apiKey";
 	public static final String ELIGIBILITY_CHECK_API_ORIGIN = ELIGIBILITY_CHECK_PREFIX + "apiOrigin";
 	public static final String PATIENT_RECEPTION_URL = ELIGIBILITY_CHECK_PREFIX + "patientReceptionUrl";
 	public static final String PATIENT_RECEPTION_API_KEY = ELIGIBILITY_CHECK_PREFIX + "patientReceptionApiKey";
 	public static final String PATIENT_RECEPTION_API_ORIGIN = ELIGIBILITY_CHECK_PREFIX + "patientReceptionApiOrigin";
-	public static final String PATIENT_RECEPTION_FACILITY_FOSA_ID_OVERRIDE = ELIGIBILITY_CHECK_PREFIX + "patientReceptionFacilityFosaIdOverride";
-	public static final String FACILITY_FOSA_ID = "rwandaemr.insuranceIntegration.facilityFosaId";
+	/**
+	 * The one FOSA ID sent on every RHIP call (eligibility, reception, approvals, vouchers and pharmacy), shared with
+	 * mohbilling and the pharmacy module
+	 */
+	public static final String FACILITY_FOSA_ID = "mohbilling.rhipVoucher.defaultFosaId";
 	public static final String RHIP_APPROVAL_REQUEST_URL = ELIGIBILITY_CHECK_PREFIX + "approvalRequestUrl";
 	public static final String RHIP_APPROVAL_STATUS_URL = ELIGIBILITY_CHECK_PREFIX + "approvalStatusUrl";
 	public static final String RHIP_APPROVAL_REQUIRED_PRODUCTS_URL = ELIGIBILITY_CHECK_PREFIX + "approvalRequiredProductsUrl";
@@ -55,16 +58,16 @@ public class InsuranceIntegrationConfig {
 		return configuredUrlOrSharedPath(ELIGIBILITY_CHECK_URL, "/eligibility-check");
 	}
 
-	public String getEligibilityOtpVerifyUrl() {
-		return configuredUrlOrSharedPath(ELIGIBILITY_OTP_VERIFY_URL, "/otp-verification");
-	}
-
 	public String getMmiPatientTypesUrl() {
 		return configuredUrlOrSharedPath(ELIGIBILITY_MMI_PATIENT_TYPES_URL, "/patient-types");
 	}
 
 	public String getMmiReceptionUrl() {
 		return configuredUrlOrSharedPath(ELIGIBILITY_MMI_RECEPTION_URL, "/patient-reception");
+	}
+
+	public String getMmiReceptionChangeTypeUrl() {
+		return configuredUrlOrSharedPath(ELIGIBILITY_MMI_RECEPTION_CHANGE_TYPE_URL, "/patient-reception/change-type");
 	}
 
 	public String getEligibilityCheckApiKey() {
@@ -115,16 +118,11 @@ public class InsuranceIntegrationConfig {
 		return configuredUrlOrSharedPath(RHIP_APPROVAL_REQUIRED_PRODUCTS_URL, "/approval-required-products");
 	}
 
+	/**
+	 * @return the facility's FOSA ID for RHIP, from {@link #FACILITY_FOSA_ID}, or null when it is not set
+	 */
 	public String getFacilityFosaId() {
-		String fosaId = StringUtils.trimToNull(ConfigUtil.getProperty(FACILITY_FOSA_ID));
-		if (StringUtils.isNotBlank(fosaId)) {
-			return fosaId;
-		}
-		return getPatientReceptionFacilityFosaIdOverride();
-	}
-
-	public String getPatientReceptionFacilityFosaIdOverride() {
-		return StringUtils.trimToNull(ConfigUtil.getProperty(PATIENT_RECEPTION_FACILITY_FOSA_ID_OVERRIDE));
+		return StringUtils.trimToNull(ConfigUtil.getProperty(FACILITY_FOSA_ID));
 	}
 
 	public String getSharedBaseUrl() {

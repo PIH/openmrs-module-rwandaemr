@@ -55,7 +55,7 @@
         <metadatamappingVersion>2.0.0</metadatamappingVersion>
         <metadatasharingVersion>1.11.0-SNAPSHOT</metadatasharingVersion>
         <mohappointmentVersion>2.0.1-SNAPSHOT</mohappointmentVersion>
-        <mohbillingVersion>2.2.6-SNAPSHOT</mohbillingVersion>
+        <mohbillingVersion>2.2.7-SNAPSHOT</mohbillingVersion>
         <mohdataflowmoduleVersion>0.0.5-SNAPSHOT</mohdataflowmoduleVersion>
         <mohtracVersion>2.0.0-SNAPSHOT</mohtracVersion>
         <namephoneticsVersion>1.19.0</namephoneticsVersion>

@@ -21,4 +21,9 @@ public class IntegrationResponse {
     private Integer responseCode;
     private Object responseEntity;
     private String errorMessage;
+
+    /**
+     * The Retry-After header of the response (seconds), sent with HTTP 429 when calls come too fast
+     */
+    private String retryAfter;
 }
