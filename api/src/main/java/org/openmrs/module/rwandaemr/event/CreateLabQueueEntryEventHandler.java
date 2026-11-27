@@ -9,9 +9,11 @@
 package org.openmrs.module.rwandaemr.event;
 
 import org.openmrs.Order;
+import org.openmrs.OrderType;
 import org.openmrs.Patient;
 import org.openmrs.TestOrder;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.pihapps.orders.LabOrderConfig;
 import org.openmrs.module.rwandaemr.queue.QueueService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,8 +24,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Watches for new Test Orders and adds the patient to the Laboratory service point queue,
+ * Watches for new lab test orders and adds the patient to the Laboratory service point queue,
  * unless the patient is already actively queued there.
+ * Only orders of the lab test order type (pihapps.labs.labOrderType, see {@link LabOrderConfig}) count:
+ * radiology, pathology and other test orders do not send the patient to the Laboratory.
  * This replaces the former behavior of creating a mohappointment Laboratory appointment.
  */
 @Component
@@ -54,17 +58,47 @@ public class CreateLabQueueEntryEventHandler implements OpenmrsObjectEventHandle
 		}
 	}
 
+	/**
+	 * @return the first new lab test order of each patient; none if the lab test order type is not known
+	 */
 	Map<Patient, TestOrder> getNewTestOrdersByPatient(List<OpenmrsObjectEvent> events) {
 		Map<Patient, TestOrder> ret = new LinkedHashMap<>();
+		OrderType labTestOrderType = null;
+		boolean labTestOrderTypeLoaded = false;
 		for (OpenmrsObjectEvent event : events) {
 			if (event.getOperation() == OpenmrsObjectEvent.Operation.CREATE && event.getOpenmrsObject() instanceof TestOrder) {
 				TestOrder order = (TestOrder) event.getOpenmrsObject();
 				if (order.getAction() == Order.Action.NEW && order.getPatient() != null) {
-					ret.putIfAbsent(order.getPatient(), order);
+					if (!labTestOrderTypeLoaded) {
+						labTestOrderType = getLabTestOrderType();
+						labTestOrderTypeLoaded = true;
+						if (labTestOrderType == null) {
+							log.warn("Not adding patients to the laboratory queue: the lab test order type is not configured "
+									+ "(global property pihapps.labs.labOrderType)");
+							return ret;
+						}
+					}
+					if (labTestOrderType.equals(order.getOrderType())) {
+						ret.putIfAbsent(order.getPatient(), order);
+					}
 				}
 			}
 		}
 		return ret;
+	}
+
+	/**
+	 * @return the order type of lab tests, configured for the pihapps lab pages, or null if it cannot be found
+	 */
+	OrderType getLabTestOrderType() {
+		try {
+			List<LabOrderConfig> configs = Context.getRegisteredComponents(LabOrderConfig.class);
+			return configs.isEmpty() ? null : configs.get(0).getLabTestOrderType();
+		}
+		catch (Exception e) {
+			log.warn("Unable to find the lab test order type", e);
+			return null;
+		}
 	}
 
 	QueueService getQueueService() {

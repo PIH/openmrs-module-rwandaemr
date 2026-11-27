@@ -19,6 +19,7 @@ import org.openmrs.DrugOrder;
 import org.openmrs.Encounter;
 import org.openmrs.Order;
 import org.openmrs.OpenmrsObject;
+import org.openmrs.OrderType;
 import org.openmrs.Patient;
 import org.openmrs.TestOrder;
 import org.openmrs.module.rwandaemr.queue.QueueService;
@@ -29,15 +30,56 @@ public class CreateLabQueueEntryEventHandlerTest {
 
 	private CreateLabQueueEntryEventHandler handler;
 
+	private OrderType labTestOrderType;
+
+	private OrderType radiologyOrderType;
+
+	private OrderType pathologyOrderType;
+
 	@BeforeEach
 	public void setUp() {
 		queueService = mock(QueueService.class);
-		handler = new CreateLabQueueEntryEventHandler() {
+		labTestOrderType = orderType("52a447d3-a64a-11e3-9aeb-50e549534c5e");
+		radiologyOrderType = orderType("5a3a8d2e-97c3-4797-a6a8-5417e6e699ec");
+		pathologyOrderType = orderType("fe7aad7e-c224-4f56-878e-7d7309a6d3c3");
+		handler = handler(labTestOrderType);
+	}
+
+	private CreateLabQueueEntryEventHandler handler(final OrderType labOrderType) {
+		return new CreateLabQueueEntryEventHandler() {
 			@Override
 			QueueService getQueueService() {
 				return queueService;
 			}
+
+			@Override
+			OrderType getLabTestOrderType() {
+				return labOrderType;
+			}
 		};
+	}
+
+	@Test
+	public void shouldOnlyQueuePatientsForLabTestOrders() {
+		Patient labPatient = patient("p1");
+		Patient radiologyPatient = patient("p2");
+		Patient pathologyPatient = patient("p3");
+		handler.beforeTransactionCompletion(1, Arrays.asList(
+				created(testOrder(radiologyPatient, null, Order.Action.NEW, radiologyOrderType)),
+				created(testOrder(pathologyPatient, null, Order.Action.NEW, pathologyOrderType)),
+				created(testOrder(labPatient, null, Order.Action.NEW))));
+
+		verify(queueService).addPatientToLaboratoryQueue(eq(labPatient), any(), any());
+		verify(queueService, never()).addPatientToLaboratoryQueue(eq(radiologyPatient), any(), any());
+		verify(queueService, never()).addPatientToLaboratoryQueue(eq(pathologyPatient), any(), any());
+	}
+
+	@Test
+	public void shouldQueueNobodyIfTheLabTestOrderTypeIsNotKnown() {
+		handler(null).beforeTransactionCompletion(1, Collections.singletonList(
+				created(testOrder(patient("p1"), null, Order.Action.NEW))));
+
+		verifyNoInteractions(queueService);
 	}
 
 	@Test
@@ -102,11 +144,22 @@ public class CreateLabQueueEntryEventHandlerTest {
 	}
 
 	private TestOrder testOrder(Patient patient, Encounter encounter, Order.Action action) {
+		return testOrder(patient, encounter, action, labTestOrderType);
+	}
+
+	private TestOrder testOrder(Patient patient, Encounter encounter, Order.Action action, OrderType orderType) {
 		TestOrder order = new TestOrder();
 		order.setPatient(patient);
 		order.setEncounter(encounter);
 		order.setAction(action);
+		order.setOrderType(orderType);
 		return order;
+	}
+
+	private OrderType orderType(String uuid) {
+		OrderType orderType = new OrderType();
+		orderType.setUuid(uuid);
+		return orderType;
 	}
 
 	private OpenmrsObjectEvent created(OpenmrsObject object) {
