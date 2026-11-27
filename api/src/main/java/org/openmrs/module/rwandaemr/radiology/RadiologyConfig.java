@@ -44,6 +44,7 @@ public class RadiologyConfig {
 
 	public static final String GP_SUPPORTED_MODALITIES = "rwandaemr.radiology.supportedModalities";
 	public static final String GP_ORDERABLES_PREFIX = "rwandaemr.radiology.orderables.";
+	public static final String GP_AE_TITLE_PREFIX = "rwandaemr.radiology.aeTitle.";
 	public static final String GP_COMBINE_ORDERS_BY_MODALITY = "rwandaemr.radiology.combineOrdersByModality";
 	public static final String GP_MANUAL_REPORT_MODALITIES = "rwandaemr.radiology.manualReportModalities";
 	public static final String GP_IMAGE_VIEWER_URL_TEMPLATE = "rwandaemr.radiology.imageViewerUrlTemplate";
@@ -170,6 +171,18 @@ public class RadiologyConfig {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * @return the AE Title of the equipment that performs studies of the given modality, sent to PACS as the
+	 * Scheduled Station AE Title.  Configured per modality; defaults to the modality code if not configured.
+	 */
+	public String getAeTitle(Modality modality) {
+		if (modality == null) {
+			return null;
+		}
+		String aeTitle = StringUtils.trimToNull(administrationService.getGlobalProperty(GP_AE_TITLE_PREFIX + modality.name()));
+		return aeTitle == null ? modality.name() : aeTitle;
 	}
 
 	/**
