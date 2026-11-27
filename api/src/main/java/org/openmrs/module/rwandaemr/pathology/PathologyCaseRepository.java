@@ -23,7 +23,8 @@ import java.util.Map;
 public class PathologyCaseRepository {
 
 	private static final String SELECT_CASE = "select c.pathology_case_id, c.encounter_id, c.accession_number, c.status, " +
-			"c.rejection_reason, c.creator, c.date_created, c.changed_by, c.date_changed from rwandaemr_pathology_case c ";
+			"c.rejection_reason, c.creator, c.date_created, c.changed_by, c.date_changed, c.report_encounter_id, r.uuid " +
+			"from rwandaemr_pathology_case c left join encounter r on r.encounter_id = c.report_encounter_id ";
 
 	private final DbSessionFactory dbSessionFactory;
 
@@ -40,6 +41,33 @@ public class PathologyCaseRepository {
 				.setParameter("encounterId", encounterId)
 				.list();
 		return rows.isEmpty() ? null : toCase((Object[]) rows.get(0));
+	}
+
+	/**
+	 * @return the case whose report is the given encounter, or null if it is not the report of a case
+	 */
+	@Transactional(readOnly = true)
+	public PathologyCase getCaseByReport(Integer reportEncounterId) {
+		List<?> rows = getSession().createSQLQuery(SELECT_CASE + "where c.report_encounter_id = :reportEncounterId")
+				.setParameter("reportEncounterId", reportEncounterId)
+				.list();
+		return rows.isEmpty() ? null : toCase((Object[]) rows.get(0));
+	}
+
+	/**
+	 * @return the cases of the patient's requests, oldest first
+	 */
+	@Transactional(readOnly = true)
+	public List<PathologyCase> getCasesOfPatient(Integer patientId) {
+		List<PathologyCase> ret = new ArrayList<PathologyCase>();
+		List<?> rows = getSession().createSQLQuery(SELECT_CASE + "join encounter e on e.encounter_id = c.encounter_id " +
+				"where e.patient_id = :patientId and e.voided = 0 order by c.date_created, c.pathology_case_id")
+				.setParameter("patientId", patientId)
+				.list();
+		for (Object row : rows) {
+			ret.add(toCase((Object[]) row));
+		}
+		return ret;
 	}
 
 	/**
@@ -136,6 +164,18 @@ public class PathologyCaseRepository {
 				.executeUpdate();
 	}
 
+	/**
+	 * Records the report of the case.  This is not a change of status, so it is not recorded in the case's history.
+	 */
+	@Transactional
+	public void saveReportEncounter(PathologyCase pathologyCase) {
+		getSession().createSQLQuery(
+				"update rwandaemr_pathology_case set report_encounter_id = :reportEncounterId where pathology_case_id = :caseId")
+				.setParameter("reportEncounterId", pathologyCase.getReportEncounterId())
+				.setParameter("caseId", pathologyCase.getPathologyCaseId())
+				.executeUpdate();
+	}
+
 	private PathologyCase toCase(Object[] values) {
 		PathologyCase ret = new PathologyCase();
 		ret.setPathologyCaseId(toInteger(values[0]));
@@ -147,6 +187,8 @@ public class PathologyCaseRepository {
 		ret.setDateCreated((Date) values[6]);
 		ret.setChangedBy(toInteger(values[7]));
 		ret.setDateChanged((Date) values[8]);
+		ret.setReportEncounterId(toInteger(values[9]));
+		ret.setReportEncounterUuid((String) values[10]);
 		return ret;
 	}
 

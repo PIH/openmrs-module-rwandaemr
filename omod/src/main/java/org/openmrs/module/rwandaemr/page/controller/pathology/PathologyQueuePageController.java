@@ -62,6 +62,7 @@ public class PathologyQueuePageController {
 		model.addAttribute("statuses", PathologyStatus.values());
 		model.addAttribute("paymentStatuses", PaymentStatus.values());
 		model.addAttribute("tests", tests);
+		model.addAttribute("reportForm", PathologyConfig.REPORT_FORM_UUID);
 		return null;
 	}
 }

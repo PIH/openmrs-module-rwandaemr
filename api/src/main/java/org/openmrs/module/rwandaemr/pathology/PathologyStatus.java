@@ -17,6 +17,7 @@ public enum PathologyStatus {
 	GROSSED("Grossed", Order.FulfillerStatus.IN_PROGRESS),
 	PROCESSED("Processed", Order.FulfillerStatus.IN_PROGRESS),
 	ADDITIONAL_STAINS("Additional stains", Order.FulfillerStatus.IN_PROGRESS),
+	SENT_FOR_REVIEW("Sent for review", Order.FulfillerStatus.IN_PROGRESS),
 	SIGNED_OUT("Signed out", Order.FulfillerStatus.COMPLETED),
 	REJECTED("Rejected", Order.FulfillerStatus.DECLINED);
 
@@ -54,8 +55,10 @@ public enum PathologyStatus {
 			case GROSSED:
 				return Collections.singletonList(PROCESSED);
 			case PROCESSED:
-				return Arrays.asList(ADDITIONAL_STAINS, SIGNED_OUT);
+				return Arrays.asList(ADDITIONAL_STAINS, SENT_FOR_REVIEW, SIGNED_OUT);
 			case ADDITIONAL_STAINS:
+				return Arrays.asList(SENT_FOR_REVIEW, SIGNED_OUT);
+			case SENT_FOR_REVIEW:
 				return Collections.singletonList(SIGNED_OUT);
 			default:
 				return Collections.emptyList();
@@ -66,10 +69,19 @@ public enum PathologyStatus {
 	 * @return true if the lab has the specimen and has not signed out its report yet
 	 */
 	public boolean isInLab() {
-		return this == RECEIVED || this == GROSSED || this == PROCESSED || this == ADDITIONAL_STAINS;
+		return this == RECEIVED || this == GROSSED || this == PROCESSED || this == ADDITIONAL_STAINS || this == SENT_FOR_REVIEW;
 	}
 
 	public boolean canMoveTo(PathologyStatus status) {
 		return getNextStatuses().contains(status);
+	}
+
+	/**
+	 * @return true for the steps recorded by saving the pathology report, from the results entered on it, rather than
+	 * from the queue
+	 */
+	public boolean isRecordedFromReport() {
+		return this == GROSSED || this == PROCESSED || this == ADDITIONAL_STAINS || this == SENT_FOR_REVIEW
+				|| this == SIGNED_OUT;
 	}
 }

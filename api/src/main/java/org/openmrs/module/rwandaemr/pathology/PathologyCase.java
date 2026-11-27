@@ -26,6 +26,13 @@ public class PathologyCase {
 
 	private String rejectionReason;
 
+	/**
+	 * The pathology report, whose results move the case through the lab, or null until the report is first saved
+	 */
+	private Integer reportEncounterId;
+
+	private String reportEncounterUuid;
+
 	private Integer creator;
 
 	private Date dateCreated;

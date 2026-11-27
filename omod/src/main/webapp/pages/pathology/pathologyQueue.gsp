@@ -67,7 +67,7 @@
 
     .pq-chip { display: inline-block; padding: 3px 8px; border-radius: 12px; font-weight: bold; font-size: 11.5px; white-space: nowrap; color: #455a64; background: #eceff1; }
     .pq-PAID, .pq-SIGNED_OUT { color: #1b5e20; background: #dff0d8; }
-    .pq-PARTIALLY_PAID, .pq-RECEIVED, .pq-GROSSED, .pq-PROCESSED, .pq-ADDITIONAL_STAINS { color: #0b5394; background: #d9edf7; }
+    .pq-PARTIALLY_PAID, .pq-RECEIVED, .pq-GROSSED, .pq-PROCESSED, .pq-ADDITIONAL_STAINS, .pq-SENT_FOR_REVIEW { color: #0b5394; background: #d9edf7; }
     .pq-NOT_PAID, .pq-REJECTED, .pq-CANCELLED { color: #9f1d1d; background: #f8d7da; }
     .pq-NOT_BILLED, .pq-ORDERED { color: #8a6d3b; background: #fcf8e3; }
     .pq-urgent { color: #fff; background: #e53935; font-size: 10.5px; padding: 2px 6px; margin-right: 4px; vertical-align: 1px; }
@@ -170,7 +170,7 @@
             <label title="Cases can stay in the lab for weeks: show those still in the lab even if they were requested before these dates">
                 <input type="checkbox" id="pq-in-lab" ${ queueRequest.includeCasesInLab ? 'checked="checked"' : '' }/> Include earlier cases still in the lab
             </label>
-            <button type="button" id="pq-reset" title="Clear filters and sort">Reset view</button>
+            <button type="button" id="pq-reset" title="Show today's requests and the cases still in the lab, and clear filters and sort">Reset view</button>
             <span class="pq-spacer"></span>
             <a class="button" id="pq-export" href="#">Export to Excel</a>
         </div>
@@ -221,8 +221,12 @@
         var pageUrl = '${ ui.pageLink("rwandaemr", "pathology/pathologyQueue") }';
         var dashboardUrl = '${ ui.pageLink("coreapps", "clinicianfacing/patient") }';
         var requestFormUrl = '${ ui.pageLink("htmlformentryui", "htmlform/viewEncounterWithHtmlForm") }';
+        var enterReportUrl = '${ ui.pageLink("htmlformentryui", "htmlform/enterHtmlFormWithStandardUi") }';
+        var editReportUrl = '${ ui.pageLink("htmlformentryui", "htmlform/editHtmlFormWithStandardUi") }';
+        var printReportUrl = '${ ui.pageLink("rwandaemr", "pathology/pathologyReportPrint") }';
+        var reportForm = '${ ui.encodeJavaScript(reportForm) }';
         var startedWithUrlFilters = window.location.search.indexOf('status=') !== -1;
-        var STATUS_ORDER = ['ORDERED', 'RECEIVED', 'GROSSED', 'PROCESSED', 'ADDITIONAL_STAINS', 'SIGNED_OUT', 'REJECTED', 'CANCELLED'];
+        var STATUS_ORDER = ['ORDERED', 'RECEIVED', 'GROSSED', 'PROCESSED', 'ADDITIONAL_STAINS', 'SENT_FOR_REVIEW', 'SIGNED_OUT', 'REJECTED', 'CANCELLED'];
 
         // Quick filters behind the summary cards
         var QUICK_FILTERS = {
@@ -366,6 +370,32 @@
             }).join('');
         };
 
+        // Grossing, processing, additional stains and sign out are recorded by saving the results on the report.  The
+        // report records the request's uuid from the uuid parameter, as the pathology request module opened it.  Only a
+        // pathologist can change a signed out report; others can view it.
+        var reportLink = function(r) {
+            if (!r.mayEnterReport) { return ''; }
+            var returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+            if (r.reportLocked) {
+                return '<a class="pq-action" href="' + escapeHtml(requestFormUrl + '?patientId=' + encodeURIComponent(r.patientUuid) +
+                    '&encounter=' + encodeURIComponent(r.reportEncounterUuid) + '&returnUrl=' + returnUrl) + '">View results</a>';
+            }
+            var url = r.reportEncounterUuid ?
+                editReportUrl + '?patientId=' + encodeURIComponent(r.patientUuid) + '&encounterId=' + encodeURIComponent(r.reportEncounterUuid) +
+                    '&returnUrl=' + returnUrl :
+                enterReportUrl + '?patientId=' + encodeURIComponent(r.patientUuid) + '&formUuid=' + encodeURIComponent(reportForm) +
+                    '&pathologyRequestId=' + encodeURIComponent(r.encounterId) + '&uuid=' + encodeURIComponent(r.encounterUuid) +
+                    '&returnUrl=' + returnUrl;
+            return '<a class="pq-action" href="' + escapeHtml(url) + '">' + (r.reportEncounterUuid ? 'Edit results' : 'Enter results') + '</a>';
+        };
+
+        // The final report, printed or saved as a PDF for the patient to take to their doctor
+        var printLink = function(r) {
+            if (r.status !== 'SIGNED_OUT' || !r.reportEncounterUuid) { return ''; }
+            return '<a class="pq-action" target="_blank" rel="noopener" href="' +
+                escapeHtml(printReportUrl + '?request=' + encodeURIComponent(r.encounterUuid)) + '">Print report</a>';
+        };
+
         var render = function(newKeys) {
             var f = getFilters();
             var filtered = rows.filter(function(r) { return matchesFilters(r, f); });
@@ -399,7 +429,7 @@
                     '<td><span class="pq-nowrap">' + formatTime(r.timeRequested) + '</span><div class="pq-muted">' + escapeHtml(r.requestingPhysician) + '</div></td>' +
                     '<td>' + paymentChip(r) + (r.timeOfPayment ? '<div class="pq-muted pq-nowrap">' + formatTime(r.timeOfPayment) + '</div>' : '') + '</td>' +
                     '<td>' + statusChip(r) + (r.statusChangedAt ? '<div class="pq-muted pq-nowrap">' + formatTime(r.statusChangedAt) + '</div>' : '') + '</td>' +
-                    '<td>' + actionButtons(r) + '</td>' +
+                    '<td>' + actionButtons(r) + reportLink(r) + printLink(r) + '</td>' +
                     '</tr>';
             });
             jq('#pq-body').html(html.join(''));
@@ -436,10 +466,12 @@
                 '<div class="pq-section"><h5>Status</h5>' + (r.urgent ? '<span class="pq-chip pq-urgent">URGENT</span>' : '') +
                     statusChip(r) + ' ' + paymentChip(r) +
                     (r.rejectionReason ? '<p class="pq-error" style="margin-top:6px">Rejected: ' + escapeHtml(r.rejectionReason) + '</p>' : '') + '</div>' +
-                ((r.actions || []).length ? '<div class="pq-section"><h5>Next step</h5>' +
+                ((r.actions || []).length || r.mayEnterReport ? '<div class="pq-section"><h5>Next step</h5>' +
                     (unpaid ? '<div class="pq-warning">Payment status: <strong>' + escapeHtml(r.paymentStatusLabel) + '</strong>. ' +
                         'The specimen can still be received.</div>' : '') +
-                    actionButtons(r) +
+                    actionButtons(r) + reportLink(r) + printLink(r) +
+                    (r.mayEnterReport && r.status !== 'SIGNED_OUT' ? '<div class="pq-muted" style="margin-top:4px">The status changes as results are saved on the report: ' +
+                        'gross description, blocks and slides, additional stains, Send for pathologist review, then Pathologist reviewed (signed out by a pathologist).</div>' : '') +
                     (canReject ? '<div class="pq-reject-form" id="pq-reject-form"><label for="pq-reject-reason">Reason for rejecting the specimen</label>' +
                         '<textarea id="pq-reject-reason" maxlength="255" placeholder="For example: specimen not labelled, wrong fixative"></textarea>' +
                         '<button type="button" class="pq-action pq-action-reject" id="pq-reject-confirm" data-key="' + r.key + '">Reject specimen</button> ' +
@@ -591,8 +623,14 @@
                 state = jq.extend({}, DEFAULT_STATE);
                 jq('#pq-status, #pq-payment, #pq-test').val('');
                 jq('#pq-query').val('');
+                // Back to today's requests, with the cases still in the lab
+                var now = new Date();
+                var today = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now.getDate()).slice(-2);
+                var datesChanged = jq('#pq-start').val() !== today || jq('#pq-end').val() !== today || !jq('#pq-in-lab').is(':checked');
+                jq('#pq-start, #pq-end').val(today);
+                jq('#pq-in-lab').prop('checked', true);
                 updateLinks();
-                render(null);
+                if (datesChanged) { load(true); } else { render(null); }
             });
 
             jq('#pq-start, #pq-end, #pq-in-lab').change(function() { load(true); });

@@ -27,6 +27,10 @@ public class PathologyQueueRow {
 	private boolean cancelled;
 	private Date statusChangedAt;
 	private String rejectionReason;
+	/**
+	 * The pathology report of the case, or null until it is first saved
+	 */
+	private String reportEncounterUuid;
 	private List<Integer> orderIds = new ArrayList<Integer>();
 	private List<String> orderNumbers = new ArrayList<String>();
 	private List<String> tests = new ArrayList<String>();
@@ -44,6 +48,8 @@ public class PathologyQueueRow {
 	private String hospitalOfOrigin;
 	private List<String> specimens = new ArrayList<String>();
 	private String otherTestsRequested;
+	private Date surgeryDate;
+	private String clinicalInformation;
 	private String requestingPhysician;
 	private String requestingDepartment;
 	private Date timeRequested;
@@ -53,6 +59,18 @@ public class PathologyQueueRow {
 
 	public String getStatusLabel() {
 		return cancelled ? "Cancelled" : status.getLabel();
+	}
+
+	/**
+	 * @return when the lab received the specimen, or null if it has not
+	 */
+	public Date getTimeReceived() {
+		for (HistoryEntry entry : history) {
+			if (entry.getStatus() == PathologyStatus.RECEIVED) {
+				return entry.getDate();
+			}
+		}
+		return null;
 	}
 
 	/**

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -27,9 +28,25 @@ public class PathologyConfig {
 	public static final String GP_ORDERABLES = "rwandaemr.pathology.orderables";
 
 	/**
+	 * The phone number of the lab, printed on the pathology report
+	 */
+	public static final String GP_LAB_PHONE_NUMBER = "rwandaemr.pathology.labPhoneNumber";
+
+	/**
+	 * The logo printed on the pathology report: an image of this module (such as images/butaro-logo.png) or a URL
+	 */
+	public static final String GP_REPORT_LOGO = "rwandaemr.pathology.reportLogo";
+
+	/**
 	 * The pathology request form, opened from the patient's pathology orders page
 	 */
 	public static final String REQUEST_FORM_RESOURCE = "file:configuration/htmlforms/oncology---pathology-specimen-submission.xml";
+
+	/**
+	 * The pathology report (Pathology Report for Pathology System), opened from the queue.  Saving its results moves the
+	 * case through the lab.
+	 */
+	public static final String REPORT_FORM_UUID = "17c48a32-d7d3-4b4e-bb2e-9b730e030070";
 
 	public static final String PRIVILEGE_PATIENT_ORDERS = "Task: rwandaemr.pathologyorders";
 	public static final String PRIVILEGE_VIEW_QUEUE = "Task: rwandaemr.pathologyQueue";
@@ -37,11 +54,27 @@ public class PathologyConfig {
 	public static final String PRIVILEGE_SIGN_OUT = "Task: rwandaemr.pathology.signOut";
 
 	// Questions of the pathology request form shown on the queue
+	public static final String FACILITY_UUID = "3c9331e3-d02c-4b7d-840e-59e2d8ab7dff";
 	public static final String HOSPITAL_OF_ORIGIN_UUID = "e94e52a3-2d21-4809-9310-797b36877f38";
 	public static final String HOSPITAL_OF_ORIGIN_NON_CODED_UUID = "9fe00f19-5a3d-4b92-b457-dcf11519c431";
 	public static final String SPECIMEN_UUID = "c475a604-250d-44f1-bd31-475b98cd5411";
 	public static final String SPECIMEN_NON_CODED_UUID = "14289de0-b5a9-44ca-9bb6-b90cb153ee55";
 	public static final String OTHER_TESTS_REQUESTED_UUID = "3ce1654a-26fe-102b-80cb-0017a47871b2";
+	public static final String SURGERY_DATE_UUID = "e0436a5b-dc19-4cb9-ac1b-acc005272c08";
+
+	/**
+	 * The clinical history the request form records, which the pathology report starts from, labelled as on the form
+	 */
+	public static final Map<String, String> CLINICAL_INFORMATION_QUESTIONS;
+	static {
+		Map<String, String> questions = new LinkedHashMap<String, String>();
+		questions.put("226ed7ad-b776-4b99-966d-fd818d3302c2", "Diagnosis");
+		questions.put("bb42692c-7721-42fd-8d6d-6583585c2ce1", "Physical exam findings");
+		questions.put("5523d50e-9532-440e-bff0-5697cf61e5fc", "Labs");
+		questions.put("3866b7eb-4d99-4bc0-a817-f7a644d444f2", "Radiology");
+		questions.put("9e74aa34-fc7e-4705-85d2-875818d2395d", "Operative findings");
+		CLINICAL_INFORMATION_QUESTIONS = Collections.unmodifiableMap(questions);
+	}
 
 	/**
 	 * The request form records up to four specimens, A to D, each in a group of its own
@@ -89,6 +122,27 @@ public class PathologyConfig {
 			concept = conceptService.getConcept(Integer.valueOf(ref));
 		}
 		return concept;
+	}
+
+	/**
+	 * @return the phone number of the lab printed on the report, or null if none is configured
+	 */
+	public String getLabPhoneNumber() {
+		return StringUtils.trimToNull(administrationService.getGlobalProperty(GP_LAB_PHONE_NUMBER));
+	}
+
+	/**
+	 * @return the logo printed on the report, as an image of this module or a URL, or null to print none
+	 */
+	public String getReportLogo() {
+		return StringUtils.trimToNull(administrationService.getGlobalProperty(GP_REPORT_LOGO));
+	}
+
+	/**
+	 * @return the facility entered on the request form, which the queue shows as the hospital of origin
+	 */
+	public Concept getFacility() {
+		return conceptService.getConceptByUuid(FACILITY_UUID);
 	}
 
 	public Concept getHospitalOfOrigin() {

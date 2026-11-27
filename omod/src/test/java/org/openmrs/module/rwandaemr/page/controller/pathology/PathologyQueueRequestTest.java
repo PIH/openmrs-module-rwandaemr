@@ -17,11 +17,11 @@ import static org.hamcrest.Matchers.equalTo;
 public class PathologyQueueRequestTest {
 
 	@Test
-	public void shouldShowTheLastWeekAndCasesStillInTheLabByDefault() {
+	public void shouldShowTodayAndCasesStillInTheLabByDefault() {
 		PathologyQueueRequest request = new PathologyQueueRequest(null, null, null, null, null, null, null);
 
 		assertThat(request.getEndDate(), equalTo(LocalDate.now().toString()));
-		assertThat(request.getStartDate(), equalTo(LocalDate.now().minusDays(PathologyQueueRequest.DEFAULT_DAYS).toString()));
+		assertThat(request.getStartDate(), equalTo(LocalDate.now().toString()));
 		assertThat(request.isIncludeCasesInLab(), equalTo(true));
 		assertThat(request.isValid(), equalTo(true));
 		assertThat(new PathologyQueueRequest(null, null, null, null, null, null, "NO").isIncludeCasesInLab(), equalTo(false));
@@ -39,7 +39,7 @@ public class PathologyQueueRequestTest {
 
 	@Test
 	public void shouldFilterByStatusPaymentTestAndText() {
-		PathologyQueueRow received = row("PAT2026-0001", "Aline Uwase", PathologyStatus.RECEIVED, false,
+		PathologyQueueRow received = row("PT26-0001", "Aline Uwase", PathologyStatus.RECEIVED, false,
 				PaymentStatus.PAID, "Examination of a biopsy");
 		PathologyQueueRow cancelled = row(null, "Jean Mugabo", PathologyStatus.ORDERED, true,
 				PaymentStatus.NOT_PAID, "Bone marrow aspirate and/or biopsy");
@@ -50,7 +50,7 @@ public class PathologyQueueRequestTest {
 		assertThat(filter(rows, "ORDERED", null, null, null).isEmpty(), equalTo(true));
 		assertThat(filter(rows, null, "NOT_PAID", null, null), contains(cancelled));
 		assertThat(filter(rows, null, null, "Examination of a biopsy", null), contains(received));
-		assertThat(filter(rows, null, null, null, "pat2026-0001"), contains(received));
+		assertThat(filter(rows, null, null, null, "pt26-0001"), contains(received));
 		assertThat(filter(rows, null, null, null, "mugabo"), contains(cancelled));
 	}
 
