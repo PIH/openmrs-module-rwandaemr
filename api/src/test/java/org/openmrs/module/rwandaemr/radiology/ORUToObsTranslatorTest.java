@@ -180,6 +180,58 @@ public class ORUToObsTranslatorTest extends BaseHL7TranslatorTest {
     }
 
     @Test
+    public void shouldRecordEveryPageOfAReportAndTakeTheImageLinkFromTheReferencePointer() throws Exception {
+        // A report of more than one page is sent as one TX segment per page, before the image link
+        String finalMessage = IOUtils.resourceToString("/orur01-example-1-final.txt", StandardCharsets.UTF_8)
+                .replace("\rOBX|2|RP|", "\rOBX|2|TX|36657-5^X-RAY, FOOT||SECOND PAGE IMPRESSION\rOBX|3|RP|");
+        oruToObsTranslator.fromORU_R01(finalMessage);
+
+        List<Encounter> encounters = rwandaEmrService.getEncounters();
+        assertThat(encounters.size(), equalTo(2));
+        Obs studyGroup = encounters.get(0).getObsAtTopLevel(false).iterator().next();
+        Obs images = getObs(studyGroup, radiologyImagesAvailable);
+        assertThat(images.getValueCoded(), equalTo(conceptService.getTrueConcept()));
+        assertThat(images.getComment(), equalTo("https://192.168.3.100/PACSAPI/Launch_Viewer?Username=hisuser&Password=hisuser&AccessionNumber=ORD-764591"));
+        Obs reportGroup = encounters.get(1).getObsAtTopLevel(false).iterator().next();
+        String reportText = getObs(reportGroup, radiologyReportComments).getValueText();
+        assertThat(reportText, containsString("TEST TEST REPORT FOR HIS TESTING"));
+        assertThat(reportText, containsString("SECOND PAGE IMPRESSION"));
+    }
+
+    @Test
+    public void shouldReplaceASavedObsWhoseValueChangesInsteadOfEditingIt() throws Exception {
+        Concept yes = createConcept(emrapi, "Yes");
+        Concept no = createConcept(emrapi, "No");
+        org.mockito.Mockito.when(conceptService.getTrueConcept()).thenReturn(yes);
+        org.mockito.Mockito.when(conceptService.getFalseConcept()).thenReturn(no);
+        String completedMessage = IOUtils.resourceToString("/orur01-example-1-completed.txt", StandardCharsets.UTF_8);
+        oruToObsTranslator.fromORU_R01(completedMessage);
+        Obs studyGroup = rwandaEmrService.getEncounters().get(0).getObsAtTopLevel(false).iterator().next();
+        int obsId = 1;
+        studyGroup.setObsId(obsId++);
+        for (Obs member : studyGroup.getGroupMembers()) {
+            member.setObsId(obsId++);
+        }
+        rwandaEmrService.addObsForOrder(testOrder, studyGroup);
+        Obs imagesBefore = getObs(studyGroup, radiologyImagesAvailable);
+        Obs accessionBefore = getObs(studyGroup, radiologyAccessionNumber);
+
+        // The images arrive later, with the viewer link
+        String finalMessage = IOUtils.resourceToString("/orur01-example-1-final.txt", StandardCharsets.UTF_8);
+        oruToObsTranslator.fromORU_R01(finalMessage);
+
+        assertThat(imagesBefore.getVoided(), equalTo(true));
+        assertThat(imagesBefore.getValueCoded(), equalTo(conceptService.getFalseConcept()));
+        assertThat(imagesBefore.getComment(), nullValue());
+        Obs imagesAfter = getObs(studyGroup, radiologyImagesAvailable);
+        assertThat(imagesAfter.getValueCoded(), equalTo(conceptService.getTrueConcept()));
+        assertThat(imagesAfter.getPreviousVersion(), equalTo(imagesBefore));
+        // An unchanged value keeps its obs
+        assertThat(getObs(studyGroup, radiologyAccessionNumber), equalTo(accessionBefore));
+        assertThat(accessionBefore.getVoided(), equalTo(false));
+    }
+
+    @Test
     public void shouldExtractTheViewerAddressFromTheReferencePointer() {
         assertThat(HL7Utils.getViewerUrl("^https://pacs/viewer?a=1&b=2"), equalTo("https://pacs/viewer?a=1&b=2"));
         assertThat(HL7Utils.getViewerUrl("https://pacs/viewer"), equalTo("https://pacs/viewer"));

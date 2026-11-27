@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -75,8 +76,26 @@ public class RadiologyQueueService {
 	 */
 	@Transactional(readOnly = true)
 	public List<RadiologyQueueRow> getQueue(Date fromDate, Date toDate) {
+		return getQueue(fromDate, toDate, RadiologyQueueDateType.REQUESTED);
+	}
+
+	/**
+	 * @return one row per radiology study whose time of the given type (requested, images received or reported) is
+	 * between the given dates, oldest first.  Tests sent to PACS as one combined study share an accession number and make
+	 * up one row.  A study's images received and reported times are those shown on its row: the earliest of its tests.
+	 */
+	@Transactional(readOnly = true)
+	public List<RadiologyQueueRow> getQueue(Date fromDate, Date toDate, RadiologyQueueDateType dateType) {
 		Map<Concept, Modality> orderables = radiologyConfig.getOrderables(radiologyConfig.getModalityConceptSets());
-		List<TestOrder> orders = getRadiologyOrders(orderables.keySet(), fromDate, toDate);
+		List<TestOrder> orders;
+		if (dateType == null || dateType == RadiologyQueueDateType.REQUESTED) {
+			orders = getRadiologyOrders(orderables.keySet(), fromDate, toDate);
+		}
+		else {
+			Concept result = dateType == RadiologyQueueDateType.IMAGES_RECEIVED ?
+					radiologyConfig.getRadiologyStudyConstruct() : radiologyConfig.getRadiologyReportConstruct();
+			orders = getRadiologyOrdersWithResult(orderables.keySet(), result, fromDate, toDate);
+		}
 		Map<Integer, OrderPayment> payments = paymentLookup.getPayments(orders);
 
 		// Group tests into studies: tests sent together share an accession number within their encounter
@@ -91,6 +110,9 @@ public class RadiologyQueueService {
 		List<RadiologyQueueRow> rows = new ArrayList<RadiologyQueueRow>();
 		for (List<TestOrder> study : studies.values()) {
 			rows.add(toRow(study, orderables, payments));
+		}
+		if (dateType != null && dateType != RadiologyQueueDateType.REQUESTED) {
+			rows = selectByDate(rows, dateType, fromDate, toDate);
 		}
 		setCreatinine(rows, getLatestCreatinine(rows));
 		setSentTimes(rows);
@@ -148,6 +170,87 @@ public class RadiologyQueueService {
 				ret.add((TestOrder) order);
 			}
 		}
+		return ret;
+	}
+
+	/**
+	 * @return the radiology orders with a result of the given kind (the study, meaning its images were received, or a
+	 * report) recorded between the given dates, with the other tests of their studies, oldest request first.  A result
+	 * is dated by its encounter, as on the queue.
+	 */
+	private List<TestOrder> getRadiologyOrdersWithResult(Set<Concept> orderables, Concept result, Date fromDate, Date toDate) {
+		List<TestOrder> ret = new ArrayList<TestOrder>();
+		if (orderables.isEmpty() || result == null) {
+			return ret;
+		}
+		List<Integer> conceptIds = new ArrayList<Integer>();
+		for (Concept concept : orderables) {
+			conceptIds.add(concept.getConceptId());
+		}
+		NativeQuery<?> query = dbSessionFactory.getHibernateSessionFactory().getCurrentSession().createSQLQuery(
+				"select distinct o.order_id, o.encounter_id, o.accession_number from obs ob " +
+						"join orders o on o.order_id = ob.order_id " +
+						"left join encounter e on e.encounter_id = ob.encounter_id " +
+						"where ob.voided = 0 and ob.concept_id = :resultConceptId " +
+						"and o.voided = 0 and o.order_action <> 'DISCONTINUE' and o.concept_id in (:conceptIds) " +
+						"and coalesce(e.encounter_datetime, ob.obs_datetime) between :fromDate and :toDate");
+		query.setParameter("resultConceptId", result.getConceptId());
+		query.setParameterList("conceptIds", conceptIds);
+		query.setParameter("fromDate", fromDate);
+		query.setParameter("toDate", toDate);
+		Set<Integer> orderIds = new HashSet<Integer>();
+		Set<String> studyKeys = new HashSet<String>();
+		Set<Integer> encounterIds = new HashSet<Integer>();
+		for (Object row : query.list()) {
+			Object[] values = (Object[]) row;
+			orderIds.add(((Number) values[0]).intValue());
+			if (values[1] != null && StringUtils.isNotBlank((String) values[2])) {
+				encounterIds.add(((Number) values[1]).intValue());
+				studyKeys.add(values[1] + ":" + values[2]);
+			}
+		}
+
+		// The other tests of the same studies, so that each study's row is complete
+		if (!encounterIds.isEmpty()) {
+			NativeQuery<?> studyQuery = dbSessionFactory.getHibernateSessionFactory().getCurrentSession().createSQLQuery(
+					"select o.order_id, o.encounter_id, o.accession_number from orders o " +
+							"where o.voided = 0 and o.order_action <> 'DISCONTINUE' and o.concept_id in (:conceptIds) " +
+							"and o.encounter_id in (:encounterIds) and o.accession_number is not null");
+			studyQuery.setParameterList("conceptIds", conceptIds);
+			studyQuery.setParameterList("encounterIds", encounterIds);
+			for (Object row : studyQuery.list()) {
+				Object[] values = (Object[]) row;
+				if (studyKeys.contains(values[1] + ":" + values[2])) {
+					orderIds.add(((Number) values[0]).intValue());
+				}
+			}
+		}
+
+		for (Integer orderId : orderIds) {
+			Order order = orderService.getOrder(orderId);
+			if (order instanceof TestOrder) {
+				ret.add((TestOrder) order);
+			}
+		}
+		ret.sort(Comparator.comparing(Order::getDateCreated, Comparator.nullsLast(Comparator.naturalOrder()))
+				.thenComparing(Order::getOrderId));
+		return ret;
+	}
+
+	/**
+	 * @return the rows whose time of the given type is between the given dates, oldest first.  A study's rows show the
+	 * earliest result of its tests, so a study is only listed on the day it was first imaged or reported.
+	 */
+	static List<RadiologyQueueRow> selectByDate(List<RadiologyQueueRow> rows, RadiologyQueueDateType dateType,
+												Date fromDate, Date toDate) {
+		List<RadiologyQueueRow> ret = new ArrayList<RadiologyQueueRow>();
+		for (RadiologyQueueRow row : rows) {
+			Date date = dateType.getDate(row);
+			if (date != null && !date.before(fromDate) && !date.after(toDate)) {
+				ret.add(row);
+			}
+		}
+		ret.sort(Comparator.comparing(dateType::getDate));
 		return ret;
 	}
 

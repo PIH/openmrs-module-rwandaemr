@@ -44,10 +44,12 @@ public class RadiologyConfig {
 
 	public static final String GP_SUPPORTED_MODALITIES = "rwandaemr.radiology.supportedModalities";
 	public static final String GP_ORDERABLES_PREFIX = "rwandaemr.radiology.orderables.";
+	public static final String GP_AE_TITLE_PREFIX = "rwandaemr.radiology.aeTitle.";
 	public static final String GP_COMBINE_ORDERS_BY_MODALITY = "rwandaemr.radiology.combineOrdersByModality";
 	public static final String GP_MANUAL_REPORT_MODALITIES = "rwandaemr.radiology.manualReportModalities";
 	public static final String GP_IMAGE_VIEWER_URL_TEMPLATE = "rwandaemr.radiology.imageViewerUrlTemplate";
 	public static final String GP_CREATININE_CONCEPT = "rwandaemr.radiology.creatinineConcept";
+	public static final String GP_REPORT_FORMS = "rwandaemr.radiology.reportForms";
 
 	/**
 	 * Placeholder in {@link #GP_IMAGE_VIEWER_URL_TEMPLATE} replaced by the study's accession number
@@ -144,7 +146,39 @@ public class RadiologyConfig {
 	 * uuid, mapping or id, or null if none is configured
 	 */
 	public Concept getCreatinineConcept() {
-		String ref = StringUtils.trimToNull(administrationService.getGlobalProperty(GP_CREATININE_CONCEPT));
+		return getConceptByReference(administrationService.getGlobalProperty(GP_CREATININE_CONCEPT));
+	}
+
+	/**
+	 * @return the uuid of the form radiologists fill in to report a test of the given orderable, in place of the report
+	 * editor, or null if none is configured.  Configured as a comma-separated list of orderable:formUuid, where the
+	 * orderable is a concept uuid, mapping or id.
+	 */
+	public String getReportFormUuid(Concept orderable) {
+		if (orderable == null) {
+			return null;
+		}
+		String value = administrationService.getGlobalProperty(GP_REPORT_FORMS, "");
+		for (String entry : StringUtils.split(StringUtils.defaultString(value), ",")) {
+			// A mapping has a colon too, so the form is after the last one
+			int separator = entry.lastIndexOf(':');
+			if (separator <= 0 || separator == entry.length() - 1) {
+				log.warn("Ignoring " + GP_REPORT_FORMS + " entry '" + entry.trim() + "': expected orderable:formUuid");
+				continue;
+			}
+			Concept concept = getConceptByReference(entry.substring(0, separator));
+			if (orderable.equals(concept)) {
+				return entry.substring(separator + 1).trim();
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @return the concept given by uuid, mapping or id, or null if blank or not found
+	 */
+	private Concept getConceptByReference(String reference) {
+		String ref = StringUtils.trimToNull(reference);
 		if (ref == null) {
 			return null;
 		}
@@ -170,6 +204,18 @@ public class RadiologyConfig {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * @return the AE Title of the equipment that performs studies of the given modality, sent to PACS as the
+	 * Scheduled Station AE Title.  Configured per modality; defaults to the modality code if not configured.
+	 */
+	public String getAeTitle(Modality modality) {
+		if (modality == null) {
+			return null;
+		}
+		String aeTitle = StringUtils.trimToNull(administrationService.getGlobalProperty(GP_AE_TITLE_PREFIX + modality.name()));
+		return aeTitle == null ? modality.name() : aeTitle;
 	}
 
 	/**

@@ -227,6 +227,9 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
         <% if (reportText) { %>
             <a class="button" target="_blank" rel="noopener" href="${ ui.pageLink("rwandaemr", "patient/radiologyReportPrint", ["orderId": order.id]) }">Print report</a>
         <% } %>
+        <% if (reportFormEncounter) { %>
+            <a class="button" href="${ ui.pageLink("htmlformentryui", "htmlform/viewEncounterWithHtmlForm", ["patientId": order.patient.uuid, "encounter": reportFormEncounter.uuid, "returnUrl": ui.pageLink("rwandaemr", "patient/radiologyOrder", ["orderId": order.id])]) }">View report form</a>
+        <% } %>
         <% if (draft && !reportText) { %>
             <span class="ro-draft">Draft saved ${ draft.lastSaved ? "on " + ui.format(draft.lastSaved) : "" } &middot; only radiologists can see it until it is saved as final.</span>
         <% } %>

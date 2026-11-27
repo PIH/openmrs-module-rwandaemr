@@ -216,6 +216,45 @@ public class RadiologyQueueServiceTest {
 	}
 
 	@Test
+	public void shouldListStudiesByTheTimeOfTheChosenResultOldestFirst() {
+		Date from = new Date(orderTime.getTime());
+		Date to = new Date(orderTime.getTime() + 60 * MINUTE);
+		// Requested well before the range, but imaged and reported within it
+		RadiologyQueueRow reportedLater = new RadiologyQueueRow();
+		reportedLater.setTimeRequested(new Date(from.getTime() - 3 * 24 * 60 * MINUTE));
+		reportedLater.setImagesReceivedAt(new Date(from.getTime() + 5 * MINUTE));
+		reportedLater.setReportedAt(new Date(from.getTime() + 50 * MINUTE));
+		RadiologyQueueRow reportedEarlier = new RadiologyQueueRow();
+		reportedEarlier.setTimeRequested(from);
+		reportedEarlier.setImagesReceivedAt(new Date(from.getTime() + 10 * MINUTE));
+		reportedEarlier.setReportedAt(new Date(from.getTime() + 20 * MINUTE));
+		// Imaged within the range, but not reported yet
+		RadiologyQueueRow notReported = new RadiologyQueueRow();
+		notReported.setTimeRequested(from);
+		notReported.setImagesReceivedAt(new Date(from.getTime() + 1 * MINUTE));
+		// Imaged before the range and reported after it
+		RadiologyQueueRow outside = new RadiologyQueueRow();
+		outside.setTimeRequested(from);
+		outside.setImagesReceivedAt(new Date(from.getTime() - MINUTE));
+		outside.setReportedAt(new Date(to.getTime() + MINUTE));
+		List<RadiologyQueueRow> rows = Arrays.asList(reportedLater, reportedEarlier, notReported, outside);
+
+		assertThat(RadiologyQueueService.selectByDate(rows, RadiologyQueueDateType.REPORTED, from, to),
+				contains(reportedEarlier, reportedLater));
+		assertThat(RadiologyQueueService.selectByDate(rows, RadiologyQueueDateType.IMAGES_RECEIVED, from, to),
+				contains(notReported, reportedLater, reportedEarlier));
+	}
+
+	@Test
+	public void shouldFilterByTimeRequestedUnlessAnotherDateTypeIsChosen() {
+		assertThat(RadiologyQueueDateType.parse(null), equalTo(RadiologyQueueDateType.REQUESTED));
+		assertThat(RadiologyQueueDateType.parse(""), equalTo(RadiologyQueueDateType.REQUESTED));
+		assertThat(RadiologyQueueDateType.parse("unknown"), equalTo(RadiologyQueueDateType.REQUESTED));
+		assertThat(RadiologyQueueDateType.parse("images_received"), equalTo(RadiologyQueueDateType.IMAGES_RECEIVED));
+		assertThat(RadiologyQueueDateType.parse("REPORTED"), equalTo(RadiologyQueueDateType.REPORTED));
+	}
+
+	@Test
 	public void shouldFlagACreatinineAboveTheNormalRange() {
 		org.openmrs.ConceptNumeric creatinine = new org.openmrs.ConceptNumeric(790);
 		creatinine.setUnits("mg/dL");

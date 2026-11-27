@@ -111,14 +111,17 @@ public class RadiologyQueueRestController {
 	@RequestMapping(value = "/rest/v1/rwandaemr/radiologyqueue", method = RequestMethod.GET)
 	@ResponseBody
 	public Object getQueue(@RequestParam(value = "startDate", required = false) String startDate,
-						   @RequestParam(value = "endDate", required = false) String endDate) {
+						   @RequestParam(value = "endDate", required = false) String endDate,
+						   @RequestParam(value = "dateType", required = false) String dateType) {
 		if (!Context.hasPrivilege(RadiologyQueueService.PRIVILEGE_VIEW_RADIOLOGY_QUEUE)) {
 			throw new APIAuthenticationException("Privilege required: " + RadiologyQueueService.PRIVILEGE_VIEW_RADIOLOGY_QUEUE);
 		}
 		RadiologyQueueRequest request = new RadiologyQueueRequest(startDate, endDate, null, null, null, null, null);
+		request.setDateType(dateType);
 		SimpleObject ret = new SimpleObject();
 		ret.put("startDate", request.getStartDate());
 		ret.put("endDate", request.getEndDate());
+		ret.put("dateType", request.getDateType().name());
 		ret.put("generatedAt", new Date().getTime());
 		if (!request.isValid()) {
 			ret.put("error", request.getError());
@@ -126,7 +129,8 @@ public class RadiologyQueueRestController {
 			return ret;
 		}
 		boolean mayEnterReports = Context.hasPrivilege(RadiologyReportService.PRIVILEGE_ENTER_REPORT);
-		List<RadiologyQueueRow> queue = radiologyQueueService.getQueue(request.getFromDate(), request.getToDate());
+		List<RadiologyQueueRow> queue = radiologyQueueService.getQueue(request.getFromDate(), request.getToDate(),
+				request.getDateType());
 		// Draft reports are only shown to radiologists
 		Set<Integer> ordersWithDrafts = new HashSet<Integer>();
 		if (mayEnterReports) {

@@ -16,6 +16,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
+import static org.mockito.Mockito.when;
 
 public class OrderToORMTranslatorTest extends BaseHL7TranslatorTest {
 
@@ -162,6 +163,14 @@ public class OrderToORMTranslatorTest extends BaseHL7TranslatorTest {
         FieldUtils.writeField(testOrder, "dateStopped", new Date(), true);
         message = orderToORMTranslator.toORM_O01(testOrder).encode();
         testField(message, "ORC", 1, equalTo("CA"));
+    }
+
+    @Test
+    public void shouldSendConfiguredAeTitleAsScheduledStationAeTitle() throws Exception {
+        when(administrationService.getGlobalProperty(RadiologyConfig.GP_AE_TITLE_PREFIX + "CR")).thenReturn("WJ4ZN4YF");
+        String message = orderToORMTranslator.toORM_O01(testOrder).encode().replace("MSH|", "MSH||");
+        testField(message, "OBR", 21, equalTo("WJ4ZN4YF"));
+        testField(message, "OBR", 24, equalTo("CR"));
     }
 
     @Test

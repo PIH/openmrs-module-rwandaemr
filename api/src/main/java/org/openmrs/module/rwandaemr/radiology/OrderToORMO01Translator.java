@@ -178,7 +178,7 @@ public class OrderToORMO01Translator extends BaseHL7Translator {
         obr.getDiagnosticServiceSectionID().setValue(modality);
 
         // Scheduled order information
-        obr.getFillerField2().setValue(modality); // This is the AE Title of the Equipment.  Sending modality in the absence of specific equipment code.
+        obr.getFillerField2().setValue(getAeTitle(order)); // This is the AE Title of the Equipment (Scheduled Station AE Title)
         obr.getObr36_ScheduledDateTime().getTimeOfAnEvent().setValue(formatDatetime(scheduledDate));
         boolean stat = false;
         for (TestOrder o : orders) {
@@ -270,5 +270,10 @@ public class OrderToORMO01Translator extends BaseHL7Translator {
         Map<Concept, Modality> orderables = rwandaEmrConfig.getRadiologyConfig().getOrderables(modalities);
         Modality radiologyModality = orderables.get(order.getConcept());
         return radiologyModality == null ? null : radiologyModality.name();
+    }
+
+    public String getAeTitle(Order order) {
+        RadiologyConfig radiologyConfig = rwandaEmrConfig.getRadiologyConfig();
+        return radiologyConfig.getAeTitle(radiologyConfig.getModality(order.getConcept()));
     }
 }

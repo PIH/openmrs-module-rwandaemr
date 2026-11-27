@@ -1,6 +1,7 @@
 package org.openmrs.module.rwandaemr.page.controller.radiology;
 
 import org.apache.commons.lang3.StringUtils;
+import org.openmrs.module.rwandaemr.radiology.queue.RadiologyQueueDateType;
 import org.openmrs.module.rwandaemr.radiology.queue.RadiologyQueueRow;
 
 import java.time.LocalDate;
@@ -28,6 +29,7 @@ public class RadiologyQueueRequest {
 	private final String processed;
 	private final String query;
 	private boolean statOnly;
+	private RadiologyQueueDateType dateType = RadiologyQueueDateType.REQUESTED;
 	private String error;
 	private Date fromDate;
 	private Date toDate;
@@ -59,6 +61,17 @@ public class RadiologyQueueRequest {
 		catch (DateTimeParseException e) {
 			error = "Start date and end date must be valid dates (yyyy-MM-dd)";
 		}
+	}
+
+	/**
+	 * Chooses which time of a study the date range applies to: requested (the default), images received or reported
+	 */
+	public void setDateType(String dateType) {
+		this.dateType = RadiologyQueueDateType.parse(dateType);
+	}
+
+	public RadiologyQueueDateType getDateType() {
+		return dateType;
 	}
 
 	/**
