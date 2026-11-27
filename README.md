@@ -308,17 +308,29 @@ again.
 
 ### Laboratory-result SMS notifications
 
-When `rwandaemr.labNotification.enabled` is `true`, RwandaEMR automatically
-sends the patient an SMS after a test order containing results is successfully
-marked `COMPLETED`. If result validation is required, the SMS is sent only after
-a validator approves the results. The notification runs after the result
-transaction commits, so an SMS gateway failure cannot undo the saved result.
+When `rwandaemr.labNotification.enabled` is `true`, lab staff can notify a
+patient that their results are available with **Notify Patient** on the
+patient grouping view of the lab orders page. This calls
+`POST /ws/rest/v1/rwandaemr/lab/notify` with `{ patientUuid, orderUuids }` and
+sends **one SMS for all of the patient's orders** whose results are ready
+(`COMPLETED`, or validated when result validation is required). Orders that are
+not ready, or were already notified, are skipped and returned in
+`skippedOrders` with the reason; `force: true` sends again. A single order can
+still be notified with `{ orderUuid }`.
 
-The patient's configured telephone-number attribute and the shared
-`rwandaemr.sms.*` gateway properties must be configured. The optional
-`rwandaemr.labNotification.messageTemplate` supports `{facility}`,
-`{patientName}`, and `{order}`. Each attempt is recorded in
-`lab_notification_log`; an order with an active `QUEUED`, `DELIVRD`, or
-`ACCEPTD` notification is not sent again. The existing
-`POST /ws/rest/v1/rwandaemr/lab/notify` endpoint remains available for an
-explicit notification or retry.
+`rwandaemr.labNotification.provider` chooses how the SMS is sent:
+`rbcmessaging` (default) uses the rbcmessaging module and its gateway, by
+default the MOH FDI Biz API with the `rbcmessaging.mohpih.*` settings, as the
+old laboratory module did; `intouch` uses the InTouch gateway with the shared
+`rwandaemr.sms.*` properties (delivery reports are only available with
+InTouch). The patient's configured telephone-number attribute is required.
+
+The optional `rwandaemr.labNotification.messageTemplate` supports
+`{patientName}`, `{facility}`, and `{orders}` (test names, left out of the
+default for privacy); the hospital name is added on a second line. Each order
+is recorded in `lab_notification_log`; an order with an active `QUEUED`,
+`DELIVRD`, or `ACCEPTD` notification is not sent again.
+
+Setting `rwandaemr.labNotification.autoSend` to `true` also sends an SMS
+automatically each time a test order is marked `COMPLETED` (one SMS per order),
+after the result transaction commits.

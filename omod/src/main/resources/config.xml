@@ -404,7 +404,19 @@
 	<globalProperty>
 		<property>rwandaemr.labNotification.enabled</property>
 		<defaultValue>false</defaultValue>
-		<description>Whether patients are automatically sent an SMS after their laboratory results are completed</description>
+		<description>Whether lab staff can notify patients by SMS that their laboratory results are available (Notify Patient on the lab orders page)</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.provider</property>
+		<defaultValue>rbcmessaging</defaultValue>
+		<description>SMS service for lab result notifications: rbcmessaging (the rbcmessaging module and its gateway, by default the MOH FDI Biz API with the rbcmessaging.mohpih.* settings) or intouch (the InTouch gateway with the rwandaemr.labNotification.intouch.* settings)</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.labNotification.autoSend</property>
+		<defaultValue>false</defaultValue>
+		<description>Whether an SMS is also sent automatically each time a laboratory order is completed (one SMS per order)</description>
 	</globalProperty>
 
 	<globalProperty>
@@ -451,8 +463,8 @@
 
 	<globalProperty>
 		<property>rwandaemr.labNotification.messageTemplate</property>
-		<defaultValue>Ibisubizo by'ibizamini byawe bya laboratwari byabonetse kuri {facility}. Garuka ku kigo nderabuzima cyangwa uvugane n'umuganga wawe.</defaultValue>
-		<description>SMS template for lab result notifications. Supported placeholders: {facility}, {patientName}, {order}</description>
+		<defaultValue>{patientName}. Ibisubizo by'ibizamini byawe byabonetse. Wasubira aho muganga wagusuzumye akorera.</defaultValue>
+		<description>SMS template for lab result notifications; the hospital name is added on a second line. Supported placeholders: {patientName}, {facility}, {orders} (test names)</description>
 	</globalProperty>
 
 	<globalProperty>
