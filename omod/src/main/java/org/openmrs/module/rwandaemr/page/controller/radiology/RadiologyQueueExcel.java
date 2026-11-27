@@ -22,11 +22,11 @@ final class RadiologyQueueExcel {
 			"S.No", "Patient ID", "Patient Name", "Age", "Sex", "Modality", "Type of Study", "Clinical History",
 			"Requesting Physician", "Requesting Department", "Time Requested", "PACS Status", "Processed",
 			"Payment Status", "Time of Payment", "Order Number(s)", "Urgency", "Ready for Exam",
-			"Latest Creatinine (CT)", "Creatinine Date"
+			"Latest Creatinine (CT)", "Creatinine Date", "Images Received", "Reported"
 	};
 
 	private static final int[] COLUMN_WIDTHS = {
-			7, 16, 28, 7, 6, 10, 40, 40, 26, 24, 18, 16, 15, 16, 18, 24, 10, 14, 20, 18
+			7, 16, 28, 7, 6, 10, 40, 40, 26, 24, 18, 16, 15, 16, 18, 24, 10, 14, 20, 18, 18, 18
 	};
 
 	private RadiologyQueueExcel() {
@@ -73,6 +73,8 @@ final class RadiologyQueueExcel {
 				setText(row, 18, queueRow.getCreatinine().getDisplay() + (queueRow.getCreatinine().isHigh() ? " (high)" : ""), null);
 				setDate(row, 19, queueRow.getCreatinine().getDate(), dateStyle);
 			}
+			setDate(row, 20, queueRow.getImagesReceivedAt(), dateStyle);
+			setDate(row, 21, queueRow.getReportedAt(), dateStyle);
 			rowNumber++;
 		}
 

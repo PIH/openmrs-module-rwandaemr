@@ -4,6 +4,7 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.rwandaemr.billing.PaymentStatus;
 import org.openmrs.module.rwandaemr.radiology.Modality;
 import org.openmrs.module.rwandaemr.radiology.RadiologyConfig;
+import org.openmrs.module.rwandaemr.radiology.queue.RadiologyQueueDateType;
 import org.openmrs.module.rwandaemr.radiology.queue.RadiologyQueueRow;
 import org.openmrs.module.rwandaemr.radiology.queue.RadiologyQueueService;
 import org.openmrs.ui.framework.annotation.SpringBean;
@@ -27,6 +28,7 @@ public class RadiologyQueuePageController {
 					  @SpringBean("radiologyConfig") RadiologyConfig radiologyConfig,
 					  @RequestParam(value = "startDate", required = false) String startDate,
 					  @RequestParam(value = "endDate", required = false) String endDate,
+					  @RequestParam(value = "dateType", required = false) String dateType,
 					  @RequestParam(value = "modality", required = false) String modality,
 					  @RequestParam(value = "pacsStatus", required = false) String pacsStatus,
 					  @RequestParam(value = "paymentStatus", required = false) String paymentStatus,
@@ -44,10 +46,12 @@ public class RadiologyQueuePageController {
 		RadiologyQueueRequest request = new RadiologyQueueRequest(startDate, endDate, modality, pacsStatus,
 				paymentStatus, processed, query);
 		request.setStatOnly("YES".equalsIgnoreCase(stat));
+		request.setDateType(dateType);
 		if ("excel".equalsIgnoreCase(export) && request.isValid()) {
 			List<RadiologyQueueRow> rows = request.filter(
-					radiologyQueueService.getQueue(request.getFromDate(), request.getToDate()));
-			String filename = "radiology-queue-" + request.getStartDate() + "-to-" + request.getEndDate() + ".xls";
+					radiologyQueueService.getQueue(request.getFromDate(), request.getToDate(), request.getDateType()));
+			String filename = "radiology-queue-" + request.getDateType().name().toLowerCase().replace('_', '-') + "-"
+					+ request.getStartDate() + "-to-" + request.getEndDate() + ".xls";
 			return new FileDownload(filename, RadiologyQueueExcel.CONTENT_TYPE, RadiologyQueueExcel.create(rows));
 		}
 
@@ -57,6 +61,7 @@ public class RadiologyQueuePageController {
 		}
 		model.addAttribute("queueRequest", request);
 		model.addAttribute("modalities", modalities);
+		model.addAttribute("dateTypes", RadiologyQueueDateType.values());
 		model.addAttribute("pacsStatuses", RadiologyQueueRow.PacsStatus.values());
 		model.addAttribute("paymentStatuses", PaymentStatus.values());
 		return null;

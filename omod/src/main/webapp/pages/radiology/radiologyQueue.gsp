@@ -36,7 +36,7 @@
     .rq-card.rq-card-unpaid strong { color: #c62828; }
 
     .rq-panel { border: 1px solid #d9e2e7; background: #fff; padding: 10px 12px; margin-bottom: 10px; border-radius: 6px; }
-    .rq-filters { display: grid; grid-template-columns: 140px 140px 105px 140px 140px 150px minmax(170px, 1fr); gap: 8px; align-items: end; }
+    .rq-filters { display: grid; grid-template-columns: 150px 140px 140px 105px 140px 140px 150px minmax(170px, 1fr); gap: 8px; align-items: end; }
     .rq-field label { display: block; margin-bottom: 3px; font-size: 11px; font-weight: bold; color: #455a64; text-transform: uppercase; }
     .rq-field input, .rq-field select { width: 100%; box-sizing: border-box; min-height: 32px; border: 1px solid #b0bec5; border-radius: 3px; padding: 4px 7px; background: #fff; }
     .rq-toolbar { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
@@ -151,6 +151,14 @@
 
     <div class="rq-panel">
         <div class="rq-filters">
+            <div class="rq-field">
+                <label for="rq-date-type">Filter dates by</label>
+                <select id="rq-date-type">
+                    <% dateTypes.each { t -> %>
+                        <option value="${ t.name() }" ${ queueRequest.dateType == t ? 'selected="selected"' : '' }>${ t.label }</option>
+                    <% } %>
+                </select>
+            </div>
             <div class="rq-field">
                 <label for="rq-start">From</label>
                 <input id="rq-start" type="date" value="${ ui.encodeHtmlAttribute(queueRequest.startDate) }"/>
@@ -323,6 +331,7 @@
 
         var getFilters = function() {
             return {
+                dateType: jq('#rq-date-type').val(),
                 startDate: jq('#rq-start').val(),
                 endDate: jq('#rq-end').val(),
                 modality: jq('#rq-modality').val(),
@@ -385,7 +394,7 @@
         };
 
         var exportParams = function(f) {
-            var p = { startDate: f.startDate, endDate: f.endDate, modality: f.modality, pacsStatus: f.pacsStatus,
+            var p = { dateType: f.dateType, startDate: f.startDate, endDate: f.endDate, modality: f.modality, pacsStatus: f.pacsStatus,
                       paymentStatus: f.paymentStatus, processed: f.processed, query: f.query };
             var q = state.quickFilter;
             if (q === 'READY') { p.processed = 'READY'; }
@@ -725,7 +734,7 @@
             jq.ajax({
                 type: 'GET',
                 url: dataUrl,
-                data: { startDate: f.startDate, endDate: f.endDate },
+                data: { dateType: f.dateType, startDate: f.startDate, endDate: f.endDate },
                 dataType: 'json',
                 cache: false
             }).done(function(result) {
@@ -738,7 +747,8 @@
                     var key = rowKey(r);
                     r.processedRank = r.readyForExam ? 0 : (r.processed ? 2 : 1);
                     currentKeys[key] = true;
-                    if (knownKeys && !resetKnownRows && !knownKeys[key]) {
+                    // Only a new request is announced, not a study that has just been imaged or reported
+                    if (knownKeys && !resetKnownRows && !knownKeys[key] && f.dateType === 'REQUESTED') {
                         newKeys[key] = true;
                         newRows.push(r);
                     }
@@ -822,7 +832,7 @@
                 render(null);
             });
 
-            jq('#rq-start, #rq-end').change(function() { load(true); });
+            jq('#rq-date-type, #rq-start, #rq-end').change(function() { load(true); });
             jq('#rq-modality, #rq-pacs, #rq-payment, #rq-processed').change(function() { saveView(); updateLinks(); render(null); });
             jq('#rq-query').on('input', function() { updateLinks(); render(null); });
             jq('#rq-refresh').click(function() { load(false); });
