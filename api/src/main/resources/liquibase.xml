@@ -1155,4 +1155,26 @@
         </createIndex>
     </changeSet>
 
+    <!-- RHIP Unified Insurance Integration Guide: MMI, section 7. MMI keeps one approval per reception and decides each
+         procedure line on its own (approved quantity and price, the approver's reason, whether it is billed). -->
+    <changeSet id="20261125-rhip-approval-reception-and-line-decision" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="rhip_approval_request_log"/>
+            <not><columnExists tableName="rhip_approval_request_log" columnName="visit_reference_number"/></not>
+        </preConditions>
+        <addColumn tableName="rhip_approval_request_log">
+            <column name="visit_reference_number" type="varchar(100)"/>
+            <column name="approved_quantity" type="decimal(20,2)"/>
+            <column name="approved_unit_price" type="decimal(20,2)"/>
+            <column name="decision_reason" type="text"/>
+            <column name="billed" type="boolean"/>
+            <column name="decided_by" type="varchar(255)"/>
+            <column name="decided_at" type="varchar(50)"/>
+            <column name="last_status_check" type="datetime"/>
+        </addColumn>
+        <createIndex tableName="rhip_approval_request_log" indexName="idx_rhip_approval_visit_reference">
+            <column name="visit_reference_number"/>
+        </createIndex>
+    </changeSet>
+
 </databaseChangeLog>

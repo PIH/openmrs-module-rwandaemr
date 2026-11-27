@@ -18,8 +18,11 @@ import org.openmrs.module.rwandaemr.integration.IntegrationResponse;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceEligibilityProvider;
 import org.openmrs.module.rwandaemr.integration.insurance.InsuranceIntegrationConfig;
 import org.openmrs.module.rwandaemr.integration.insurance.MmiPatientReceptionLogRepository;
+import org.openmrs.module.rwandaemr.integration.insurance.ProviderLicense;
+import org.openmrs.module.rwandaemr.integration.insurance.RhipApprovalDecision;
 import org.openmrs.module.rwandaemr.integration.insurance.RhipApprovalRequestLogEntry;
 import org.openmrs.module.rwandaemr.integration.insurance.RhipApprovalRequestLogRepository;
+import org.openmrs.module.rwandaemr.integration.insurance.RhipApprovalRequestService;
 import org.openmrs.module.rwandaemr.integration.insurance.RhipApprovalStatusService;
 import org.openmrs.module.rwandaemr.integration.insurance.RhipApprovalStatusService.ApprovalStatusUpdate;
 import org.openmrs.module.rwandaemr.icd11.Icd11Config;
@@ -116,7 +119,7 @@ public class RhipApprovalsPageController {
 		model.addAttribute("approvalRequests", toRequestViews(patient == null
 				? approvalRequestLogRepository.getRecent(50)
 				: approvalRequestLogRepository.getRecentByPatient(patient.getPatientId(), 25)));
-		model.addAttribute("maxAutomaticStatusChecks", RhipApprovalStatusService.MAX_AUTOMATIC_STATUS_CHECKS);
+		model.addAttribute("statusCheckHours", RhipApprovalStatusService.STATUS_CHECK_HOURS);
 		model.addAttribute("canRequestApproval", Context.hasPrivilege(PRIVILEGE_REQUEST));
 		model.addAttribute("canCheckApprovalStatus", Context.hasPrivilege(PRIVILEGE_CHECK_STATUS));
 		return null;
@@ -129,6 +132,7 @@ public class RhipApprovalsPageController {
 		                  @SpringBean InsuranceIntegrationConfig insuranceIntegrationConfig,
 		                  @SpringBean RhipApprovalRequestLogRepository approvalRequestLogRepository,
 		                  @SpringBean RhipApprovalStatusService approvalStatusService,
+		                  @SpringBean RhipApprovalRequestService approvalRequestService,
 		                  @SpringBean MmiPatientReceptionLogRepository mmiPatientReceptionLogRepository,
 	                  HttpServletResponse httpResponse,
 	                   @RequestParam(value = "action", required = false) String action,
@@ -157,7 +161,7 @@ public class RhipApprovalsPageController {
 					approvalRequestId, searchQuery, patientId, productSearch, productPage, productLimit);
 		}
 		if ("retryApproval".equalsIgnoreCase(action)) {
-			return retryApproval(ui, sessionContext, insuranceEligibilityProvider, approvalRequestLogRepository,
+			return retryApproval(ui, sessionContext, approvalRequestService, approvalRequestLogRepository,
 					approvalRequestId, searchQuery, patientId, productSearch, productPage, productLimit);
 		}
 		if ("deleteApproval".equalsIgnoreCase(action)) {
@@ -183,6 +187,10 @@ public class RhipApprovalsPageController {
 			receptionNumber = isMmi(insuranceType) ? resolveApprovalIdentifier(selectedPolicy, mmiPatientReceptionLogRepository) : receptionNumber;
 			practitionerLicenseNumber = getCurrentPractitionerLicenseNumber();
 		BigDecimal quantity = parseDecimal(requestedQuantity);
+		if (quantity != null && quantity.compareTo(BigDecimal.ZERO) > 0) {
+			// RHIP takes whole quantities
+			quantity = quantity.setScale(0, java.math.RoundingMode.HALF_UP).max(BigDecimal.ONE);
+		}
 		List<String> diagnosisCodeList = splitDiagnosisIds(diagnosisIds);
 		List<String> errors = validateApprovalRequest(patient, policy, insuranceType, facilityFosaId, patientIdentifier,
 				productCode, quantity, receptionNumber, diagnosisCodeList, clinicalKnowledge, practitionerLicenseNumber);
@@ -192,16 +200,6 @@ public class RhipApprovalsPageController {
 			return redirect(ui, searchQuery, patientId, insurancePolicyId, productSearch, productPage, productLimit);
 		}
 
-		BigDecimal unitPrice = parseDecimal(tariffPrice);
-		IntegrationResponse response = insuranceEligibilityProvider.requestApproval(insuranceType, facilityFosaId,
-				patientIdentifier, receptionNumber, practitionerLicenseNumber, diagnosisCodeList, clinicalKnowledge,
-				productCode, quantity, unitPrice);
-		JsonNode root = asJsonNode(response == null ? null : response.getResponseEntity());
-		String approvalCode = text(root == null ? null : root.path("data"), "approvalCode");
-		String approvalStatus = normalizeApprovalStatus(defaultIfBlank(text(root == null ? null : root.path("data"), "status"),
-				isSuccess(root, response) ? RhipApprovalRequestLogEntry.STATUS_PENDING : RhipApprovalRequestLogEntry.STATUS_FAILED));
-		String message = defaultIfBlank(text(root, "message"), response == null ? null : response.getErrorMessage());
-
 		RhipApprovalRequestLogEntry entry = new RhipApprovalRequestLogEntry();
 		entry.setPatientId(patient.getPatientId());
 		entry.setInsurancePolicyId(policy.getInsurancePolicyId());
@@ -210,38 +208,33 @@ public class RhipApprovalsPageController {
 		entry.setInsuranceCardNo(policy.getInsuranceCardNo());
 		entry.setPatientIdentifier(patientIdentifier);
 		entry.setFacilityFosaId(facilityFosaId);
+		entry.setVisitReferenceNumber(isMmi(insuranceType) ? receptionNumber : null);
 		entry.setProductCode(productCode);
 		entry.setProductName(productName);
 		entry.setProductType(productType);
 		entry.setRequestedQuantity(quantity);
-		entry.setRequestedUnitPrice(unitPrice);
+		// MMI's maximum unit price, shown for reference; the request leaves the price to MMI
+		entry.setRequestedUnitPrice(parseDecimal(tariffPrice));
 		entry.setDiagnosisIds(StringUtils.join(diagnosisCodeList, ","));
-		entry.setClinicalKnowledge(clinicalKnowledge);
+		entry.setClinicalKnowledge(StringUtils.trimToNull(clinicalKnowledge));
 		entry.setPractitionerLicenseNumber(practitionerLicenseNumber);
-		entry.setApprovalCode(approvalCode);
-		entry.setApprovalStatus(approvalStatus);
-		entry.setMessage(message);
-		entry.setRequestPayload(buildApprovalRequestPayload(insuranceType, facilityFosaId, patientIdentifier,
-				receptionNumber, practitionerLicenseNumber, diagnosisCodeList, clinicalKnowledge, productCode,
-				quantity, unitPrice));
-		entry.setResponsePayload(toJson(root));
-		entry.setResponseCode(response == null ? null : response.getResponseCode());
 		User currentUser = Context.getAuthenticatedUser();
 		entry.setCreator(currentUser == null ? null : currentUser.getUserId());
 		entry.setDateCreated(new Date());
-		approvalRequestLogRepository.save(entry);
 
-		if (isSuccess(root, response)) {
+		RhipApprovalRequestService.Result result = approvalRequestService.submit(entry);
+		if (result.isSuccess()) {
+			String what = result.isEdited() ? "RHIP approval request updated" : "RHIP approval request submitted";
 			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_TOAST_MESSAGE,
-					"RHIP approval request submitted" + (StringUtils.isBlank(approvalCode) ? "." : ". Code: " + approvalCode));
+					what + (StringUtils.isBlank(result.getApprovalCode()) ? "." : ". Code: " + result.getApprovalCode()));
 		} else {
 			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_ERROR_MESSAGE,
-					defaultIfBlank(message, "RHIP approval request failed."));
+					defaultIfBlank(result.getMessage(), "RHIP approval request failed."));
 		}
 		return redirect(ui, searchQuery, patientId, insurancePolicyId, productSearch, productPage, productLimit);
 	}
 
-	private String retryApproval(UiUtils ui, UiSessionContext sessionContext, InsuranceEligibilityProvider provider,
+	private String retryApproval(UiUtils ui, UiSessionContext sessionContext, RhipApprovalRequestService requestService,
 	                             RhipApprovalRequestLogRepository repository, Integer approvalRequestId,
 	                             String searchQuery, String patientId, String productSearch, Integer productPage,
 	                             Integer productLimit) {
@@ -256,39 +249,14 @@ public class RhipApprovalsPageController {
 					"Approval request was not found.");
 			return redirect(ui, searchQuery, patientId, null, productSearch, productPage, productLimit);
 		}
-		if (!RhipApprovalRequestLogEntry.STATUS_FAILED.equalsIgnoreCase(StringUtils.trimToEmpty(previous.getApprovalStatus()))) {
-			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_ERROR_MESSAGE,
-					"Only failed approval requests can be retried.");
-			return redirect(ui, searchQuery, patientId, previous.getInsurancePolicyId(), productSearch, productPage, productLimit);
-		}
-
-		List<String> diagnosisCodeList = splitDiagnosisIds(previous.getDiagnosisIds());
-		String receptionNumber = isMmi(previous.getInsuranceType()) ? text(parseJson(previous.getRequestPayload()), "receptionNumber") : null;
-		IntegrationResponse response = provider.requestApproval(previous.getInsuranceType(), previous.getFacilityFosaId(),
-				previous.getPatientIdentifier(), receptionNumber, previous.getPractitionerLicenseNumber(), diagnosisCodeList,
-				previous.getClinicalKnowledge(), previous.getProductCode(), previous.getRequestedQuantity(),
-				previous.getRequestedUnitPrice());
-		JsonNode root = asJsonNode(response == null ? null : response.getResponseEntity());
-		String approvalCode = text(root == null ? null : root.path("data"), "approvalCode");
-		String approvalStatus = normalizeApprovalStatus(defaultIfBlank(text(root == null ? null : root.path("data"), "status"),
-				isSuccess(root, response) ? RhipApprovalRequestLogEntry.STATUS_PENDING : RhipApprovalRequestLogEntry.STATUS_FAILED));
-		String message = defaultIfBlank(text(root, "message"), response == null ? null : response.getErrorMessage());
-
-		String requestPayload = buildApprovalRequestPayload(previous.getInsuranceType(), previous.getFacilityFosaId(),
-				previous.getPatientIdentifier(), receptionNumber, previous.getPractitionerLicenseNumber(), diagnosisCodeList,
-				previous.getClinicalKnowledge(), previous.getProductCode(), previous.getRequestedQuantity(),
-				previous.getRequestedUnitPrice());
-		User currentUser = Context.getAuthenticatedUser();
-		repository.updateRetryResponse(previous.getId(), approvalStatus, approvalCode, message, requestPayload, toJson(root),
-				response == null ? null : response.getResponseCode(), currentUser == null ? null : currentUser.getUserId());
-
-		if (isSuccess(root, response)) {
+		RhipApprovalRequestService.Result result = requestService.resend(previous.getId());
+		if (result.isSuccess()) {
 			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_TOAST_MESSAGE,
-					"RHIP approval request retry submitted" + (StringUtils.isBlank(approvalCode) ? "." : ". Code: " + approvalCode));
+					"RHIP approval request sent again" + (StringUtils.isBlank(result.getApprovalCode()) ? "." : ". Code: " + result.getApprovalCode()));
 		}
 		else {
 			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_ERROR_MESSAGE,
-					defaultIfBlank(message, "RHIP approval request retry failed."));
+					defaultIfBlank(result.getMessage(), "RHIP approval request could not be sent again."));
 		}
 		Patient patient = previous.getPatientId() == null ? null : Context.getPatientService().getPatient(previous.getPatientId());
 		return redirect(ui, searchQuery, patient == null ? patientId : patient.getUuid(), previous.getInsurancePolicyId(),
@@ -309,9 +277,10 @@ public class RhipApprovalsPageController {
 					"Approval request was not found.");
 			return redirect(ui, searchQuery, patientId, null, productSearch, productPage, productLimit);
 		}
-		if (!isDeletableApprovalStatus(entry.getApprovalStatus())) {
+		if (!new ApprovalRequestView(entry, null).isDeletable()) {
 			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_ERROR_MESSAGE,
-					"Only pending, failed, or rejected approval requests can be deleted.");
+					entry.isMmi() ? "Only failed or rejected MMI lines can be deleted: MMI keeps the others on the reception's approval."
+							: "Only pending, failed, or rejected approval requests can be deleted.");
 			return redirect(ui, searchQuery, patientId, entry.getInsurancePolicyId(), productSearch, productPage, productLimit);
 		}
 		int deleted = repository.deleteByStatuses(entry.getId(), RhipApprovalRequestLogEntry.STATUS_PENDING,
@@ -435,40 +404,11 @@ public class RhipApprovalsPageController {
 				toJson(settings).getBytes(StandardCharsets.UTF_8));
 	}
 
+	/**
+	 * @return the logged-in clinician's licence number, from their transferapp profile ("Provider License")
+	 */
 	private String getCurrentPractitionerLicenseNumber() {
-		User user = Context.getAuthenticatedUser();
-		if (user == null || user.getPerson() == null) {
-			return "";
-		}
-		String attributeTypeUuid = ConfigUtil.getProperty(PROVIDER_LICENSE_ATTRIBUTE_TYPE_UUID);
-		if (StringUtils.isBlank(attributeTypeUuid)) {
-			return "";
-		}
-		ProviderAttributeType attributeType = Context.getProviderService().getProviderAttributeTypeByUuid(attributeTypeUuid);
-		if (attributeType == null) {
-			return "";
-		}
-		Collection<Provider> providers = Context.getProviderService().getProvidersByPerson(user.getPerson(), false);
-		if (providers == null) {
-			return "";
-		}
-		for (Provider provider : providers) {
-			if (provider == null) {
-				continue;
-			}
-			for (ProviderAttribute attribute : provider.getAttributes()) {
-				if (attribute != null && attributeType.equals(attribute.getAttributeType())) {
-					String value = attribute.getValueReference();
-					if (StringUtils.isBlank(value) && attribute.getValue() != null) {
-						value = attribute.getValue().toString();
-					}
-					if (StringUtils.isNotBlank(value)) {
-						return value.trim();
-					}
-				}
-			}
-		}
-		return "";
+		return StringUtils.defaultString(ProviderLicense.forUser(Context.getAuthenticatedUser()));
 	}
 
 	private boolean canView() {
@@ -672,8 +612,9 @@ public class RhipApprovalsPageController {
 		if (!isMmi(insuranceType) && (diagnosisIds == null || diagnosisIds.isEmpty())) {
 			errors.add("At least one diagnosis code is required");
 		}
-		if (StringUtils.isBlank(clinicalKnowledge)) {
-			errors.add(isMmi(insuranceType) ? "Comment is required" : "Clinical justification is required");
+		if (!isMmi(insuranceType) && StringUtils.isBlank(clinicalKnowledge)) {
+			// The note for MMI's approver is optional (section 7.2)
+			errors.add("Clinical justification is required");
 		}
 		if (StringUtils.isBlank(practitionerLicenseNumber)) {
 			errors.add("Practitioner license number is required");
@@ -709,36 +650,6 @@ public class RhipApprovalsPageController {
 			}
 		}
 		return ret;
-	}
-
-	private String buildApprovalRequestPayload(String insuranceType, String facilityFosaId, String patientIdentifier,
-	                                           String receptionNumber, String practitionerLicenseNumber,
-	                                           List<String> diagnosisIds, String clinicalKnowledge, String productCode,
-	                                           BigDecimal quantity, BigDecimal unitPrice) {
-		Map<String, Object> payload = new LinkedHashMap<String, Object>();
-		payload.put("insuranceType", insuranceType);
-		payload.put("facilityFosaId", facilityFosaId);
-		if (isMmi(insuranceType)) {
-			payload.put("receptionNumber", receptionNumber);
-			payload.put("licenseNumber", practitionerLicenseNumber);
-			payload.put("comment", clinicalKnowledge);
-		}
-		else {
-			payload.put("patientIdentifier", patientIdentifier);
-			payload.put("practitionerLicenseNumber", practitionerLicenseNumber);
-			payload.put("diagnosisIds", diagnosisIds);
-			payload.put("clinicalKnowledge", clinicalKnowledge);
-		}
-		List<Map<String, Object>> procedures = new ArrayList<Map<String, Object>>();
-		Map<String, Object> procedure = new LinkedHashMap<String, Object>();
-		procedure.put("rhicCode", productCode);
-		procedure.put("requestedQuantity", quantity);
-		if (unitPrice != null) {
-			procedure.put("requestedUnitPrice", unitPrice);
-		}
-		procedures.add(procedure);
-		payload.put("procedures", procedures);
-		return toJson(payload);
 	}
 
 	private String redirect(UiUtils ui, String searchQuery, String patientId, Integer insurancePolicyId,
@@ -833,22 +744,9 @@ public class RhipApprovalsPageController {
 		return entry == null || entry.getAutomaticStatusCheckCount() == null ? 0 : entry.getAutomaticStatusCheckCount();
 	}
 
-	private boolean isDeletableApprovalStatus(String status) {
-		String normalized = normalizeApprovalStatus(status);
-		return RhipApprovalRequestLogEntry.STATUS_FAILED.equalsIgnoreCase(normalized)
-				|| RhipApprovalRequestLogEntry.STATUS_PENDING.equalsIgnoreCase(normalized)
-				|| RhipApprovalRequestLogEntry.STATUS_REJECTED.equalsIgnoreCase(normalized);
-	}
-
 	private String normalizeApprovalStatus(String status) {
-		if (StringUtils.isBlank(status)) {
-			return status;
-		}
-		String normalized = status.trim().toUpperCase();
-		if ("CREATED".equals(normalized) || "EDITED".equals(normalized) || "REQUESTED".equals(normalized)) {
-			return RhipApprovalRequestLogEntry.STATUS_PENDING;
-		}
-		return normalized;
+		String normalized = RhipApprovalDecision.normalizeStatus(status);
+		return normalized == null ? status : normalized;
 	}
 
 	private String defaultIfBlank(String value, String defaultValue) {
@@ -928,16 +826,12 @@ public class RhipApprovalsPageController {
 		}
 
 		public String getStatusClass() {
-			String status = request == null ? "" : StringUtils.trimToEmpty(request.getApprovalStatus()).toUpperCase();
+			String status = request == null ? null : RhipApprovalDecision.normalizeStatus(request.getApprovalStatus());
 			return StringUtils.isBlank(status) ? RhipApprovalRequestLogEntry.STATUS_PENDING : status;
 		}
 
 		public String getStatusLabel() {
-			String status = getStatusClass();
-			if (RhipApprovalRequestLogEntry.STATUS_PENDING.equals(status)) {
-				return "Requested/Pending";
-			}
-			return status;
+			return RhipApprovalDecision.label(getStatusClass());
 		}
 
 		public int getAutomaticStatusCheckCount() {
@@ -945,11 +839,53 @@ public class RhipApprovalsPageController {
 					? 0 : request.getAutomaticStatusCheckCount();
 		}
 
+		public boolean isMmi() {
+			return request != null && request.isMmi();
+		}
+
+		/**
+		 * @return true once MMI has decided, so the status no longer needs checking
+		 */
+		public boolean isDecided() {
+			return RhipApprovalDecision.isDecided(getStatusClass());
+		}
+
+		/**
+		 * An MMI line that MMI holds stays on the reception's approval, so only failed and rejected ones can be deleted
+		 */
 		public boolean isDeletable() {
 			String status = getStatusClass();
-			return RhipApprovalRequestLogEntry.STATUS_FAILED.equalsIgnoreCase(status)
-					|| RhipApprovalRequestLogEntry.STATUS_PENDING.equalsIgnoreCase(status)
-					|| RhipApprovalRequestLogEntry.STATUS_REJECTED.equalsIgnoreCase(status);
+			if (RhipApprovalRequestLogEntry.STATUS_FAILED.equals(status)
+					|| RhipApprovalRequestLogEntry.STATUS_REJECTED.equals(status)) {
+				return true;
+			}
+			return !isMmi() && RhipApprovalRequestLogEntry.STATUS_PENDING.equals(status);
+		}
+
+		/**
+		 * A failed request can be sent again; for MMI, a pending line can also send the reception's whole approval again
+		 */
+		public boolean isResendable() {
+			String status = getStatusClass();
+			return RhipApprovalRequestLogEntry.STATUS_FAILED.equals(status)
+					|| (isMmi() && RhipApprovalRequestLogEntry.STATUS_PENDING.equals(status));
+		}
+
+		/**
+		 * @return what MMI approved, e.g. "1 x 250000", or null before a decision
+		 */
+		public String getApprovedSummary() {
+			if (request == null || request.getApprovedQuantity() == null) {
+				return null;
+			}
+			String quantity = request.getApprovedQuantity().stripTrailingZeros().toPlainString();
+			return request.getApprovedUnitPrice() == null ? quantity
+					: quantity + " x " + request.getApprovedUnitPrice().stripTrailingZeros().toPlainString();
+		}
+
+		public String getRequestedQuantityLabel() {
+			return request == null || request.getRequestedQuantity() == null ? ""
+					: request.getRequestedQuantity().stripTrailingZeros().toPlainString();
 		}
 	}
 

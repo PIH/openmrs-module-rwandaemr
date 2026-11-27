@@ -13,7 +13,6 @@
     var rhipApprovalsPageUrl = "${ ui.pageLink("rwandaemr", "admin/rhipApprovals") }";
     var rhipCanAutoCheckStatus = ${ canCheckApprovalStatus ? "true" : "false" };
     var rhipStatusPollDelay = 300000;
-    var rhipMaxAutomaticStatusChecks = ${ maxAutomaticStatusChecks ?: 12 };
     var rhipStatusPollTimer = null;
     var rhipStatusPollInProgress = false;
     var rhipDiagnosisSearchTimer = null;
@@ -328,8 +327,7 @@
         jq("[data-rhip-approval-id]").each(function() {
             var row = jq(this);
             var status = (row.attr("data-rhip-approval-status") || "").toUpperCase();
-            var automaticStatusCheckCount = parseInt(row.attr("data-rhip-automatic-status-check-count") || "0", 10);
-            if (status === "PENDING" && automaticStatusCheckCount < rhipMaxAutomaticStatusChecks) {
+            if (status === "PENDING") {
                 ids.push(row.attr("data-rhip-approval-id"));
             }
         });
@@ -385,7 +383,7 @@
                 });
                 return classesToRemove.join(" ");
             }).addClass("rhip-chip rhip-chip-" + newStatus).text(update.statusLabel || newStatus);
-            if (newStatus === "APPROVED" || newStatus === "REJECTED") {
+            if (newStatus === "APPROVED" || newStatus === "PARTIALLY_APPROVED" || newStatus === "REJECTED") {
                 row.find(".rhip-check-status-form").remove();
             }
             if (update.changed && oldStatus !== newStatus) {
@@ -418,9 +416,15 @@
     body {
         background: #f6f8fb;
     }
+    /* The table has many columns: use the screen's width rather than the decorator's narrow column */
+    #body-wrapper, #content {
+        max-width: none !important;
+        width: auto !important;
+    }
     .rhip-approval-page {
-        max-width: 1320px;
+        max-width: 1800px;
         margin: 0 auto;
+        padding: 0 16px;
         color: #17203a;
     }
     .rhip-approval-header {
@@ -669,7 +673,8 @@
     table.rhip-table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 1040px;
+        min-width: 1240px;
+        font-size: 13px;
     }
     .rhip-table th {
         background: #f5f7fb;
@@ -682,10 +687,20 @@
     }
     .rhip-table td {
         border-bottom: 1px solid #edf1f7;
-        padding: 12px 10px;
+        padding: 9px 8px;
         vertical-align: top;
         color: #17203a;
     }
+    .rhip-col-patient {
+        min-width: 150px;
+    }
+    .rhip-col-procedure {
+        min-width: 240px;
+    }
+    .rhip-nowrap {
+        white-space: nowrap;
+    }
+
     .rhip-chip {
         display: inline-block;
         min-width: 94px;
@@ -899,6 +914,10 @@
     <div class="rhip-section">
         <div class="rhip-section-header">
             <h2>Request Approval</h2>
+            <a class="rhip-secondary-button" style="margin-left:auto; margin-right:8px; text-decoration:none;"
+               href="${ ui.pageLink("rwandaemr", "admin/rhipApprovalRequiredItems") }">
+                <i class="icon-list"></i><span class="rhip-button-label">Approval-Required Items</span>
+            </a>
             <% if (canRequestApproval) { %>
                 <button type="button" class="rhip-primary-button" onclick="openRhipApprovalModal();">
                     <i class="icon-plus"></i><span class="rhip-button-label">New Approval Request</span>
@@ -1062,7 +1081,7 @@
                             </div>
                             <div class="rhip-field" style="margin-top: 10px;">
 	                                <label>Quantity</label>
-	                                <input id="requestedQuantity" type="number" step="0.01" min="0.01" name="requestedQuantity" value="1"/>
+	                                <input id="requestedQuantity" type="number" step="1" min="1" name="requestedQuantity" value="1"/>
 	                            </div>
 	                            <% if ((selectedPolicy?.insuranceType ?: "").equalsIgnoreCase("mmi")) { %>
 	                                <div class="rhip-field" style="margin-top: 10px;">
@@ -1079,10 +1098,17 @@
                                 <label>License Number</label>
                                 <input type="text" name="practitionerLicenseNumber" value="${ ui.escapeAttribute(currentPractitionerLicenseNumber ?: "") }" readonly="readonly"/>
                             </div>
+                            <% def mmiPolicy = (selectedPolicy?.insuranceType ?: "").equalsIgnoreCase("mmi") %>
                             <div class="rhip-field" style="margin-top: 10px;">
-                                <label>Medical Notes</label>
-                                <textarea name="clinicalKnowledge" placeholder="Enter medical notes"></textarea>
+                                <label>${ mmiPolicy ? "Note for MMI's approver (optional)" : "Medical Notes" }</label>
+                                <textarea name="clinicalKnowledge" placeholder="${ mmiPolicy ? "Optional note for MMI's approver" : "Enter medical notes" }"></textarea>
                             </div>
+                            <% if (mmiPolicy) { %>
+                                <div class="rhip-muted" style="margin-top: 10px;">
+                                    MMI keeps one approval per reception. This procedure is sent together with the other procedures
+                                    already requested for this reception; requesting one that is already there changes its quantity.
+                                </div>
+                            <% } %>
                             <div style="margin-top: 14px;">
                                 <button type="submit" class="rhip-primary-button">
                                     <i class="icon-ok"></i><span class="rhip-button-label">Request Approval</span>
@@ -1106,9 +1132,13 @@
                     <tr>
                         <th>Patient</th>
                         <th>Insurance</th>
+                        <th>Reception</th>
+                        <th>Approval Code</th>
                         <th>Diagnosis</th>
                         <th>Procedure</th>
+                        <th>Code</th>
                         <th>Qty</th>
+                        <th>Approved</th>
                         <th>Request Date</th>
                         <th>Status</th>
                         <th>ACTIONS</th>
@@ -1122,24 +1152,32 @@
                         <tr data-rhip-approval-id="${ ui.escapeAttribute(request.id?.toString() ?: "") }"
                             data-rhip-approval-status="${ ui.escapeAttribute(view.statusClass ?: "") }"
                             data-rhip-automatic-status-check-count="${ ui.escapeAttribute(view.automaticStatusCheckCount?.toString() ?: "0") }">
-                            <td>${ ui.format(view.patientName ?: "") }</td>
-                            <td>
-                                ${ ui.format(request.insuranceName ?: "") }
-                                <div class="rhip-muted">${ ui.format(request.insuranceType ?: "") }</div>
-                            </td>
+                            <td class="rhip-col-patient">${ ui.format(view.patientName ?: "") }</td>
+                            <td>${ ui.format(request.insuranceName ?: request.insuranceType ?: "") }</td>
+                            <td class="rhip-nowrap">${ ui.format(request.visitReferenceNumber ?: "") }</td>
+                            <td class="rhip-nowrap">${ ui.format(request.approvalCode ?: "") }</td>
                             <td>${ ui.format(request.diagnosisIds ?: "") }</td>
+                            <td class="rhip-col-procedure">${ ui.format(request.productName ?: "") }</td>
+                            <td class="rhip-nowrap">${ ui.format(request.productCode ?: "") }</td>
+                            <td>${ ui.format(view.requestedQuantityLabel) }</td>
                             <td>
-                                ${ ui.format(request.productName ?: "") }
-                                <div class="rhip-muted">${ ui.format(request.productCode ?: "") }</div>
+                                ${ ui.format(view.approvedSummary ?: "") }
+                                <% if (request.billed) { %>
+                                    <div class="rhip-muted">Billed</div>
+                                <% } %>
                             </td>
-                            <td>${ ui.format(request.requestedQuantity ?: "") }</td>
-                            <td>${ ui.format(request.dateCreated) }</td>
-                            <td><span class="rhip-chip rhip-chip-${ ui.escapeAttribute(view.statusClass) }">${ ui.format(view.statusLabel) }</span></td>
+                            <td class="rhip-nowrap">${ ui.format(request.dateCreated) }</td>
+                            <td>
+                                <span class="rhip-chip rhip-chip-${ ui.escapeAttribute(view.statusClass) }">${ ui.format(view.statusLabel) }</span>
+                                <% if (request.decisionReason) { %>
+                                    <div class="rhip-muted">${ ui.format(request.decisionReason) }</div>
+                                <% } %>
+                            </td>
                             <td class="rhip-actions">
                                 <button type="button" class="rhip-icon-button" title="View details" aria-label="View details" onclick="showRhipApprovalDetails('${ ui.escapeAttribute(detailsId) }');">
                                     <i class="icon-eye-open"></i>
                                 </button>
-                                <% if (canCheckApprovalStatus && request.approvalCode && !"APPROVED".equalsIgnoreCase(requestStatus) && !"REJECTED".equalsIgnoreCase(requestStatus)) { %>
+                                <% if (canCheckApprovalStatus && request.approvalCode && !view.decided) { %>
                                     <form class="rhip-check-status-form" method="post" action="${ ui.pageLink("rwandaemr", "admin/rhipApprovals") }" onsubmit="return submitRhipApprovalStatus(this);">
                                         <input type="hidden" name="action" value="checkStatus"/>
                                         <input type="hidden" name="approvalRequestId" value="${ ui.escapeAttribute(request.id?.toString() ?: "") }"/>
@@ -1149,12 +1187,13 @@
                                         </button>
                                     </form>
                                 <% } %>
-                                <% if (canRequestApproval && "FAILED".equalsIgnoreCase(requestStatus)) { %>
+                                <% if (canRequestApproval && view.resendable) { %>
+                                    <% def resendTitle = "FAILED".equalsIgnoreCase(requestStatus) ? "Send again" : "Send this reception's MMI approval again" %>
                                     <form method="post" action="${ ui.pageLink("rwandaemr", "admin/rhipApprovals") }" onsubmit="return submitRhipApprovalRetry(this);">
                                         <input type="hidden" name="action" value="retryApproval"/>
                                         <input type="hidden" name="approvalRequestId" value="${ ui.escapeAttribute(request.id?.toString() ?: "") }"/>
                                         <input type="hidden" name="patientId" value="${ ui.escapeAttribute((view.patient?.uuid ?: "").toString()) }"/>
-                                        <button type="submit" class="rhip-icon-button rhip-retry-button" title="Retry request" aria-label="Retry request">
+                                        <button type="submit" class="rhip-icon-button rhip-retry-button" title="${ ui.escapeAttribute(resendTitle) }" aria-label="${ ui.escapeAttribute(resendTitle) }">
                                             <i class="icon-repeat"></i>
                                         </button>
                                     </form>
@@ -1172,7 +1211,7 @@
                             </td>
                         </tr>
                         <tr>
-                            <td colspan="8" style="padding: 0; border-bottom: 0;">
+                            <td colspan="12" style="padding: 0; border-bottom: 0;">
                                 <div id="${ ui.escapeAttribute(detailsId) }" class="rhip-details-panel">
                                     <div class="rhip-section-header" style="margin-bottom: 10px;">
                                         <h2>Approval Details</h2>
@@ -1201,6 +1240,24 @@
                                             <strong>Diagnosis</strong>
                                             <div>${ ui.format(request.diagnosisIds ?: "") }</div>
                                         </div>
+                                        <% if (request.visitReferenceNumber) { %>
+                                            <div>
+                                                <strong>MMI Reception</strong>
+                                                <div>${ ui.format(request.visitReferenceNumber) }</div>
+                                            </div>
+                                        <% } %>
+                                        <div>
+                                            <strong>Requested / Approved</strong>
+                                            <div>${ ui.format(view.requestedQuantityLabel) } / ${ ui.format(view.approvedSummary ?: "not decided yet") }${ request.billed ? " (billed)" : "" }</div>
+                                        </div>
+                                        <div>
+                                            <strong>Decided by</strong>
+                                            <div>${ ui.format(request.decidedBy ?: "") } ${ ui.format(request.decidedAt ?: "") }</div>
+                                        </div>
+                                        <div class="rhip-full">
+                                            <strong>Approver's reason</strong>
+                                            <div class="rhip-detail-box">${ ui.format(request.decisionReason ?: "None given.") }</div>
+                                        </div>
                                         <div>
                                             <strong>License Number</strong>
                                             <div>${ ui.format(request.practitionerLicenseNumber ?: "") }</div>
@@ -1212,10 +1269,6 @@
                                         <div class="rhip-full">
                                             <strong>Insurer Response / Rejection Reason</strong>
                                             <div class="rhip-detail-box">${ ui.format(request.message ?: "No response message recorded.") }</div>
-                                        </div>
-                                        <div class="rhip-full">
-                                            <strong>Raw Response</strong>
-                                            <div class="rhip-detail-box">${ ui.format(request.responsePayload ?: "") }</div>
                                         </div>
                                     </div>
                                 </div>

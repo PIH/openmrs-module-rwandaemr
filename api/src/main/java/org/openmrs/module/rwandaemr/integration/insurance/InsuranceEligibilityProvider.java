@@ -225,35 +225,81 @@ public class InsuranceEligibilityProvider {
 				"RHIP_APPROVAL_REQUIRED_PRODUCTS");
 	}
 
-	public IntegrationResponse requestApproval(String insuranceType, String facilityFosaId, String patientIdentifier,
-	                                           String receptionNumber, String practitionerLicenseNumber,
-	                                           List<String> diagnosisIds, String clinicalKnowledge, String rhicCode,
-	                                           Number requestedQuantity, Number requestedUnitPrice) {
-		Map<String, Object> parameters = new HashMap<>();
+	/**
+	 * Builds an /approval-request body (RHIP Unified Insurance Integration Guide: MMI, section 7.2). MMI keeps one
+	 * approval per reception and a later call changes it, so for MMI the lines are every procedure of the reception:
+	 * sending only a new one could drop the others. The requested price is not sent, so MMI uses its maximum.
+	 */
+	public Map<String, Object> buildApprovalRequestPayload(String insuranceType, String facilityFosaId,
+	                                                       String patientIdentifier, String visitReferenceNumber,
+	                                                       String practitionerLicenseNumber, List<String> diagnosisIds,
+	                                                       String note, List<ApprovalLine> lines) {
+		Map<String, Object> parameters = new LinkedHashMap<String, Object>();
 		String normalizedType = normalizeInsuranceType(insuranceType);
+		boolean mmi = "mmi".equalsIgnoreCase(normalizedType);
 		parameters.put("insuranceType", normalizedType);
 		parameters.put("facilityFosaId", facilityFosaId);
-		if ("mmi".equalsIgnoreCase(normalizedType)) {
-			parameters.put("receptionNumber", receptionNumber);
-			parameters.put("licenseNumber", practitionerLicenseNumber);
-			parameters.put("comment", clinicalKnowledge);
+		parameters.put("practitionerLicenseNumber", practitionerLicenseNumber);
+		if (mmi) {
+			parameters.put("visitReferenceNumber", visitReferenceNumber);
+			if (diagnosisIds != null && !diagnosisIds.isEmpty()) {
+				parameters.put("diagnosisIds", diagnosisIds);
+			}
+			if (StringUtils.isNotBlank(note)) {
+				parameters.put("comment", note.trim());
+			}
 		}
 		else {
 			parameters.put("patientIdentifier", patientIdentifier);
-			parameters.put("practitionerLicenseNumber", practitionerLicenseNumber);
 			parameters.put("diagnosisIds", diagnosisIds);
-			parameters.put("clinicalKnowledge", clinicalKnowledge);
+			parameters.put("clinicalKnowledge", note);
 		}
 		List<Map<String, Object>> procedures = new ArrayList<Map<String, Object>>();
-		Map<String, Object> procedure = new HashMap<String, Object>();
-		procedure.put("rhicCode", rhicCode);
-		procedure.put("requestedQuantity", requestedQuantity);
-		if (requestedUnitPrice != null) {
-			procedure.put("requestedUnitPrice", requestedUnitPrice);
+		if (lines != null) {
+			for (ApprovalLine line : lines) {
+				Map<String, Object> procedure = new LinkedHashMap<String, Object>();
+				procedure.put("code", line.getCode());
+				procedure.put("quantity", line.getQuantity());
+				procedures.add(procedure);
+			}
 		}
-		procedures.add(procedure);
 		parameters.put("procedures", procedures);
-		return postRequest(config.getRhipApprovalRequestUrl(), parameters, JsonNode.class, "RHIP_APPROVAL_REQUEST");
+		return parameters;
+	}
+
+	public IntegrationResponse requestApproval(Map<String, Object> payload) {
+		return postRequest(config.getRhipApprovalRequestUrl(), payload, JsonNode.class, "RHIP_APPROVAL_REQUEST");
+	}
+
+	/**
+	 * One procedure of an approval request. RHIP takes whole quantities.
+	 */
+	public static class ApprovalLine {
+
+		private final String code;
+
+		private final Integer quantity;
+
+		public ApprovalLine(String code, Number quantity) {
+			this.code = code == null ? null : code.trim();
+			this.quantity = toWholeQuantity(quantity);
+		}
+
+		public String getCode() {
+			return code;
+		}
+
+		public Integer getQuantity() {
+			return quantity;
+		}
+
+		static Integer toWholeQuantity(Number quantity) {
+			if (quantity == null) {
+				return 1;
+			}
+			int whole = new java.math.BigDecimal(quantity.toString()).setScale(0, java.math.RoundingMode.HALF_UP).intValue();
+			return whole < 1 ? 1 : whole;
+		}
 	}
 
 	public IntegrationResponse checkApprovalStatus(String insuranceType, String approvalCode, String facilityFosaId, String period) {
@@ -311,6 +357,8 @@ public class InsuranceEligibilityProvider {
 			try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
 				ret.setEndpointAccessible(true);
 				ret.setResponseCode(response.getStatusLine().getStatusCode());
+				org.apache.http.Header retryAfter = response.getFirstHeader("Retry-After");
+				ret.setRetryAfter(retryAfter == null ? null : retryAfter.getValue());
 				String data = readEntityAsString(response.getEntity());
 				if (StringUtils.isNotBlank(data)) {
 					try {

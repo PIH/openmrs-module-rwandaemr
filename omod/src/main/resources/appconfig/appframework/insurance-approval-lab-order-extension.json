@@ -1,0 +1,13 @@
+[
+  {
+    "id": "rwandaemr.insuranceApproval.labOrderCheck",
+    "extensionPointId": "org.openmrs.module.pihapps.labOrder.fragments",
+    "type": "fragment",
+    "label": "Insurance approval check",
+    "order": 10,
+    "extensionParams": {
+      "provider": "rwandaemr",
+      "fragment": "insuranceApproval/labOrderCheck"
+    }
+  }
+]
