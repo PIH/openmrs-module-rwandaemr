@@ -10,10 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 public class PathologyAccessionNumberGeneratorTest {
 
 	@Test
-	public void shouldFormatTheYearAndAFourDigitSequence() {
-		assertThat(PathologyAccessionNumberGenerator.format("2026", 1), equalTo("PAT2026-0001"));
-		assertThat(PathologyAccessionNumberGenerator.format("2026", 123), equalTo("PAT2026-0123"));
-		assertThat(PathologyAccessionNumberGenerator.format("2026", 12345), equalTo("PAT2026-12345"));
+	public void shouldFormatTheTwoDigitYearAndAFourDigitSequence() {
+		assertThat(PathologyAccessionNumberGenerator.format("2026", 1), equalTo("PT26-0001"));
+		assertThat(PathologyAccessionNumberGenerator.format("2026", 123), equalTo("PT26-0123"));
+		assertThat(PathologyAccessionNumberGenerator.format("2026", 12345), equalTo("PT26-12345"));
 	}
 
 	@Test

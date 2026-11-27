@@ -15,15 +15,15 @@ import java.util.Date;
 import java.util.Locale;
 
 /**
- * Generates pathology accession numbers, such as PAT2026-0001: the year and a sequence that starts again each year.  The
- * number has to fit on a glass slide.
+ * Generates pathology accession numbers, such as PT26-0001: the last two digits of the year and a sequence that starts
+ * again each year.  The number has to fit on a glass slide.
  */
 @Component
 public class PathologyAccessionNumberGenerator {
 
 	public static final String GP_NEXT_SEQUENCE_VALUE = "rwandaemr.pathology.accessionNextSequenceValue";
 
-	public static final String PREFIX = "PAT";
+	public static final String PREFIX = "PT";
 
 	private final DbSessionFactory dbSessionFactory;
 
@@ -71,6 +71,6 @@ public class PathologyAccessionNumberGenerator {
 	}
 
 	static String format(String year, int sequenceValue) {
-		return PREFIX + year + "-" + String.format(Locale.ENGLISH, "%04d", sequenceValue);
+		return PREFIX + year.substring(year.length() - 2) + "-" + String.format(Locale.ENGLISH, "%04d", sequenceValue);
 	}
 }

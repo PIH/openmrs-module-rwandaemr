@@ -288,7 +288,7 @@
 		<property>rwandaemr.pathology.accessionNextSequenceValue</property>
 		<defaultValue></defaultValue>
 		<description>
-			Internal tracking value used to generate pathology accession numbers, such as PAT2026-0001. Stores the year of the last accession number and the next sequence value to use, in the format yyyy:N. Not meant to be edited manually.
+			Internal tracking value used to generate pathology accession numbers, such as PT26-0001. Stores the year of the last accession number and the next sequence value to use, in the format yyyy:N. Not meant to be edited manually.
 		</description>
 	</globalProperty>
 
