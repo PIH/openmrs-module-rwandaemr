@@ -9,6 +9,16 @@ import org.springframework.stereotype.Component;
 public class LabNotificationConfig {
 
 	public static final String ENABLED_PROPERTY = "rwandaemr.labNotification.enabled";
+	/** When true, an SMS is also sent automatically each time a lab order is completed (one SMS per order). */
+	/**
+	 * Which SMS service sends lab notifications: "rbcmessaging" (default) uses the rbcmessaging module and its
+	 * configured gateway (rbcmessaging.gateway, rbcmessaging.mohpih.* for the MOH FDI Biz API, as the old lab module did);
+	 * "intouch" uses the Intouch gateway directly with the rwandaemr.sms / rwandaemr.labNotification.intouch settings.
+	 */
+	public static final String PROVIDER_PROPERTY = "rwandaemr.labNotification.provider";
+	public static final String PROVIDER_RBCMESSAGING = "rbcmessaging";
+	public static final String PROVIDER_INTOUCH = "intouch";
+	public static final String AUTO_SEND_PROPERTY = "rwandaemr.labNotification.autoSend";
 	public static final String INTOUCH_URL_PROPERTY = "rwandaemr.labNotification.intouch.url";
 	public static final String INTOUCH_USERNAME_PROPERTY = "rwandaemr.labNotification.intouch.username";
 	public static final String INTOUCH_PASSWORD_PROPERTY = "rwandaemr.labNotification.intouch.password";
@@ -22,7 +32,7 @@ public class LabNotificationConfig {
 	public static final String DEFAULT_CODING = "0";
 	public static final String DEFAULT_DLR_LEVEL = "2";
 	public static final String DEFAULT_MESSAGE_TEMPLATE =
-			"Ibisubizo by'ibizamini byawe bya laboratwari byabonetse kuri {facility}. Garuka ku kigo nderabuzima cyangwa uvugane n'umuganga wawe.";
+			"{patientName}. Ibisubizo by'ibizamini byawe byabonetse. Wasubira aho muganga wagusuzumye akorera.";
 
 	private final SmsGatewayConfig smsGatewayConfig;
 
@@ -36,6 +46,18 @@ public class LabNotificationConfig {
 
 	public boolean isEnabled() {
 		return getBoolean(ENABLED_PROPERTY, false);
+	}
+
+	public String getProvider() {
+		return getString(PROVIDER_PROPERTY, PROVIDER_RBCMESSAGING).toLowerCase();
+	}
+
+	public boolean isIntouchProvider() {
+		return PROVIDER_INTOUCH.equals(getProvider());
+	}
+
+	public boolean isAutoSendEnabled() {
+		return getBoolean(AUTO_SEND_PROPERTY, false);
 	}
 
 	public String getIntouchUrl() {
@@ -70,7 +92,13 @@ public class LabNotificationConfig {
 		return getString(MESSAGE_TEMPLATE_PROPERTY, DEFAULT_MESSAGE_TEMPLATE);
 	}
 
+	/**
+	 * Only the Intouch settings are checked here; rbcmessaging checks its own settings when it sends.
+	 */
 	public boolean hasRequiredSettings() {
+		if (!isIntouchProvider()) {
+			return true;
+		}
 		return smsGatewayConfig.hasRequiredSettings();
 	}
 

@@ -14,7 +14,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Sends a patient notification after a laboratory order with results is completed. */
+/**
+ * Sends a patient notification after a laboratory order with results is completed.
+ * Off unless rwandaemr.labNotification.autoSend is true: normally lab staff notify the patient
+ * with the "Notify Patient" action, which sends one SMS for all of the patient's orders.
+ */
 @Component
 public class LabResultNotificationEventHandler implements OpenmrsObjectEventHandler {
 
@@ -32,7 +36,7 @@ public class LabResultNotificationEventHandler implements OpenmrsObjectEventHand
 
 	@Override
 	public void afterTransactionCompletion(int transactionDepth, List<OpenmrsObjectEvent> events, int status) {
-		if (transactionDepth != 1 || status != Status.STATUS_COMMITTED || !config.isEnabled() || events == null) {
+		if (transactionDepth != 1 || status != Status.STATUS_COMMITTED || !config.isEnabled() || !config.isAutoSendEnabled() || events == null) {
 			return;
 		}
 		Set<String> notifiedOrders = new HashSet<String>();
