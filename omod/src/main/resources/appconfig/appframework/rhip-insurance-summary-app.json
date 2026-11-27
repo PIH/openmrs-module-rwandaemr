@@ -1,0 +1,20 @@
+[
+  {
+    "id": "rwandaemr.rhipInsuranceSummary",
+    "description": "Vouchers per insurance for a period, with the total amount, patient due and insurance due of the bill report",
+    "label": "RHIP Insurance Summary",
+    "order": 122,
+    "extensions": [
+      {
+        "id": "rwandaemr.rhipInsuranceSummary.homepageLink",
+        "extensionPointId": "org.openmrs.referenceapplication.homepageLink",
+        "type": "link",
+        "label": "RHIP Insurance Summary",
+        "url": "rwandaemr/admin/rhipInsuranceSummary.page",
+        "icon": "icon-bar-chart",
+        "order": 122,
+        "requiredPrivilege": "Task: rwandaemr.rhipInsuranceSummary"
+      }
+    ]
+  }
+]

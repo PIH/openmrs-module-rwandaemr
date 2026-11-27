@@ -1155,6 +1155,135 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="20261123-create-bill-verification-reason" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_bill_verification_reason"/></not>
+        </preConditions>
+        <comment>Reasons for rejecting bill items or disputing their rejection: each reason typed as Other is saved and
+            offered from then on</comment>
+        <createTable tableName="rwandaemr_bill_verification_reason">
+            <column name="reason_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="reason_type" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="retired" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="creator" type="int">
+                <constraints nullable="false" foreignKeyName="bill_verification_reason_creator_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="rwandaemr_bill_verification_reason" columnNames="reason_type, name"
+                             constraintName="bill_verification_reason_name_uk"/>
+    </changeSet>
+
+    <changeSet id="20261123-create-bill-verification" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_bill_verification"/></not>
+        </preConditions>
+        <comment>The step of the verification each global bill is at; bills without a row are at the facility review</comment>
+        <createTable tableName="rwandaemr_bill_verification">
+            <column name="bill_verification_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="global_bill_id" type="int">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="stage" type="varchar(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="creator" type="int">
+                <constraints nullable="false" foreignKeyName="bill_verification_creator_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int">
+                <constraints foreignKeyName="bill_verification_changed_by_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_changed" type="datetime"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20261123-create-bill-item-verification" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_bill_item_verification"/></not>
+        </preConditions>
+        <comment>The latest decision on each item of a global bill, with its reason; items without a row are pending</comment>
+        <createTable tableName="rwandaemr_bill_item_verification">
+            <column name="bill_item_verification_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="patient_service_bill_id" type="int">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="global_bill_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="varchar(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason_id" type="int">
+                <constraints foreignKeyName="bill_item_verification_reason_fk" references="rwandaemr_bill_verification_reason(reason_id)"/>
+            </column>
+            <column name="note" type="varchar(1000)"/>
+            <column name="creator" type="int">
+                <constraints nullable="false" foreignKeyName="bill_item_verification_creator_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_by" type="int">
+                <constraints foreignKeyName="bill_item_verification_changed_by_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_changed" type="datetime"/>
+        </createTable>
+        <createIndex tableName="rwandaemr_bill_item_verification" indexName="idx_bill_item_verification_bill">
+            <column name="global_bill_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="20261123-create-bill-verification-event" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="rwandaemr_bill_verification_event"/></not>
+        </preConditions>
+        <comment>Audit trail of the verification of global bills: every decision on an item, with its reason, and every
+            step submitted</comment>
+        <createTable tableName="rwandaemr_bill_verification_event">
+            <column name="bill_verification_event_id" type="int" autoIncrement="true">
+                <constraints nullable="false" primaryKey="true"/>
+            </column>
+            <column name="global_bill_id" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="patient_service_bill_id" type="int"/>
+            <column name="status" type="varchar(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason_id" type="int">
+                <constraints foreignKeyName="bill_verification_event_reason_fk" references="rwandaemr_bill_verification_reason(reason_id)"/>
+            </column>
+            <column name="note" type="varchar(1000)"/>
+            <column name="creator" type="int">
+                <constraints nullable="false" foreignKeyName="bill_verification_event_creator_fk" references="users(user_id)"/>
+            </column>
+            <column name="date_created" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="rwandaemr_bill_verification_event" indexName="idx_bill_verification_event_bill">
+            <column name="global_bill_id"/>
+        </createIndex>
+    </changeSet>
+
     <!-- RHIP Unified Insurance Integration Guide: MMI, section 7. MMI keeps one approval per reception and decides each
          procedure line on its own (approved quantity and price, the approver's reason, whether it is billed). -->
     <changeSet id="20261125-rhip-approval-reception-and-line-decision" author="bniyonshuti">

@@ -172,6 +172,31 @@
 		<description>Check RHIP approval request status</description>
 	</privilege>
 
+	<privilege>
+		<name>Task: rwandaemr.rhipVoucherSubmissions</name>
+		<description>Show the RHIP Vouchers app on the home page. Opening the page also needs a privilege to view RHIP vouchers or to verify bills</description>
+	</privilege>
+	<privilege>
+		<name>Task: rwandaemr.rhipInsuranceSummary</name>
+		<description>Show the RHIP Insurance Summary app on the home page</description>
+	</privilege>
+	<privilege>
+		<name>Billing RHIP Verification - Facility</name>
+		<description>Verify the items of global bills for the facility: accept or reject each item before the insurer does, then accept or dispute the insurer's rejections</description>
+	</privilege>
+	<privilege>
+		<name>Billing RHIP Verification - Insurer</name>
+		<description>Verify the items of global bills for an insurer: accept or reject each item the facility sent, then decide on disputed items. Set the user property rwandaemr.verifierInsuranceId to the insurance the verifier works for</description>
+	</privilege>
+
+	<globalProperty>
+		<property>rwandaemr.billVerification.insurances</property>
+		<defaultValue>category:MUTUELLE</defaultValue>
+		<description>
+			The insurances whose global bills are verified on the RHIP voucher page (facility review, insurer review, history, sending to the insurer), as a comma-separated list of insurance ids and insurance categories, such as category:MUTUELLE,12,15. The bills of other insurances are not verified. Only the MUTUELLE insurances when blank.
+		</description>
+	</globalProperty>
+
 	<globalProperty>
 		<property>rwandaemr.appointment.sms.confirmationTemplate</property>
 		<defaultValue>Randevu yawe muri {servicePoint} yemejwe ku wa {date}.</defaultValue>

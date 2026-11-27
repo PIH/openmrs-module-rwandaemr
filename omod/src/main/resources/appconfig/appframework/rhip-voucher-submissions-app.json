@@ -1,0 +1,20 @@
+[
+  {
+    "id": "rwandaemr.rhipVoucherSubmissions",
+    "description": "RHIP vouchers of global bills: send them, follow their status and verify their items with the insurer",
+    "label": "RHIP Vouchers",
+    "order": 121,
+    "extensions": [
+      {
+        "id": "rwandaemr.rhipVoucherSubmissions.homepageLink",
+        "extensionPointId": "org.openmrs.referenceapplication.homepageLink",
+        "type": "link",
+        "label": "RHIP Vouchers",
+        "url": "rwandaemr/admin/rhipVoucherSubmissions.page",
+        "icon": "icon-money",
+        "order": 121,
+        "requiredPrivilege": "Task: rwandaemr.rhipVoucherSubmissions"
+      }
+    ]
+  }
+]
