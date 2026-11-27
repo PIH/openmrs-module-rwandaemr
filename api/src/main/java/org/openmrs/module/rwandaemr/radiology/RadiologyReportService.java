@@ -3,7 +3,9 @@ package org.openmrs.module.rwandaemr.radiology;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.Concept;
+import org.openmrs.Encounter;
 import org.openmrs.EncounterProvider;
+import org.openmrs.Form;
 import org.openmrs.Obs;
 import org.openmrs.Order;
 import org.openmrs.Provider;
@@ -170,6 +172,112 @@ public class RadiologyReportService {
 		Date reportDate = existing != null && existing.getReportDate() != null ? existing.getReportDate() : new Date();
 		resultTranslator.saveManualReport(order, reportDate, radiologist, reportText);
 		draftRepository.deleteDraft(order.getOrderId());
+	}
+
+	/**
+	 * @return the form radiologists fill in to report this test, in place of the report editor, or null if it is
+	 * reported in the editor: it needs a manual report, and a form that is installed and not retired configured for it
+	 */
+	public Form getReportForm(Order order) {
+		String formUuid = getReportFormUuid(order);
+		Form form = formUuid == null ? null : getFormByUuid(formUuid);
+		return form == null || BooleanUtils.isTrue(form.getRetired()) ? null : form;
+	}
+
+	/**
+	 * @return the uuid of the form configured to report this test, or null if none is configured
+	 */
+	public String getReportFormUuid(Order order) {
+		return requiresManualReport(order) ? radiologyConfig.getReportFormUuid(order.getConcept()) : null;
+	}
+
+	/**
+	 * @return the form encounter in which the report of this test was filled in, or null if it was not reported on a
+	 * form.  The form is linked to the test by the test's accession number, recorded in the form's encounter for the
+	 * order.
+	 */
+	public Encounter getReportFormEncounter(Order order) {
+		Concept link = radiologyConfig.getRadiologyAccessionNumber();
+		if (order == null || link == null) {
+			return null;
+		}
+		for (Obs obs : rwandaEmrService.getObsByOrder(order)) {
+			Encounter encounter = obs.getEncounter();
+			if (obs.getConcept().equals(link) && obs.getObsGroup() == null && encounter != null
+					&& encounter.getForm() != null && !BooleanUtils.isTrue(encounter.getVoided())) {
+				return encounter;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @return the test whose report was filled in on this form encounter, or null if it is not linked to one
+	 */
+	public Order getReportedOrder(Encounter formEncounter) {
+		Concept link = radiologyConfig.getRadiologyAccessionNumber();
+		if (formEncounter == null || link == null) {
+			return null;
+		}
+		for (Obs obs : formEncounter.getObsAtTopLevel(false)) {
+			if (obs.getConcept().equals(link) && obs.getOrder() != null) {
+				return obs.getOrder();
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Records the report of this test filled in on a form: links the form to the test, and records the report as final,
+	 * signed by the logged-in radiologist, with the answers of the form as its text, as a report from the report editor
+	 * is.  Clinicians can see it from then on.  Saving the form again records a correction, which keeps the report date.
+	 * @param formXml the HTML Form Entry XML of the form, which gives the labels and sections of its answers
+	 * @throws IllegalArgumentException if the report cannot be entered for the order
+	 * @throws IllegalStateException if the logged-in user is not linked to a provider
+	 */
+	public void saveFormReport(Order order, Encounter formEncounter, String formXml) {
+		String reason = getReasonReportCannotBeEntered(order);
+		if (reason != null) {
+			throw new IllegalArgumentException(reason);
+		}
+		Provider radiologist = getSigningProvider();
+		Order linked = getReportedOrder(formEncounter);
+		if (linked != null && !linked.equals(order)) {
+			throw new IllegalArgumentException("This form is the report of another test, " + linked.getOrderNumber());
+		}
+		if (linked == null) {
+			linkFormToOrder(order, formEncounter);
+		}
+		String reportText = RadiologyReportText.toStorage(RadiologyFormReportText.toEditorHtml(formXml,
+				formEncounter.getAllObs(false), Context.getLocale()));
+		RadiologyReport existing = getReport(order);
+		Date reportDate = existing != null && existing.getReportDate() != null ? existing.getReportDate() : new Date();
+		resultTranslator.saveManualReport(order, reportDate, radiologist, reportText);
+		draftRepository.deleteDraft(order.getOrderId());
+	}
+
+	/**
+	 * Records the test's accession number in the form's encounter, for the order, which links the form to the test
+	 */
+	private void linkFormToOrder(Order order, Encounter formEncounter) {
+		Concept link = radiologyConfig.getRadiologyAccessionNumber();
+		if (link == null) {
+			throw new IllegalStateException("The radiology accession number concept is not configured, so the report "
+					+ "form cannot be linked to the test");
+		}
+		Obs obs = new Obs(formEncounter.getPatient(), link, formEncounter.getEncounterDatetime(), formEncounter.getLocation());
+		obs.setOrder(order);
+		obs.setValueText(order.getOrderNumber());
+		formEncounter.addObs(obs);
+		saveObs(obs);
+	}
+
+	protected void saveObs(Obs obs) {
+		Context.getObsService().saveObs(obs, null);
+	}
+
+	protected Form getFormByUuid(String uuid) {
+		return Context.getFormService().getFormByUuid(uuid);
 	}
 
 	/**

@@ -197,6 +197,14 @@
 	</globalProperty>
 
 	<globalProperty>
+		<property>rwandaemr.radiology.reportForms</property>
+		<defaultValue>a03b81cc-851f-491c-aca8-7d9eaba23a19:cfca9ba7-a815-55df-b904-c7673ef15237</defaultValue>
+		<description>
+			Radiology tests reported with a form in place of the report editor, as a comma-separated list of orderable:formUuid, where the orderable is a concept uuid, mapping or id. The form must contain the radiologyReportOrder tag. A test whose form is not installed is reported with the editor. Default: breast ultrasound with the Diagnostic Breast Ultrasound Report Form.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
 		<property>rwandaemr.radiology.imageViewerUrlTemplate</property>
 		<defaultValue></defaultValue>
 		<description>

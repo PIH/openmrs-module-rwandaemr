@@ -1,9 +1,12 @@
 package org.openmrs.module.rwandaemr.page.controller.patient;
 
+import org.openmrs.Encounter;
+import org.openmrs.Form;
 import org.openmrs.Order;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.appui.UiSessionContext;
 import org.openmrs.module.emrapi.patient.PatientDomainWrapper;
+import org.openmrs.module.rwandaemr.htmlformentry.RadiologyReportOrderElement;
 import org.openmrs.module.rwandaemr.radiology.RadiologyReportDraftRepository;
 import org.openmrs.module.rwandaemr.radiology.RadiologyReportService;
 import org.openmrs.module.rwandaemr.radiology.RadiologyReportText;
@@ -18,6 +21,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -42,6 +46,10 @@ public class RadiologyReportPageController {
 		if (error != null) {
 			sessionContext.getSession().setAttribute(UiCommonsConstants.SESSION_ATTRIBUTE_ERROR_MESSAGE, error);
 			return "redirect:" + orderPage(ui, order);
+		}
+		String reportForm = getReportFormPage(ui, order, returnUrl, radiologyReportService);
+		if (reportForm != null) {
+			return "redirect:" + reportForm;
 		}
 		patientDomainWrapper.setPatient(order.getPatient());
 		model.addAttribute("patient", patientDomainWrapper);
@@ -118,6 +126,33 @@ public class RadiologyReportPageController {
 			}
 		}
 		return "redirect:" + reportPage;
+	}
+
+	/**
+	 * @return the page of the form that reports this test, if it is reported with a form in place of the editor: the
+	 * saved form to correct, or a new one.  A test reported or drafted in the editor before it had a form stays in the
+	 * editor, as its report cannot be shown on the form.
+	 */
+	private String getReportFormPage(UiUtils ui, Order order, String returnUrl, RadiologyReportService radiologyReportService) {
+		Form form = radiologyReportService.getReportForm(order);
+		if (form == null) {
+			return null;
+		}
+		Map<String, Object> params = new LinkedHashMap<String, Object>();
+		params.put("patientId", order.getPatient().getPatientId());
+		Encounter saved = radiologyReportService.getReportFormEncounter(order);
+		if (saved != null) {
+			params.put("encounterId", saved.getEncounterId());
+			params.put("returnUrl", safeReturnUrl(returnUrl, ui, order));
+			return ui.pageLink("htmlformentryui", "htmlform/editHtmlFormWithStandardUi", params);
+		}
+		if (radiologyReportService.getReport(order) != null || radiologyReportService.getDraft(order) != null) {
+			return null;
+		}
+		params.put("formUuid", form.getUuid());
+		params.put(RadiologyReportOrderElement.REQUEST_PARAMETER, order.getOrderId());
+		params.put("returnUrl", safeReturnUrl(returnUrl, ui, order));
+		return ui.pageLink("htmlformentryui", "htmlform/enterHtmlFormWithStandardUi", params);
 	}
 
 	private String checkAccess(Order order, RadiologyReportService radiologyReportService) {

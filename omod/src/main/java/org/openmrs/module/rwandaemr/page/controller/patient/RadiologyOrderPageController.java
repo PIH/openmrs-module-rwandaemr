@@ -61,6 +61,8 @@ public class RadiologyOrderPageController {
         model.addAttribute("canEnterReport", mayEnterReports && radiologyReportService.canEnterReport(order));
         // A draft report is only shown to radiologists, and never to clinicians
         model.addAttribute("draft", mayEnterReports ? radiologyReportService.getDraft(order) : null);
+        // A report filled in on a form can also be read on the form
+        model.addAttribute("reportFormEncounter", radiologyReportService.getReportFormEncounter(order));
         model.addAttribute("reportWaitingForImages", mayEnterReports && radiologyReportService.requiresManualReport(order)
                 && !Boolean.TRUE.equals(order.getVoided()) && order.getDateStopped() == null
                 && !radiologyReportService.hasImagesFromPacs(order));
