@@ -19,6 +19,17 @@ public interface QueueService extends OpenmrsService {
 
     QueueEntry addPatientToQueueFromRegistration(Encounter encounter);
 
+    /**
+     * Adds the patient to the Laboratory service point queue (e.g. when a lab test is ordered).
+     * If the patient is already actively queued at the Laboratory, that entry is returned and nothing is created.
+     * The patient's current queue entry (if any) is left untouched, and recorded as the previous service point
+     * so the Laboratory can send the patient back. Only inserts rows, so it is safe to call late in a transaction.
+     * Never throws: failures are logged and null is returned.
+     */
+    QueueEntry addPatientToLaboratoryQueue(Patient patient, Encounter encounter, String reason);
+
+    Location getLaboratoryServicePoint();
+
     Location resolveServicePointFromServiceRequestedConcept(Concept concept);
 
     QueueEntry getActiveQueueEntry(Patient patient, Location servicePoint, Date date);

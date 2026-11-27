@@ -135,6 +135,123 @@ public class QueueServiceImpl extends BaseOpenmrsService implements QueueService
     }
 
     @Override
+    @Transactional
+    public QueueEntry addPatientToLaboratoryQueue(Patient patient, Encounter encounter, String reason) {
+        try {
+            if (patient == null) {
+                log.warn("Skipping laboratory queue creation because patient is null");
+                return null;
+            }
+            Location laboratory = getLaboratoryServicePoint();
+            if (laboratory == null) {
+                log.warn("Skipping laboratory queue creation for patient " + patient.getUuid()
+                        + " because no Laboratory login-location service point is configured. Set global property "
+                        + LABORATORY_SERVICE_POINT_GP);
+                return null;
+            }
+
+            Date now = new Date();
+            QueueEntry activeLabEntry = getActiveQueueEntry(patient, laboratory, now);
+            if (activeLabEntry != null) {
+                log.info("Patient " + patient.getUuid() + " is already in the laboratory queue: "
+                        + activeLabEntry.getUuid());
+                return activeLabEntry;
+            }
+
+            Visit visit = encounter == null ? null : encounter.getVisit();
+            QueueEntry sourceEntry = visit == null ? null : getActiveQueueEntry(visit);
+            if (sourceEntry == null) {
+                sourceEntry = getActiveQueueEntry(patient, now);
+            }
+            if (sourceEntry != null && sourceEntry.getPatient() != null && !patient.equals(sourceEntry.getPatient())) {
+                sourceEntry = null;
+            }
+
+            QueueEntry labEntry = new QueueEntry();
+            labEntry.setUuid(UUID.randomUUID().toString());
+            labEntry.setPatient(patient);
+            labEntry.setServicePoint(laboratory);
+            labEntry.setSessionLocation(laboratory);
+            labEntry.setTransferReason(StringUtils.trimToNull(reason));
+            labEntry.setStatus(QueueStatus.WAITING);
+            labEntry.setArrivalTime(now);
+            if (sourceEntry != null) {
+                labEntry.setVisit(sourceEntry.getVisit() != null ? sourceEntry.getVisit() : visit);
+                labEntry.setEncounter(sourceEntry.getEncounter() != null ? sourceEntry.getEncounter() : encounter);
+                labEntry.setEncounterLocation(sourceEntry.getEncounterLocation());
+                // If the patient is currently at another diagnostic point, they return to where that one came from
+                labEntry.setPreviousServicePoint(isDiagnosticServicePoint(sourceEntry.getServicePoint())
+                        ? sourceEntry.getPreviousServicePoint() : sourceEntry.getServicePoint());
+                labEntry.setServiceRequestedConcept(sourceEntry.getServiceRequestedConcept());
+                labEntry.setPriority(sourceEntry.getPriority() == null ? QueuePriority.NORMAL : sourceEntry.getPriority());
+            }
+            else {
+                labEntry.setVisit(visit);
+                labEntry.setEncounter(encounter);
+                labEntry.setEncounterLocation(encounter == null ? null : encounter.getLocation());
+                labEntry.setPriority(QueuePriority.NORMAL);
+            }
+            labEntry.setQueueNumber(generateQueueNumber(laboratory, now));
+            setCreationMetadata(labEntry, now);
+            dao.saveQueueEntry(labEntry);
+            createQueueStatusHistory(labEntry, null, QueueStatus.WAITING, labEntry.getTransferReason());
+            log.info("Created laboratory queue entry " + labEntry.getQueueNumber() + " for patient " + patient.getUuid());
+            return labEntry;
+        }
+        catch (RuntimeException e) {
+            log.error("Laboratory queue creation failed for patient " + (patient == null ? "null" : patient.getUuid()), e);
+            return null;
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Location getLaboratoryServicePoint() {
+        Location configured = getConfiguredLaboratoryServicePoint();
+        if (configured != null) {
+            if (isLoginLocation(configured)) {
+                return configured;
+            }
+            log.warn("Global property " + LABORATORY_SERVICE_POINT_GP + " points to a location that is not tagged as Login Location: "
+                    + configured.getName());
+            return null;
+        }
+        Location match = null;
+        for (Location location : getServicePointLocations()) {
+            if (isLaboratoryServicePoint(location)) {
+                if (match != null) {
+                    log.warn("More than one login location looks like the Laboratory (" + match.getName() + ", "
+                            + location.getName() + "). Set global property " + LABORATORY_SERVICE_POINT_GP);
+                    return null;
+                }
+                match = location;
+            }
+        }
+        return match;
+    }
+
+    /**
+     * @return the location configured in rwandaemr.queue.laboratoryServicePoint (UUID, ID or name), or null
+     */
+    protected Location getConfiguredLaboratoryServicePoint() {
+        String value = StringUtils.trimToNull(Context.getAdministrationService().getGlobalProperty(LABORATORY_SERVICE_POINT_GP));
+        if (value == null) {
+            return null;
+        }
+        Location location = Context.getLocationService().getLocationByUuid(value);
+        if (location == null && StringUtils.isNumeric(value)) {
+            location = Context.getLocationService().getLocation(Integer.valueOf(value));
+        }
+        if (location == null) {
+            location = Context.getLocationService().getLocation(value);
+        }
+        if (location == null) {
+            log.warn("Global property " + LABORATORY_SERVICE_POINT_GP + " does not match any location: " + value);
+        }
+        return location;
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Location resolveServicePointFromServiceRequestedConcept(Concept concept) {
         QueueServicePointConceptMap conceptMap = dao.getServicePointConceptMapByConcept(concept);
