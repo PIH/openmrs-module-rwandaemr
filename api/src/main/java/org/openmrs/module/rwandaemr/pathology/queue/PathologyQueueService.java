@@ -250,6 +250,7 @@ public class PathologyQueueService {
 			row.setAccessionNumber(pathologyCase.getAccessionNumber());
 			row.setStatus(pathologyCase.getStatus());
 			row.setRejectionReason(pathologyCase.getRejectionReason());
+			row.setReportEncounterUuid(pathologyCase.getReportEncounterUuid());
 			row.setStatusChangedAt(pathologyCase.getDateChanged() != null ? pathologyCase.getDateChanged() :
 					pathologyCase.getDateCreated());
 		}
@@ -277,23 +278,45 @@ public class PathologyQueueService {
 	}
 
 	/**
-	 * Shows what the request form recorded about the specimen: the hospital it comes from, the specimens obtained and
-	 * any other tests requested in free text.  The hospital is where the surgery or procedure was done, or else where the
-	 * request was entered.
+	 * Shows what the request form recorded about the specimen: the hospital it comes from, the specimens obtained, any
+	 * other tests requested in free text, the date of surgery and the clinical history.  The hospital is the facility
+	 * entered on the request form; requests saved before the form asked for it show where the surgery or procedure was
+	 * done, or else where the request was entered.
 	 */
 	private void setRequestFormAnswers(PathologyQueueRow row, Encounter encounter) {
+		Concept facility = pathologyConfig.getFacility();
 		Concept hospital = pathologyConfig.getHospitalOfOrigin();
 		Concept hospitalNonCoded = pathologyConfig.getHospitalOfOriginNonCoded();
 		Concept specimen = pathologyConfig.getSpecimen();
 		Concept specimenNonCoded = pathologyConfig.getSpecimenNonCoded();
 		Concept otherTests = pathologyConfig.getOtherTestsRequested();
+		String facilityName = null;
 		String codedHospital = null;
 		String nonCodedHospital = null;
 		Set<String> otherTestsRequested = new LinkedHashSet<String>();
 		Map<String, String> specimens = new TreeMap<String, String>();
+		Map<String, String> clinicalInformation = new LinkedHashMap<String, String>();
 		for (Obs obs : encounter.getObsAtTopLevel(false)) {
 			Concept concept = obs.getConcept();
-			if (concept.equals(hospital) && obs.getValueCoded() != null) {
+			if (PathologyConfig.SURGERY_DATE_UUID.equals(concept.getUuid())) {
+				row.setSurgeryDate(obs.getValueDatetime());
+			}
+			else if (PathologyConfig.CLINICAL_INFORMATION_QUESTIONS.containsKey(concept.getUuid())) {
+				String answer = StringUtils.isNotBlank(obs.getValueText()) ? obs.getValueText().trim() :
+						obs.getValueCoded() != null ? getConceptName(obs.getValueCoded()) : null;
+				if (answer != null) {
+					clinicalInformation.put(concept.getUuid(), answer);
+				}
+			}
+			else if (concept.equals(facility)) {
+				if (StringUtils.isNotBlank(obs.getValueText())) {
+					facilityName = obs.getValueText().trim();
+				}
+				else if (obs.getValueCoded() != null) {
+					facilityName = getConceptName(obs.getValueCoded());
+				}
+			}
+			else if (concept.equals(hospital) && obs.getValueCoded() != null) {
 				codedHospital = getConceptName(obs.getValueCoded());
 			}
 			else if (concept.equals(hospitalNonCoded) && StringUtils.isNotBlank(obs.getValueText())) {
@@ -321,9 +344,17 @@ public class PathologyQueueService {
 			}
 		}
 		row.getSpecimens().addAll(specimens.values());
-		String fromForm = nonCodedHospital != null ? nonCodedHospital : codedHospital;
+		String fromForm = facilityName != null ? facilityName : nonCodedHospital != null ? nonCodedHospital : codedHospital;
 		row.setHospitalOfOrigin(fromForm != null ? fromForm : row.getRequestingDepartment());
 		row.setOtherTestsRequested(otherTestsRequested.isEmpty() ? null : StringUtils.join(otherTestsRequested, "; "));
+		// In the order of the form, one line per question answered
+		List<String> lines = new ArrayList<String>();
+		for (Map.Entry<String, String> question : PathologyConfig.CLINICAL_INFORMATION_QUESTIONS.entrySet()) {
+			if (clinicalInformation.containsKey(question.getKey())) {
+				lines.add(question.getValue() + ": " + clinicalInformation.get(question.getKey()));
+			}
+		}
+		row.setClinicalInformation(lines.isEmpty() ? null : StringUtils.join(lines, "\n"));
 	}
 
 	private String getUserName(Integer userId, Map<Integer, String> userNames) {

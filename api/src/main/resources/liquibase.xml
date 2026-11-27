@@ -1155,4 +1155,16 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="20261029-add-pathology-case-report-encounter" author="bniyonshuti">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="rwandaemr_pathology_case" columnName="report_encounter_id"/></not>
+        </preConditions>
+        <comment>The pathology report of each case: saving the report moves the case through the lab</comment>
+        <addColumn tableName="rwandaemr_pathology_case">
+            <column name="report_encounter_id" type="int">
+                <constraints unique="true" foreignKeyName="pathology_case_report_encounter_fk" references="encounter(encounter_id)"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

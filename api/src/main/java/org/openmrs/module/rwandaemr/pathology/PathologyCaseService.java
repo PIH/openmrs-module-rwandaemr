@@ -16,13 +16,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Moves pathology requests through the lab.  A request is the encounter of the request form, and its tests are the
- * pathology orders of that encounter.  The lab receives or rejects the specimen, then grosses and processes it; the
- * pathologist signs out the report.  Each change sets the fulfiller status of the orders, and receiving the specimen
- * gives the case its accession number.
+ * pathology orders of that encounter.  The lab receives or rejects the specimen from the queue; grossing, processing,
+ * additional stains, sending for review and sign out are recorded from the results saved on the pathology report.  Each change sets the
+ * fulfiller status of the orders, and receiving the specimen gives the case its accession number.
  */
 @Component
 public class PathologyCaseService {
@@ -104,22 +106,63 @@ public class PathologyCaseService {
 	}
 
 	/**
-	 * Moves the case to a step of the lab's work: grossed, processed or additional stains
+	 * Records the results saved on the pathology report of the case, and moves the case to each step the results show
+	 * was done: grossed, processed, additional stains, sent for review, then signed out.  A case never moves back, so results removed from
+	 * the report later leave the case where it is.  Results that need a step not recorded yet record it too: slides are
+	 * processed before stains, review or sign out.  Only a pathologist signs out; the report of someone else stays
+	 * where it is until a pathologist saves it.
+	 * @param request the request encounter of the case
+	 * @param report the report encounter
+	 * @param stepsWithResults the steps the report has results for
 	 * @return the case
 	 */
 	@Transactional
-	public PathologyCase moveTo(Encounter encounter, PathologyStatus status) {
-		if (status != PathologyStatus.GROSSED && status != PathologyStatus.PROCESSED
-				&& status != PathologyStatus.ADDITIONAL_STAINS) {
-			throw new IllegalArgumentException("A case cannot be moved to " + status.getLabel() + " this way");
+	public PathologyCase recordReport(Encounter request, Encounter report, Set<PathologyStatus> stepsWithResults) {
+		if (!hasPrivilege(PathologyConfig.PRIVILEGE_PROCESS_SPECIMENS) && !hasPrivilege(PathologyConfig.PRIVILEGE_SIGN_OUT)) {
+			throw new APIAuthenticationException("You do not have permission to do this: "
+					+ PathologyConfig.PRIVILEGE_PROCESS_SPECIMENS);
 		}
-		checkPrivilege(PathologyConfig.PRIVILEGE_PROCESS_SPECIMENS);
-		List<TestOrder> orders = getOrdersToMove(encounter, status);
-		PathologyCase pathologyCase = getCase(encounter);
-		pathologyCase.setStatus(status);
-		caseRepository.saveCase(pathologyCase);
-		updateOrders(orders, pathologyCase, null);
+		PathologyCase pathologyCase = getCase(request);
+		if (pathologyCase == null || pathologyCase.getStatus() == PathologyStatus.REJECTED) {
+			throw new IllegalStateException("The lab has not received the specimen of this request");
+		}
+		if (pathologyCase.getReportEncounterId() == null) {
+			pathologyCase.setReportEncounterId(report.getEncounterId());
+			pathologyCase.setReportEncounterUuid(report.getUuid());
+			caseRepository.saveReportEncounter(pathologyCase);
+		}
+		else if (!pathologyCase.getReportEncounterId().equals(report.getEncounterId())) {
+			throw new IllegalStateException("Case " + pathologyCase.getAccessionNumber() + " already has a pathology report");
+		}
+		List<TestOrder> orders = getActiveOrders(request);
+		for (PathologyStatus step : getStepsToRecord(stepsWithResults)) {
+			if (step == PathologyStatus.SIGNED_OUT && !hasPrivilege(PathologyConfig.PRIVILEGE_SIGN_OUT)) {
+				continue;
+			}
+			if (pathologyCase.getStatus().canMoveTo(step)) {
+				pathologyCase.setStatus(step);
+				caseRepository.saveCase(pathologyCase);
+				updateOrders(orders, pathologyCase, null);
+			}
+		}
 		return pathologyCase;
+	}
+
+	/**
+	 * @return the steps to record for the results of a report, in the order of the lab's work
+	 */
+	List<PathologyStatus> getStepsToRecord(Set<PathologyStatus> stepsWithResults) {
+		Set<PathologyStatus> steps = EnumSet.noneOf(PathologyStatus.class);
+		for (PathologyStatus step : stepsWithResults) {
+			if (step.isRecordedFromReport()) {
+				steps.add(step);
+			}
+		}
+		if (steps.contains(PathologyStatus.ADDITIONAL_STAINS) || steps.contains(PathologyStatus.SENT_FOR_REVIEW)
+				|| steps.contains(PathologyStatus.SIGNED_OUT)) {
+			steps.add(PathologyStatus.PROCESSED);
+		}
+		return new ArrayList<PathologyStatus>(steps);
 	}
 
 	/**
@@ -200,8 +243,12 @@ public class PathologyCaseService {
 	}
 
 	protected void checkPrivilege(String privilege) {
-		if (!Context.hasPrivilege(privilege)) {
+		if (!hasPrivilege(privilege)) {
 			throw new APIAuthenticationException("You do not have permission to do this: " + privilege);
 		}
+	}
+
+	protected boolean hasPrivilege(String privilege) {
+		return Context.hasPrivilege(privilege);
 	}
 }

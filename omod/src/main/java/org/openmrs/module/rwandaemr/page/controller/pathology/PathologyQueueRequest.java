@@ -20,11 +20,6 @@ public class PathologyQueueRequest {
 
 	public static final int MAX_DAYS = 93;
 
-	/**
-	 * Specimens can reach the lab days after they are ordered, so the queue shows the last week by default
-	 */
-	public static final int DEFAULT_DAYS = 7;
-
 	public static final String CANCELLED = "CANCELLED";
 
 	private final String startDate;
@@ -43,7 +38,8 @@ public class PathologyQueueRequest {
 								 String query, String inLab) {
 		LocalDate today = LocalDate.now();
 		this.endDate = StringUtils.isBlank(endDate) ? today.toString() : endDate.trim();
-		this.startDate = StringUtils.isBlank(startDate) ? today.minusDays(DEFAULT_DAYS).toString() : startDate.trim();
+		// Today's requests by default: cases requested earlier that are still in the lab are included unless asked otherwise
+		this.startDate = StringUtils.isBlank(startDate) ? today.toString() : startDate.trim();
 		this.status = StringUtils.trimToEmpty(status);
 		this.paymentStatus = StringUtils.trimToEmpty(paymentStatus);
 		this.test = StringUtils.trimToEmpty(test);

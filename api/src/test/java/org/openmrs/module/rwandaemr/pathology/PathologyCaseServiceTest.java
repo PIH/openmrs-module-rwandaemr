@@ -10,6 +10,7 @@ import org.openmrs.api.APIAuthenticationException;
 import org.openmrs.api.OrderService;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -41,6 +42,7 @@ public class PathologyCaseServiceTest {
 	private List<UpdatedOrder> updatedOrders;
 	private PathologyCaseService service;
 	private Encounter encounter;
+	private Encounter report;
 	private TestOrder biopsy;
 	private TestOrder boneMarrow;
 
@@ -50,7 +52,7 @@ public class PathologyCaseServiceTest {
 		PathologyConfig pathologyConfig = mock(PathologyConfig.class);
 		when(pathologyConfig.getPathologyOrderType()).thenReturn(pathologyOrderType);
 		accessionNumberGenerator = mock(PathologyAccessionNumberGenerator.class);
-		when(accessionNumberGenerator.next()).thenReturn("PAT2026-0001", "PAT2026-0002");
+		when(accessionNumberGenerator.next()).thenReturn("PT26-0001", "PT26-0002");
 		caseRepository = new InMemoryCaseRepository();
 		privileges = new HashSet<String>();
 		privileges.add(PathologyConfig.PRIVILEGE_PROCESS_SPECIMENS);
@@ -66,14 +68,13 @@ public class PathologyCaseServiceTest {
 			}
 
 			@Override
-			protected void checkPrivilege(String privilege) {
-				if (!privileges.contains(privilege)) {
-					throw new APIAuthenticationException("Missing " + privilege);
-				}
+			protected boolean hasPrivilege(String privilege) {
+				return privileges.contains(privilege);
 			}
 		};
 
 		encounter = new Encounter(10);
+		report = new Encounter(20);
 		biopsy = addOrder(encounter, 1, pathologyOrderType);
 		boneMarrow = addOrder(encounter, 2, pathologyOrderType);
 	}
@@ -101,13 +102,13 @@ public class PathologyCaseServiceTest {
 	public void shouldGiveTheAccessionNumberToEachTestWhenTheSpecimenIsReceived() {
 		PathologyCase pathologyCase = service.receive(encounter);
 
-		assertThat(pathologyCase.getAccessionNumber(), equalTo("PAT2026-0001"));
+		assertThat(pathologyCase.getAccessionNumber(), equalTo("PT26-0001"));
 		assertThat(pathologyCase.getStatus(), equalTo(PathologyStatus.RECEIVED));
 		assertThat(service.getStatus(encounter), equalTo(PathologyStatus.RECEIVED));
 		assertThat(updatedOrders, hasSize(2));
 		for (UpdatedOrder updated : updatedOrders) {
 			assertThat(updated.fulfillerStatus, equalTo(Order.FulfillerStatus.RECEIVED));
-			assertThat(updated.accessionNumber, equalTo("PAT2026-0001"));
+			assertThat(updated.accessionNumber, equalTo("PT26-0001"));
 		}
 		assertThat(caseRepository.history, contains(PathologyStatus.RECEIVED));
 	}
@@ -140,47 +141,126 @@ public class PathologyCaseServiceTest {
 	}
 
 	@Test
-	public void shouldMoveThroughTheLabKeepingTheAccessionNumber() {
+	public void shouldMoveThroughTheLabAsResultsAreSavedOnTheReport() {
 		service.receive(encounter);
-		service.moveTo(encounter, PathologyStatus.GROSSED);
-		service.moveTo(encounter, PathologyStatus.PROCESSED);
-		PathologyCase pathologyCase = service.moveTo(encounter, PathologyStatus.ADDITIONAL_STAINS);
+		service.recordReport(encounter, report, steps(PathologyStatus.GROSSED));
+		service.recordReport(encounter, report, steps(PathologyStatus.GROSSED, PathologyStatus.PROCESSED));
+		PathologyCase pathologyCase = service.recordReport(encounter, report,
+				steps(PathologyStatus.GROSSED, PathologyStatus.PROCESSED, PathologyStatus.ADDITIONAL_STAINS));
 
 		assertThat(pathologyCase.getStatus(), equalTo(PathologyStatus.ADDITIONAL_STAINS));
-		assertThat(pathologyCase.getAccessionNumber(), equalTo("PAT2026-0001"));
+		assertThat(pathologyCase.getAccessionNumber(), equalTo("PT26-0001"));
+		assertThat(pathologyCase.getReportEncounterId(), equalTo(20));
 		assertThat(biopsy.getFulfillerStatus(), equalTo(Order.FulfillerStatus.IN_PROGRESS));
-		assertThat(biopsy.getAccessionNumber(), equalTo("PAT2026-0001"));
+		assertThat(biopsy.getAccessionNumber(), equalTo("PT26-0001"));
 		assertThat(caseRepository.history, contains(PathologyStatus.RECEIVED, PathologyStatus.GROSSED,
 				PathologyStatus.PROCESSED, PathologyStatus.ADDITIONAL_STAINS));
+	}
+
+	@Test
+	public void shouldRecordEachStepTheReportHasResultsForWhenSavedOnce() {
+		service.receive(encounter);
+		privileges.add(PathologyConfig.PRIVILEGE_SIGN_OUT);
+
+		PathologyCase pathologyCase = service.recordReport(encounter, report,
+				steps(PathologyStatus.GROSSED, PathologyStatus.PROCESSED, PathologyStatus.SIGNED_OUT));
+
+		assertThat(pathologyCase.getStatus(), equalTo(PathologyStatus.SIGNED_OUT));
+		assertThat(biopsy.getFulfillerStatus(), equalTo(Order.FulfillerStatus.COMPLETED));
+		assertThat(caseRepository.history, contains(PathologyStatus.RECEIVED, PathologyStatus.GROSSED,
+				PathologyStatus.PROCESSED, PathologyStatus.SIGNED_OUT));
+	}
+
+	@Test
+	public void shouldSendTheReportForReviewThenLetAPathologistSignItOut() {
+		service.receive(encounter);
+
+		PathologyCase pathologyCase = service.recordReport(encounter, report,
+				steps(PathologyStatus.PROCESSED, PathologyStatus.SENT_FOR_REVIEW, PathologyStatus.SIGNED_OUT));
+		assertThat(pathologyCase.getStatus(), equalTo(PathologyStatus.SENT_FOR_REVIEW));
+		assertThat(pathologyCase.getStatus().isInLab(), equalTo(true));
+		assertThat(biopsy.getFulfillerStatus(), equalTo(Order.FulfillerStatus.IN_PROGRESS));
+
+		privileges.add(PathologyConfig.PRIVILEGE_SIGN_OUT);
+		pathologyCase = service.recordReport(encounter, report,
+				steps(PathologyStatus.PROCESSED, PathologyStatus.SENT_FOR_REVIEW, PathologyStatus.SIGNED_OUT));
+		assertThat(pathologyCase.getStatus(), equalTo(PathologyStatus.SIGNED_OUT));
+		assertThat(caseRepository.history, contains(PathologyStatus.RECEIVED, PathologyStatus.PROCESSED,
+				PathologyStatus.SENT_FOR_REVIEW, PathologyStatus.SIGNED_OUT));
 	}
 
 	@Test
 	public void shouldAllowGrossingToBeSkipped() {
 		service.receive(encounter);
 
-		assertThat(service.moveTo(encounter, PathologyStatus.PROCESSED).getStatus(), equalTo(PathologyStatus.PROCESSED));
+		assertThat(service.recordReport(encounter, report, steps(PathologyStatus.PROCESSED)).getStatus(),
+				equalTo(PathologyStatus.PROCESSED));
 	}
 
 	@Test
-	public void shouldNotMoveACaseBack() {
+	public void shouldRecordProcessingForAStainOrDiagnosisReportedWithoutIt() {
 		service.receive(encounter);
-		service.moveTo(encounter, PathologyStatus.PROCESSED);
 
-		assertThrows(IllegalStateException.class, () -> service.moveTo(encounter, PathologyStatus.GROSSED));
-		assertThat(service.getStatus(encounter), equalTo(PathologyStatus.PROCESSED));
+		service.recordReport(encounter, report, steps(PathologyStatus.ADDITIONAL_STAINS));
+
+		assertThat(caseRepository.history, contains(PathologyStatus.RECEIVED, PathologyStatus.PROCESSED,
+				PathologyStatus.ADDITIONAL_STAINS));
 	}
 
 	@Test
-	public void shouldNotStartWorkOnASpecimenNotReceived() {
-		assertThrows(IllegalStateException.class, () -> service.moveTo(encounter, PathologyStatus.GROSSED));
-	}
-
-	@Test
-	public void shouldOnlySignOutFromTheReport() {
+	public void shouldNotMoveACaseBackWhenResultsAreRemovedFromTheReport() {
 		service.receive(encounter);
-		service.moveTo(encounter, PathologyStatus.PROCESSED);
+		service.recordReport(encounter, report, steps(PathologyStatus.GROSSED, PathologyStatus.PROCESSED));
 
-		assertThrows(IllegalArgumentException.class, () -> service.moveTo(encounter, PathologyStatus.SIGNED_OUT));
+		PathologyCase pathologyCase = service.recordReport(encounter, report, steps(PathologyStatus.GROSSED));
+
+		assertThat(pathologyCase.getStatus(), equalTo(PathologyStatus.PROCESSED));
+		assertThat(caseRepository.history, contains(PathologyStatus.RECEIVED, PathologyStatus.GROSSED,
+				PathologyStatus.PROCESSED));
+	}
+
+	@Test
+	public void shouldNotRecordAReportForASpecimenNotReceived() {
+		assertThrows(IllegalStateException.class,
+				() -> service.recordReport(encounter, report, steps(PathologyStatus.GROSSED)));
+		service.reject(encounter, "Not labelled");
+		assertThrows(IllegalStateException.class,
+				() -> service.recordReport(encounter, report, steps(PathologyStatus.GROSSED)));
+	}
+
+	@Test
+	public void shouldOnlyLetAPathologistSignOut() {
+		service.receive(encounter);
+
+		PathologyCase pathologyCase = service.recordReport(encounter, report,
+				steps(PathologyStatus.PROCESSED, PathologyStatus.SIGNED_OUT));
+		assertThat(pathologyCase.getStatus(), equalTo(PathologyStatus.PROCESSED));
+
+		privileges.clear();
+		privileges.add(PathologyConfig.PRIVILEGE_SIGN_OUT);
+		pathologyCase = service.recordReport(encounter, report, steps(PathologyStatus.PROCESSED, PathologyStatus.SIGNED_OUT));
+		assertThat(pathologyCase.getStatus(), equalTo(PathologyStatus.SIGNED_OUT));
+	}
+
+	@Test
+	public void shouldRequireThePrivilegeOfTheLabOrOfAPathologistToRecordAReport() {
+		service.receive(encounter);
+		privileges.clear();
+
+		assertThrows(APIAuthenticationException.class,
+				() -> service.recordReport(encounter, report, steps(PathologyStatus.GROSSED)));
+		assertThat(service.getStatus(encounter), equalTo(PathologyStatus.RECEIVED));
+	}
+
+	@Test
+	public void shouldKeepOneReportForEachCase() {
+		service.receive(encounter);
+		service.recordReport(encounter, report, steps(PathologyStatus.GROSSED));
+
+		IllegalStateException e = assertThrows(IllegalStateException.class,
+				() -> service.recordReport(encounter, new Encounter(21), steps(PathologyStatus.PROCESSED)));
+		assertThat(e.getMessage(), containsString("already has a pathology report"));
+		assertThat(service.getStatus(encounter), equalTo(PathologyStatus.GROSSED));
 	}
 
 	@Test
@@ -188,9 +268,9 @@ public class PathologyCaseServiceTest {
 		service.receive(encounter);
 		TestOrder added = addOrder(encounter, 3, pathologyOrderType);
 
-		service.moveTo(encounter, PathologyStatus.GROSSED);
+		service.recordReport(encounter, report, steps(PathologyStatus.GROSSED));
 
-		assertThat(added.getAccessionNumber(), equalTo("PAT2026-0001"));
+		assertThat(added.getAccessionNumber(), equalTo("PT26-0001"));
 		assertThat(added.getFulfillerStatus(), equalTo(Order.FulfillerStatus.IN_PROGRESS));
 	}
 
@@ -216,7 +296,7 @@ public class PathologyCaseServiceTest {
 		PathologyCase pathologyCase = service.reject(encounter, "Wrong fixative");
 
 		assertThat(pathologyCase.getStatus(), equalTo(PathologyStatus.REJECTED));
-		assertThat(pathologyCase.getAccessionNumber(), equalTo("PAT2026-0001"));
+		assertThat(pathologyCase.getAccessionNumber(), equalTo("PT26-0001"));
 		assertThat(biopsy.getFulfillerStatus(), equalTo(Order.FulfillerStatus.DECLINED));
 	}
 
@@ -230,10 +310,14 @@ public class PathologyCaseServiceTest {
 	@Test
 	public void shouldNotRejectASpecimenOnceWorkHasStarted() {
 		service.receive(encounter);
-		service.moveTo(encounter, PathologyStatus.GROSSED);
+		service.recordReport(encounter, report, steps(PathologyStatus.GROSSED));
 
 		assertThrows(IllegalStateException.class, () -> service.reject(encounter, "Too late"));
 		assertThat(service.getReasonCannotMoveTo(encounter, PathologyStatus.REJECTED), notNullValue());
+	}
+
+	private Set<PathologyStatus> steps(PathologyStatus... steps) {
+		return new HashSet<PathologyStatus>(Arrays.asList(steps));
 	}
 
 	private TestOrder addOrder(Encounter encounter, int orderId, OrderType orderType) {
@@ -290,6 +374,11 @@ public class PathologyCaseServiceTest {
 			history.add(pathologyCase.getStatus());
 		}
 
+		@Override
+		public void saveReportEncounter(PathologyCase pathologyCase) {
+			cases.get(pathologyCase.getEncounterId()).setReportEncounterId(pathologyCase.getReportEncounterId());
+		}
+
 		private PathologyCase copy(PathologyCase pathologyCase) {
 			PathologyCase ret = new PathologyCase();
 			ret.setPathologyCaseId(pathologyCase.getPathologyCaseId());
@@ -297,6 +386,7 @@ public class PathologyCaseServiceTest {
 			ret.setAccessionNumber(pathologyCase.getAccessionNumber());
 			ret.setStatus(pathologyCase.getStatus());
 			ret.setRejectionReason(pathologyCase.getRejectionReason());
+			ret.setReportEncounterId(pathologyCase.getReportEncounterId());
 			return ret;
 		}
 	}

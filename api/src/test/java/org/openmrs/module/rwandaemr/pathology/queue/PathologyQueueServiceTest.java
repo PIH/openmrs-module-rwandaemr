@@ -45,6 +45,7 @@ public class PathologyQueueServiceTest {
 
 	private UserService userService;
 	private PathologyQueueService service;
+	private Concept facility;
 	private Concept hospital;
 	private Concept hospitalNonCoded;
 	private Concept specimen;
@@ -66,6 +67,8 @@ public class PathologyQueueServiceTest {
 		specimen = concept(3, "Specimen");
 		specimenNonCoded = concept(4, "Specimen, non-coded");
 		otherTests = concept(5, "Tests ordered, non-coded");
+		facility = concept(6, "Facility");
+		when(pathologyConfig.getFacility()).thenReturn(facility);
 		when(pathologyConfig.getHospitalOfOrigin()).thenReturn(hospital);
 		when(pathologyConfig.getHospitalOfOriginNonCoded()).thenReturn(hospitalNonCoded);
 		when(pathologyConfig.getSpecimen()).thenReturn(specimen);
@@ -139,7 +142,7 @@ public class PathologyQueueServiceTest {
 	public void shouldShowTheCaseAndWhoMovedIt() throws Exception {
 		PathologyCase pathologyCase = new PathologyCase();
 		pathologyCase.setPathologyCaseId(3);
-		pathologyCase.setAccessionNumber("PAT2026-0007");
+		pathologyCase.setAccessionNumber("PT26-0007");
 		pathologyCase.setStatus(PathologyStatus.GROSSED);
 		Date received = new Date(orderTime.getTime() + 60000);
 		Date grossed = new Date(orderTime.getTime() + 120000);
@@ -156,7 +159,7 @@ public class PathologyQueueServiceTest {
 				pathologyCase, history, new HashMap<Integer, OrderPayment>(), new HashMap<Integer, String>());
 
 		assertThat(row.getCaseId(), equalTo(3));
-		assertThat(row.getAccessionNumber(), equalTo("PAT2026-0007"));
+		assertThat(row.getAccessionNumber(), equalTo("PT26-0007"));
 		assertThat(row.getStatus(), equalTo(PathologyStatus.GROSSED));
 		assertThat(row.getStatusChangedAt(), equalTo(grossed));
 		assertThat(row.getHistory(), hasSize(2));
@@ -217,6 +220,38 @@ public class PathologyQueueServiceTest {
 		assertThat(row.getHospitalOfOrigin(), equalTo("Kirehe Hospital"));
 		assertThat(row.getOtherTestsRequested(), equalTo("Cytogenetics"));
 		assertThat(row.getSpecimens(), contains("A: Breast tissue", "D: Left axillary lymph node"));
+	}
+
+	@Test
+	public void shouldShowTheFacilityEnteredOnTheRequestFormAsTheHospitalOfOrigin() throws Exception {
+		encounter.addObs(obs(hospital, concept(30, "Kirehe Hospital"), null));
+		encounter.addObs(obs(facility, null, " Rwamagana Provincial Hospital "));
+
+		PathologyQueueRow row = toRow(Collections.singletonList(order(1, "ORD-1", biopsy)), null,
+				new HashMap<Integer, OrderPayment>());
+
+		assertThat(row.getHospitalOfOrigin(), equalTo("Rwamagana Provincial Hospital"));
+	}
+
+	@Test
+	public void shouldGiveTheDateOfSurgeryAndTheClinicalHistoryOfTheRequestForm() throws Exception {
+		Date surgery = new Date(1761955200000L);
+		Obs surgeryDate = obs(concept(40, "Date of surgery"), null, null);
+		surgeryDate.getConcept().setUuid(PathologyConfig.SURGERY_DATE_UUID);
+		surgeryDate.setValueDatetime(surgery);
+		encounter.addObs(surgeryDate);
+		Concept radiology = concept(41, "Radiology");
+		radiology.setUuid("3866b7eb-4d99-4bc0-a817-f7a644d444f2");
+		encounter.addObs(obs(radiology, null, "Mass on ultrasound"));
+		Concept diagnosis = concept(42, "Diagnosis");
+		diagnosis.setUuid("226ed7ad-b776-4b99-966d-fd818d3302c2");
+		encounter.addObs(obs(diagnosis, concept(43, "Breast mass"), null));
+
+		PathologyQueueRow row = toRow(Collections.singletonList(order(1, "ORD-1", biopsy)), null,
+				new HashMap<Integer, OrderPayment>());
+
+		assertThat(row.getSurgeryDate(), equalTo(surgery));
+		assertThat(row.getClinicalInformation(), equalTo("Diagnosis: Breast mass\nRadiology: Mass on ultrasound"));
 	}
 
 	@Test

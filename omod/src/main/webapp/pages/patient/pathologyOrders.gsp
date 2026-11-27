@@ -28,7 +28,7 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
 <style>
     .po-chip { display: inline-block; padding: 2px 8px; border-radius: 12px; font-weight: bold; font-size: 11.5px; white-space: nowrap; color: #455a64; background: #eceff1; }
     .po-SIGNED_OUT { color: #1b5e20; background: #dff0d8; }
-    .po-RECEIVED, .po-GROSSED, .po-PROCESSED, .po-ADDITIONAL_STAINS { color: #0b5394; background: #d9edf7; }
+    .po-RECEIVED, .po-GROSSED, .po-PROCESSED, .po-ADDITIONAL_STAINS, .po-SENT_FOR_REVIEW { color: #0b5394; background: #d9edf7; }
     .po-REJECTED, .po-CANCELLED { color: #9f1d1d; background: #f8d7da; }
     .po-ORDERED { color: #8a6d3b; background: #fcf8e3; }
     .po-urgent { color: #fff; background: #e53935; font-size: 10.5px; padding: 1px 6px; margin-right: 4px; }
@@ -90,6 +90,15 @@ ${ ui.includeFragment("coreapps", "patientHeader", [ patient: patient.patient ])
                     "patientId": patient.patient.uuid,
                     "encounter": request.encounterUuid,
                     "returnUrl": ui.pageLink("rwandaemr", "patient/pathologyOrders", ["patientId": patient.id])]) }">View</a>
+            <% if (request.reportEncounterUuid) { %>
+                <br/><a href="${ ui.pageLink("htmlformentryui", "htmlform/viewEncounterWithHtmlForm", [
+                    "patientId": patient.patient.uuid,
+                    "encounter": request.reportEncounterUuid,
+                    "returnUrl": ui.pageLink("rwandaemr", "patient/pathologyOrders", ["patientId": patient.id])]) }">View results</a>
+                <% if (status == "SIGNED_OUT") { %>
+                    <br/><a target="_blank" rel="noopener" href="${ ui.pageLink("rwandaemr", "pathology/pathologyReportPrint", ["request": request.encounterUuid]) }">Print report</a>
+                <% } %>
+            <% } %>
         </td>
     </tr>
     <% } %>

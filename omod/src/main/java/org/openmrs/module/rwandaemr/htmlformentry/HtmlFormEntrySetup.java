@@ -43,6 +43,8 @@ public class HtmlFormEntrySetup implements Setup {
 
     public static final String APPOINTMENT_BOOKING_TAG = "appointmentBooking";
 
+    public static final String PATHOLOGY_CASE_TAG = "pathologyCase";
+
     public static final String FORM_ENGINE_RESOURCE_NAME = "formEngine";
 
     public static final String FORM_ENGINE_RESOURCE_VALUE = "htmlformentry";
@@ -74,6 +76,9 @@ public class HtmlFormEntrySetup implements Setup {
         AppointmentBookingTagHandler appointmentBookingTagHandler = new AppointmentBookingTagHandler();
         htmlFormEntryService.addHandler(APPOINTMENT_BOOKING_TAG, appointmentBookingTagHandler);
         log.warn("Registered " + APPOINTMENT_BOOKING_TAG + " tag with htmlformentry");
+
+        htmlFormEntryService.addHandler(PATHOLOGY_CASE_TAG, new PathologyCaseTagHandler());
+        log.warn("Registered " + PATHOLOGY_CASE_TAG + " tag with htmlformentry");
 
         // Add form engine resources
         int numResourcesSaved = 0;

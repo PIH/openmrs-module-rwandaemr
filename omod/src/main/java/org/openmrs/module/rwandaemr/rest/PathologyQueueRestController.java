@@ -64,6 +64,8 @@ public class PathologyQueueRestController {
 			ret.put("diagnostics", pathologyQueueService.getDiagnostics(request.getFromDate(), request.getToDate()));
 		}
 		boolean mayProcess = Context.hasPrivilege(PathologyConfig.PRIVILEGE_PROCESS_SPECIMENS);
+		boolean maySignOut = Context.hasPrivilege(PathologyConfig.PRIVILEGE_SIGN_OUT);
+		boolean mayReport = mayProcess || maySignOut;
 		List<SimpleObject> rows = new ArrayList<SimpleObject>();
 		for (PathologyQueueRow row : pathologyQueueService.getQueue(request.getFromDate(), request.getToDate(),
 				request.isIncludeCasesInLab())) {
@@ -77,6 +79,11 @@ public class PathologyQueueRestController {
 			o.put("inLab", !row.isCancelled() && row.getStatus().isInLab());
 			o.put("statusChangedAt", row.getStatusChangedAt() == null ? null : row.getStatusChangedAt().getTime());
 			o.put("rejectionReason", row.getRejectionReason());
+			o.put("reportEncounterUuid", row.getReportEncounterUuid());
+			o.put("mayEnterReport", mayReport && !row.isCancelled()
+					&& (row.getStatus().isInLab() || row.getReportEncounterUuid() != null));
+			// A signed out report is final: only a pathologist can change it
+			o.put("reportLocked", row.getStatus() == PathologyStatus.SIGNED_OUT && !maySignOut);
 			o.put("orderIds", row.getOrderIds());
 			o.put("orderNumbers", row.getOrderNumbers());
 			o.put("tests", row.getTests());
@@ -108,11 +115,11 @@ public class PathologyQueueRestController {
 				history.add(h);
 			}
 			o.put("history", history);
-			// The pathologist signs out from the report, so it is not one of the steps recorded from the queue
+			// Only receiving and rejecting are recorded from the queue: the other steps come from the report's results
 			List<SimpleObject> actions = new ArrayList<SimpleObject>();
 			if (mayProcess && !row.isCancelled()) {
 				for (PathologyStatus next : row.getStatus().getNextStatuses()) {
-					if (next != PathologyStatus.SIGNED_OUT) {
+					if (!next.isRecordedFromReport()) {
 						SimpleObject action = new SimpleObject();
 						action.put("status", next.name());
 						action.put("label", next.getLabel());
@@ -128,8 +135,8 @@ public class PathologyQueueRestController {
 	}
 
 	/**
-	 * Records a step of the lab's work on a request: receiving or rejecting its specimen, grossing, processing or
-	 * additional stains
+	 * Records that the lab received or rejected the specimen of a request.  Grossing, processing, additional stains and
+	 * sign out are recorded by saving the pathology report.
 	 */
 	@RequestMapping(value = "/rest/v1/rwandaemr/pathologyqueue/status", method = RequestMethod.POST)
 	@ResponseBody
@@ -155,7 +162,7 @@ public class PathologyQueueRestController {
 				pathologyCase = pathologyCaseService.reject(encounter, RadiologyReportText.fromRequest(reason));
 			}
 			else {
-				pathologyCase = pathologyCaseService.moveTo(encounter, target);
+				throw new IllegalArgumentException(target.getLabel() + " is recorded by saving the results on the pathology report");
 			}
 			ret.put("status", pathologyCase.getStatus().name());
 			ret.put("statusLabel", pathologyCase.getStatus().getLabel());

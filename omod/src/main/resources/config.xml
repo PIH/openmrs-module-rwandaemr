@@ -285,6 +285,22 @@
 	</globalProperty>
 
 	<globalProperty>
+		<property>rwandaemr.pathology.labPhoneNumber</property>
+		<defaultValue></defaultValue>
+		<description>
+			Phone number of the pathology lab, printed at the top of the pathology report. Leave empty to print none.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>rwandaemr.pathology.reportLogo</property>
+		<defaultValue>images/butaro-logo.png</defaultValue>
+		<description>
+			Logo printed at the top of the pathology report: an image of the rwandaemr module (such as images/butaro-logo.png) or the URL of an image. Leave empty to print the name of the facility instead.
+		</description>
+	</globalProperty>
+
+	<globalProperty>
 		<property>rwandaemr.pathology.accessionNextSequenceValue</property>
 		<defaultValue></defaultValue>
 		<description>
