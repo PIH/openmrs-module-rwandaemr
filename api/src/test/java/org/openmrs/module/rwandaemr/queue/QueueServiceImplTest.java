@@ -1003,6 +1003,119 @@ public class QueueServiceImplTest {
         assertThrows(IllegalArgumentException.class, () -> service.saveServicePointConceptMap(conceptMap));
     }
 
+    @Test
+    public void shouldAddPatientToLaboratoryQueueLinkedToCurrentEntryWithoutChangingIt() {
+        Visit visit = new Visit();
+        visit.setUuid("visit-lab");
+        QueueEntry sourceEntry = queueEntry("queue-a", consultationLocation, QueuePriority.EMERGENCY, todayAt(8, 0));
+        sourceEntry.setVisit(visit);
+        sourceEntry.setServiceRequestedConcept(triageConcept);
+        sourceEntry.setStatus(QueueStatus.IN_PROGRESS);
+        dao.entries.add(sourceEntry);
+        Encounter orderEncounter = new Encounter();
+        orderEncounter.setVisit(visit);
+        orderEncounter.setPatient(sourceEntry.getPatient());
+
+        QueueEntry labEntry = service.addPatientToLaboratoryQueue(sourceEntry.getPatient(), orderEncounter,
+                "Laboratory test ordered");
+
+        assertNotNull(labEntry);
+        assertNotSame(sourceEntry, labEntry);
+        assertSame(laboratoryLocation, labEntry.getServicePoint());
+        assertSame(laboratoryLocation, labEntry.getSessionLocation());
+        assertSame(consultationLocation, labEntry.getPreviousServicePoint());
+        assertSame(visit, labEntry.getVisit());
+        assertSame(triageConcept, labEntry.getServiceRequestedConcept());
+        assertEquals(QueuePriority.EMERGENCY, labEntry.getPriority());
+        assertEquals(QueueStatus.WAITING, labEntry.getStatus());
+        assertEquals("Laboratory test ordered", labEntry.getTransferReason());
+        assertTrue(labEntry.getQueueNumber().startsWith("LABORA-"));
+        assertEquals(QueueStatus.IN_PROGRESS, sourceEntry.getStatus());
+        assertSame(consultationLocation, sourceEntry.getServicePoint());
+        assertTrue(dao.entries.contains(labEntry));
+        assertEquals(1, dao.histories.size());
+        assertSame(labEntry, dao.histories.get(0).getQueueEntry());
+    }
+
+    @Test
+    public void shouldNotDuplicateActiveLaboratoryQueueEntry() {
+        QueueEntry labEntry = queueEntry("queue-lab", laboratoryLocation, QueuePriority.NORMAL, todayAt(8, 0));
+        dao.entries.add(labEntry);
+
+        QueueEntry result = service.addPatientToLaboratoryQueue(labEntry.getPatient(), null, "Laboratory test ordered");
+
+        assertSame(labEntry, result);
+        assertEquals(1, dao.entries.size());
+        assertTrue(dao.histories.isEmpty());
+    }
+
+    @Test
+    public void shouldAddPatientToLaboratoryQueueWithoutExistingQueueEntry() {
+        Patient patient = patient("walk-in");
+        Visit visit = new Visit();
+        Encounter orderEncounter = new Encounter();
+        orderEncounter.setPatient(patient);
+        orderEncounter.setVisit(visit);
+        orderEncounter.setLocation(consultationLocation);
+
+        QueueEntry labEntry = service.addPatientToLaboratoryQueue(patient, orderEncounter, "Laboratory test ordered");
+
+        assertNotNull(labEntry);
+        assertSame(laboratoryLocation, labEntry.getServicePoint());
+        assertSame(visit, labEntry.getVisit());
+        assertSame(orderEncounter, labEntry.getEncounter());
+        assertSame(consultationLocation, labEntry.getEncounterLocation());
+        assertNull(labEntry.getPreviousServicePoint());
+        assertEquals(QueuePriority.NORMAL, labEntry.getPriority());
+        assertEquals(QueueStatus.WAITING, labEntry.getStatus());
+    }
+
+    @Test
+    public void shouldReturnLaboratoryPatientToOriginWhenCurrentlyAtAnotherDiagnosticPoint() {
+        QueueEntry radiologyEntry = queueEntry("queue-rad", radiologyLocation, QueuePriority.NORMAL, todayAt(9, 0));
+        radiologyEntry.setPreviousServicePoint(consultationLocation);
+        dao.entries.add(radiologyEntry);
+
+        QueueEntry labEntry = service.addPatientToLaboratoryQueue(radiologyEntry.getPatient(), null, "Laboratory test ordered");
+
+        assertSame(consultationLocation, labEntry.getPreviousServicePoint());
+        assertEquals(QueueStatus.WAITING, radiologyEntry.getStatus());
+    }
+
+    @Test
+    public void shouldNotAddToLaboratoryQueueWhenNoLaboratoryServicePoint() {
+        service.laboratoryLocation = null;
+
+        assertNull(service.addPatientToLaboratoryQueue(patient("p"), null, "Laboratory test ordered"));
+        assertTrue(dao.entries.isEmpty());
+    }
+
+    @Test
+    public void shouldUseConfiguredLaboratoryServicePointOnlyWhenItIsALoginLocation() {
+        Location mainLab = location("Main Lab");
+        service.configuredLaboratoryServicePoint = mainLab;
+        assertNull(service.getLaboratoryServicePoint());
+
+        service.loginLocations.add(mainLab);
+        assertSame(mainLab, service.getLaboratoryServicePoint());
+    }
+
+    @Test
+    public void shouldNotGuessLaboratoryServicePointWhenSeveralMatch() {
+        final Location firstLab = laboratoryLocation;
+        final Location secondLab = location("Laboratory Annex");
+        TestQueueService ambiguous = new TestQueueService() {
+            @Override
+            public boolean isLaboratoryServicePoint(Location location) {
+                return firstLab.equals(location) || secondLab.equals(location);
+            }
+        };
+        ambiguous.loginLocations.add(firstLab);
+        ambiguous.loginLocations.add(secondLab);
+
+        assertNull(ambiguous.getLaboratoryServicePoint());
+    }
+
     private Encounter encounter(Patient patient, Visit visit, Location location, Concept serviceRequestedValue) {
         Encounter encounter = new Encounter();
         encounter.setUuid("encounter-" + patient.getUuid());
@@ -1156,6 +1269,13 @@ public class QueueServiceImplTest {
         private Location laboratoryLocation;
 
         private List<Location> diagnosticLocations = new ArrayList<Location>();
+
+        private Location configuredLaboratoryServicePoint;
+
+        @Override
+        protected Location getConfiguredLaboratoryServicePoint() {
+            return configuredLaboratoryServicePoint;
+        }
 
         @Override
         protected Concept getServiceRequestedConcept() {
